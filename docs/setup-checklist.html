@@ -580,10 +580,13 @@ gh pr create --fill --base main &amp;&amp; gh pr merge --merge --delete-branch</
         </div>
         <pre><b>GMAIL_USER</b>          = juhhyun10031@gmail.com
 <b>GMAIL_APP_PASSWORD</b>  = 방금 받은 16자리
-<b>WORKER_SECRET</b>       = qBqESQat7phUh8HptOvWmaoh8CDtu61Hvv-Rz_FgcPY</pre>
+<b>WORKER_SECRET</b>       = qBqESQat7phUh8HptOvWmaoh8CDtu61Hvv-Rz_FgcPY
+<b>CRON_SECRET</b>         = qBqESQat7phUh8HptOvWmaoh8CDtu61Hvv-Rz_FgcPY</pre>
         <div class="t-note">
           <code>WORKER_SECRET</code> 은 제가 만들어 둔 값이에요. 막힌 접수를 다시 처리하는 주소를
-          아무나 못 부르게 잠그는 열쇠라, 아무 값이나 길면 됩니다.
+          아무나 못 부르게 잠그는 열쇠입니다. <code>CRON_SECRET</code> 은 <b>같은 값</b>을 넣으세요 —
+          매일 새벽 3시에 도는 자동 정리(밀린 접수 되살리기 + 보관 기간 지난 사진 삭제)가
+          이 값으로 자기를 증명해요. 안 넣으면 자동 정리가 안 돕니다.
         </div>
       </div></li>
 
