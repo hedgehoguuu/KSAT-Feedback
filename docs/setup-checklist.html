@@ -395,6 +395,15 @@ gh pr create --fill --base main &amp;&amp; gh pr merge --merge --delete-branch</
         <div class="t-note">기본값은 미국이에요. 서울로 바꾸면 사진 올릴 때 왕복 시간이 줄어요.
           바꾼 뒤 Deployments 탭에서 맨 위 배포의 ⋯ → <b>Redeploy</b>.</div>
       </div></li>
+      <li class="task"><input type="checkbox" data-k="c7"><div class="t-body">
+        <div class="t-title">Analytics 탭에서 <b>Web Analytics</b> 켜기</div>
+        <div class="t-note">
+          Vercel 프로젝트 상단 <b>Analytics</b> 탭 → <b>Enable</b>. 코드는 이미 붙여뒀지만,
+          여기서 켜지 않으면 숫자가 하나도 안 쌓여요. 켠 뒤부터의 방문만 집계되니 접수 오픈 전에 켜두셔야 해요.<br>
+          단계마다 주소가 달라서 별도 설정 없이 퍼널이 그려집니다 —
+          랜딩 몇 명 → 시험 선택 몇 명 → 업로드 몇 명 → 제출 완료 몇 명.
+        </div>
+      </div></li>
       <li class="task"><input type="checkbox" data-k="c6"><div class="t-body">
         <div class="t-title">주소 뒤에 <code>/setup</code> 을 붙여서 열기</div>
         <div class="t-note">제가 만들어 둔 <b>점검 화면</b>이에요. 환경변수·DB 연결·테이블·저장소가 전부 <b>✓</b>면 준비 끝이에요.
@@ -521,41 +530,6 @@ gh pr create --fill --base main &amp;&amp; gh pr merge --merge --delete-branch</
   <section>
     <div class="sec-head">
       <span class="sec-num">07</span>
-      <h2>8/30 전에 미리 만들어둘 것 — Google Sheets</h2>
-      <span class="sec-when">8월 29~30일</span>
-    </div>
-    <p class="sec-why">
-      시트는 사람이 보기 쉬운 사본이에요. 로봇 계정(서비스 계정)을 하나 만들어서, 그 계정을 시트에 초대하는 방식이에요.
-    </p>
-    <ol class="tasks">
-      <li class="task"><input type="checkbox" data-k="f1"><div class="t-body">
-        <div class="t-title"><code>console.cloud.google.com</code> 에서 새 프로젝트 만들기</div>
-      </div></li>
-      <li class="task"><input type="checkbox" data-k="f2"><div class="t-body">
-        <div class="t-title">API 및 서비스 → 라이브러리 → <b>Google Sheets API</b> 사용 설정</div>
-      </div></li>
-      <li class="task"><input type="checkbox" data-k="f3"><div class="t-body">
-        <span class="flag trap">비밀 값</span>
-        <div class="t-title">사용자 인증 정보 → 서비스 계정 만들기 → 키 → <b>JSON</b> 다운로드</div>
-        <div class="t-note">받은 파일을 <b>KSAT-Feedback 폴더 안에 두지 마세요.</b> 실수로 GitHub에 올라갈 수 있어요.
-          바탕화면이나 다운로드에 두고, 저한테는 안에 있는 값 두 개(<code>client_email</code>, <code>private_key</code>)만 알려주시면 돼요.</div>
-      </div></li>
-      <li class="task"><input type="checkbox" data-k="f4"><div class="t-body">
-        <div class="t-title">새 구글 시트를 만들고 탭 3개 만들기</div>
-        <div class="t-note">탭 이름은 정확히 <code>접수</code> / <code>_실패</code> / <code>_설정</code>.</div>
-      </div></li>
-      <li class="task"><input type="checkbox" data-k="f5"><div class="t-body">
-        <span class="flag trap">두 번째로 많이 빠뜨리는 단계</span>
-        <div class="t-title">시트 우상단 <b>공유</b> → 서비스 계정 이메일을 <b>편집자</b>로 추가</div>
-        <div class="t-note"><code>……@…….iam.gserviceaccount.com</code> 처럼 생긴 주소예요.
-          이걸 안 하면 “권한 없음” 오류가 나요.</div>
-      </div></li>
-    </ol>
-  </section>
-
-  <section>
-    <div class="sec-head">
-      <span class="sec-num">08</span>
       <h2>안전 수칙</h2>
     </div>
     <div class="card warn">
@@ -563,9 +537,8 @@ gh pr create --fill --base main &amp;&amp; gh pr merge --merge --delete-branch</
       <ul>
         <li><b>service_role 키</b>를 카톡·노션·문서·깃허브에 붙여넣기. 그 키 하나로 학생 데이터 전체를 읽고 지울 수 있어요. Vercel 환경변수 칸에만 넣으세요.</li>
         <li>환경변수 이름 앞에 <code>NEXT_PUBLIC_</code> 붙이기. 그 접두사가 붙으면 브라우저로 그대로 나가요.</li>
-        <li>구글 서비스 계정 <b>JSON 파일</b>을 KSAT-Feedback 폴더 안에 두기. 커밋에 딸려 올라갈 수 있어요.</li>
         <li>Supabase 버킷을 <b>Public</b>으로 바꾸기. 남의 시험지를 주소만 알면 누구나 보게 돼요.</li>
-        <li>학생 이메일이 담긴 시트·노션을 링크 공개로 돌리기.</li>
+        <li>학생 이메일이 담긴 Notion 데이터베이스를 <b>링크 공개</b>로 돌리기. 사람을 개별 초대하세요.</li>
       </ul>
     </div>
     <div class="card safe" style="margin-top:14px">
@@ -583,7 +556,7 @@ gh pr create --fill --base main &amp;&amp; gh pr merge --merge --delete-branch</
     <div class="card" style="margin-top:14px">
       <h3>아직 없는 것 (알고는 계셔야 해요)</h3>
       <ul>
-        <li><b>시험지 PDF 합치기 · 시트 · 노션 자동 등록</b> — 8/30 작업분이에요. 그전까지는 Supabase에서 직접 봐야 해요.</li>
+        <li><b>시험지 PDF 합치기 · Notion 자동 등록</b> — 8/30 작업분이에요. 그전까지는 Supabase에서 직접 봐야 해요.</li>
         <li><b>접수 확인 메일</b>이 아직 안 나가요. 학생은 완료 화면의 접수번호만 봐요.</li>
         <li><b>스팸 방지</b>가 없어요. 링크가 크게 퍼지면 장난 접수가 들어올 수 있어요. 상한을 걸어두는 걸 권해요.</li>
         <li>Supabase 무료 플랜은 <b>일주일 내내 아무 접속이 없으면 프로젝트가 잠들어요.</b> 9/1에 한 번 링크를 열어서 깨워두세요.</li>

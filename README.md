@@ -34,7 +34,8 @@ Supabase 키가 없어도 ②단계까지 전부 동작한다. 환경변수가 �
 | BE-2 제출 (원자적 생성 · 접수번호 발급 · 멱등키) | 됨 |
 | OPS-1 접수 스위치 (전체/과목별 on/off, 상한, 마감 화면) | 됨 (Supabase 한 줄로 조작) |
 | 데이터 모델 · RLS · 비공개 버킷 · 설치 점검 함수 | SQL 작성 완료, **실행은 수동** |
-| BE-3 PDF, BE-4 Sheets, BE-5 Notion | **없음 — 8/30** |
+| BE-3 PDF 병합, BE-5 Notion 자동 등록 | **없음 — 8/30** |
+| P1-4 퍼널 계측 (Vercel Web Analytics) | 붙임 — 대시보드에서 켜야 집계 시작 |
 | P1 (접수 확인 메일, 품질 힌트, 퍼널 계측, 스팸 방지) | **없음** |
 
 ## 구조
@@ -77,11 +78,31 @@ supabase/migrations/0001_init.sql
 
 운영 쪽 미결: Q8(접수 확인 메일 발송 주체·발신 주소), Q9(Notion DB 를 팀 워크스페이스에 둘지 분리할지).
 
+## 시트를 빼기로 한 이유 (BE-4 제외)
+
+PRD 는 Supabase(원본) → Google Sheets(사람이 보기 쉬운 사본) → Notion(운영판) 세 갈래였다.
+그런데 시트가 맡기로 했던 일이 대부분 다른 곳으로 옮겨갔다.
+
+- `_설정` 탭(접수 on/off·상한·과목 차단) → Supabase `app_settings` 로 이동, 이미 동작 중
+- `_실패` 탭(오류 로그) → `submissions.status` + `sheet_ok`/`notion_ok` 로 대체 (워커 작업 때 `sync_failures` 로 정리)
+- `접수` 탭 → Notion 과 같은 데이터의 사본
+
+남는 건 사본 하나인데, 그 대가로 구글 클라우드 프로젝트·서비스 계정·JSON 키·시트 공유라는 수동 단계와
+비밀 키 하나가 늘어난다. 접수 10~30건 규모에서 시트가 주는 이득(피벗 집계)은 Notion 뷰로 충분히 대신된다.
+
+2026-08-28 사용자 결정으로 **v1 에서 제외**한다. `submissions.sheet_ok` 컬럼은 남겨 둔다 — 나중에 붙일 때
+스키마를 다시 건드리지 않기 위해서다. 집계가 필요하면 Supabase Table Editor 의 CSV 내보내기를 쓴다.
+
+G4(자동 반영 성공률)는 Notion 단독 기준으로 읽는다.
+
 ## 알아 둘 것
 
 - **초안 경로**: 제출 전에는 접수번호가 없어서 이미지를 `raw/drafts/{draftId}/{과목}/{순번}.jpg` 에 쌓는다.
   PRD 의 `raw/{접수번호}/...` 로 묶는 일은 제출(BE-2) 때 한다.
 - **새로고침 후 재시도**: 실패한 장의 원본 blob 은 메모리에만 있다. 새로고침하면 그 장은 다시 고르라고 안내한다.
+- **Vercel Web Analytics**: 단계마다 주소가 달라서 페이지뷰만으로 퍼널이 그려진다
+  (`/` → `/apply/exam` → `/apply/upload` → `/apply/concerns/[과목]` → `/apply/email` → `/done`).
+  완료 화면 주소의 접수번호는 `src/components/Analytics.tsx` 의 `beforeSend` 에서 잘라내고 보낸다.
 - **접수 스위치(OPS-1)** 는 Supabase `app_settings` 를 읽는다. 브라우저에서 세션당 한 번 읽으므로,
   스위치를 바꾼 뒤에는 새로고침해야 반영된다. 제출 API 는 매번 서버에서 다시 확인한다.
 - **제출 멱등성**: 클라이언트가 만든 멱등키가 `submissions.idempotency_key` 에 유니크로 들어간다.

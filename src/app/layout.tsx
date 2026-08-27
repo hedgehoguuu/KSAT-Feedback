@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { Analytics } from '@/components/Analytics';
 import { BRANDING } from '@/config/app';
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         <div className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col bg-background">
           {children}
         </div>
+        <Analytics />
       </body>
     </html>
   );
