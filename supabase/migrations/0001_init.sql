@@ -177,8 +177,9 @@ as $$
     ),
     'settings_row', (select count(*) > 0 from app_settings where id = 1),
     'functions', (
-      to_regproc('public.create_submission(jsonb)') is not null and
-      to_regproc('public.next_receipt_no(timestamptz)') is not null
+      -- to_regproc 는 이름만 받는다. 인자까지 확인하려면 to_regprocedure 여야 한다.
+      to_regprocedure('public.create_submission(jsonb)') is not null and
+      to_regprocedure('public.next_receipt_no(timestamptz)') is not null
     ),
     'bucket', (select count(*) > 0 from storage.buckets where id = 'exam-papers' and public = false),
     'submission_count', (select count(*) from submissions)
