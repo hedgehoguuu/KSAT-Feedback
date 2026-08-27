@@ -61,6 +61,12 @@ export async function getHealth(): Promise<Health> {
         ? '재처리 주소가 잠겨 있어요'
         : 'WORKER_SECRET 이 없어요. 재처리 주소를 아무나 부를 수 있어요',
     },
+    cronSecret: {
+      ok: Boolean(process.env.CRON_SECRET),
+      detail: process.env.CRON_SECRET
+        ? '매일 새벽 3시 자동 정리가 돌아요'
+        : 'CRON_SECRET 이 없어요. 자동 정리(밀린 접수 되살리기 · 보관 기간 지난 사진 삭제)가 안 돕니다',
+    },
   };
 
   const db = supabaseAdmin();
