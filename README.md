@@ -15,7 +15,8 @@ Supabase 키가 없어도 ②단계까지 전부 동작한다. 환경변수가 �
 서명 URL 발급·업로드를 흉내낸다. 파일 이름에 `fail` 이 들어가면 일부러 실패시켜서 FE-4 실패 UI를 볼 수 있다.
 
 실제 스토리지에 붙이려면 `.env.example` 을 `.env.local` 로 복사하고 값을 채운 뒤,
-`supabase/migrations/0001_init.sql` 을 Supabase SQL Editor 에서 실행한다.
+`supabase/migrations/0001_init.sql   스키마·RLS·버킷·제출 함수
+supabase/migrations/0002_worker.sql 워커용 컬럼·실패 로그·claim 함수` 을 Supabase SQL Editor 에서 실행한다.
 
 ## 지금까지 된 것 (8/28 기준)
 
@@ -34,7 +35,9 @@ Supabase 키가 없어도 ②단계까지 전부 동작한다. 환경변수가 �
 | BE-2 제출 (원자적 생성 · 접수번호 발급 · 멱등키) | 됨 |
 | OPS-1 접수 스위치 (전체/과목별 on/off, 상한, 마감 화면) | 됨 (Supabase 한 줄로 조작) |
 | 데이터 모델 · RLS · 비공개 버킷 · 설치 점검 함수 | SQL 작성 완료, **실행은 수동** |
-| BE-3 PDF 병합, BE-5 Notion 자동 등록 | **없음 — 8/30** |
+| BE-3 과목별 PDF 병합 | 됨 (세로·가로 섞여도 잘리지 않음) |
+| BE-5 Notion 자동 등록 | 됨 (과목 1건 = 페이지 1개, 재실행해도 중복 안 생김) |
+| P1-1 접수 확인 메일 | 됨 (Gmail SMTP, 발신 juhhyun10031@gmail.com) |
 | P1-4 퍼널 계측 (Vercel Web Analytics) | 붙임 — 대시보드에서 켜야 집계 시작 |
 | P1 (접수 확인 메일, 품질 힌트, 퍼널 계측, 스팸 방지) | **없음** |
 
@@ -49,10 +52,13 @@ src/config/     시험·과목·문항·운영 상수. 코드에 '국어'·'수�
   steps.ts            4단계 정의
 src/lib/        store(zustand+persist) · image(리사이즈) · upload · submit · email · flow
                 intake/health(서버 전용) · blobs · draft
+src/lib/worker/ process(접수 1건 처리) · pdf(병합) · notion(등록) · mail(확인 메일) — 전부 서버 전용
 src/components/ ProgressSteps · ExamSummary · SubjectChips · UploadSection · AutoTextarea · BottomBar
 src/app/        / (랜딩) · /apply/{exam,upload,concerns/[subject],email} · /done/[receiptNo]
-                /setup (설치 점검, noindex) · /api/{upload-url,submit,intake,health}
-supabase/migrations/0001_init.sql
+                /setup (설치 점검, noindex)
+                /api/{upload-url,submit,intake,health} · /api/worker/process (재처리)
+supabase/migrations/0001_init.sql   스키마·RLS·버킷·제출 함수
+supabase/migrations/0002_worker.sql 워커용 컬럼·실패 로그·claim 함수
 ```
 
 ## 운영자용 화면
@@ -94,6 +100,24 @@ PRD 는 Supabase(원본) → Google Sheets(사람이 보기 쉬운 사본) → N
 스키마를 다시 건드리지 않기 위해서다. 집계가 필요하면 Supabase Table Editor 의 CSV 내보내기를 쓴다.
 
 G4(자동 반영 성공률)는 Notion 단독 기준으로 읽는다.
+
+## 접수 뒤에 일어나는 일
+
+```
+학생 제출 → /api/submit → 접수번호 즉시 반환 (학생 화면은 여기서 끝)
+                        ↓ after() — 응답을 보낸 뒤 같은 함수 안에서 이어서
+              과목별 사진 → PDF 한 개로 병합 → Storage 저장
+              과목별 Notion 페이지 생성 (시험지 PDF 는 만료 있는 서명 URL)
+              접수 확인 메일 발송
+                        ↓
+              전부 성공하면 status = 'synced', 하나라도 실패하면 'failed' + sync_failures 기록
+```
+
+- **단계마다 따로 실패를 받는다.** PDF 가 실패해도 Notion 등록과 메일은 나간다.
+- **여러 번 돌려도 결과가 같다.** 이미 만든 PDF·Notion 페이지·보낸 메일은 건너뛴다.
+- **막힌 접수 되살리기**: `POST /api/worker/process` 를 부르면 밀린 것부터 최대 5건을 다시 처리한다.
+  특정 건만 하려면 `?receipt=F0902-013`. `WORKER_SECRET` 을 넣어뒀다면 `x-worker-secret` 헤더가 필요하다.
+- `/setup` 이 밀린 건수와 해결 안 된 오류 건수를 같이 보여준다.
 
 ## 알아 둘 것
 

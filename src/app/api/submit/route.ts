@@ -1,13 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { LIMITS, POLICY, formatReceiptNo, replyDueDate } from '@/config/app';
 import { findExam, isExamCode } from '@/config/exams';
 import { isSubjectCode } from '@/config/subjects';
 import { isValidEmail } from '@/lib/email';
 import { readIntake } from '@/lib/intake';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { processSubmission } from '@/lib/worker/process';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// PDF 병합·Notion 등록·메일 발송이 응답 뒤에 이어진다. 기본 10초로는 모자란다.
+export const maxDuration = 60;
 
 type FileIn = { storagePath: string; orderIndex: number; bytes?: number };
 type SubjectIn = { subjectCode: string; concerns: Record<string, string>; files: FileIn[] };
@@ -113,5 +116,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: '접수 저장에 실패했어요' }, { status: 500 });
   }
 
-  return NextResponse.json({ receiptNo: data, dueDate: replyDueDate(now), mode: 'supabase' });
+  // 학생 화면은 여기서 끝난다. 무거운 일은 응답을 보낸 뒤에 이어서 한다 (PRD §7.3)
+  const receiptNo = data;
+  after(async () => {
+    try {
+      const result = await processSubmission(receiptNo);
+      console.log('[submit] 후처리', JSON.stringify(result));
+    } catch (err) {
+      // 여기서 실패해도 접수는 이미 저장돼 있다. /api/worker/process 로 다시 돌리면 된다.
+      console.error('[submit] 후처리 실패', receiptNo, err);
+    }
+  });
+
+  return NextResponse.json({ receiptNo, dueDate: replyDueDate(now), mode: 'supabase' });
 }

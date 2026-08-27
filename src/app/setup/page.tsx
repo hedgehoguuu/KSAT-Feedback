@@ -14,6 +14,10 @@ const GUIDE: { key: string; label: string; how: string }[] = [
   { key: 'functions', label: '접수번호·제출 함수', how: '같은 SQL 을 다시 실행하면 만들어져요' },
   { key: 'settings', label: '접수 스위치', how: 'Table Editor > app_settings 에 id=1 행이 있어야 해요' },
   { key: 'bucket', label: '시험지 저장소', how: 'Storage 에 exam-papers 버킷이 비공개로 있어야 해요' },
+  { key: 'workerSchema', label: '워커 표·함수', how: 'Supabase > SQL Editor 에서 0002_worker.sql 전체를 붙여넣고 Run' },
+  { key: 'notion', label: 'Notion 자동 등록', how: 'Vercel 환경변수에 NOTION_TOKEN 과 NOTION_DATABASE_ID 넣기' },
+  { key: 'mail', label: '접수 확인 메일', how: 'Vercel 환경변수에 GMAIL_USER 와 GMAIL_APP_PASSWORD 넣기 (구글 앱 비밀번호)' },
+  { key: 'workerSecret', label: '재처리 주소 잠금', how: 'Vercel 환경변수에 WORKER_SECRET 을 아무 긴 문자열로 넣기' },
 ];
 
 export default async function SetupPage() {

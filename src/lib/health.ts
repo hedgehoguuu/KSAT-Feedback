@@ -1,5 +1,7 @@
 import 'server-only';
 import { RAW_BUCKET, supabaseAdmin } from './supabase/admin';
+import { mailConfigured } from './worker/mail';
+import { notionConfigured } from './worker/notion';
 
 export type Check = { ok: boolean; detail: string };
 
@@ -7,6 +9,8 @@ export type Health = {
   mode: 'mock' | 'supabase';
   ready: boolean;
   submissionCount: number | null;
+  pendingCount: number | null;
+  failureCount: number | null;
   checks: Record<string, Check>;
 };
 
@@ -35,14 +39,36 @@ export async function getHealth(): Promise<Health> {
     functions: { ok: false, detail: '아직 확인 못 했어요' },
     settings: { ok: false, detail: '아직 확인 못 했어요' },
     bucket: { ok: false, detail: '아직 확인 못 했어요' },
+    workerSchema: { ok: false, detail: '아직 확인 못 했어요' },
+    notion: {
+      ok: notionConfigured(),
+      detail: notionConfigured()
+        ? 'NOTION_TOKEN 과 NOTION_DATABASE_ID 가 들어와 있어요'
+        : 'NOTION_TOKEN / NOTION_DATABASE_ID 가 없어요. 접수가 Notion 에 안 올라가요',
+    },
+    mail: {
+      ok: mailConfigured(),
+      detail: mailConfigured()
+        ? `${process.env.GMAIL_USER} 로 접수 확인 메일이 나가요`
+        : 'GMAIL_USER / GMAIL_APP_PASSWORD 가 없어요. 접수 확인 메일이 안 나가요',
+    },
+    workerSecret: {
+      ok: Boolean(process.env.WORKER_SECRET),
+      detail: process.env.WORKER_SECRET
+        ? '재처리 주소가 잠겨 있어요'
+        : 'WORKER_SECRET 이 없어요. 재처리 주소를 아무나 부를 수 있어요',
+    },
   };
 
   const db = supabaseAdmin();
   if (!db) {
-    for (const key of ['connection', 'tables', 'functions', 'settings', 'bucket']) {
+    for (const key of ['connection', 'tables', 'functions', 'settings', 'bucket', 'workerSchema']) {
       checks[key] = { ok: false, detail: 'Supabase 연결 전이라 확인할 수 없어요' };
     }
-    return { mode: 'mock', ready: false, submissionCount: null, checks };
+    return {
+      mode: 'mock', ready: false, submissionCount: null,
+      pendingCount: null, failureCount: null, checks,
+    };
   }
 
   const { data, error } = await db.rpc('setup_status');
@@ -55,18 +81,24 @@ export async function getHealth(): Promise<Health> {
     const detail = sqlNotRun
       ? 'SQL 을 아직 실행하지 않았어요. supabase/migrations/0001_init.sql 을 SQL Editor 에서 실행해주세요'
       : '확인하지 못했어요';
-    for (const key of ['tables', 'functions', 'settings', 'bucket']) {
+    for (const key of ['tables', 'functions', 'settings', 'bucket', 'workerSchema']) {
       checks[key] = { ok: false, detail };
     }
-    return { mode: 'supabase', ready: false, submissionCount: null, checks };
+    return {
+      mode: 'supabase', ready: false, submissionCount: null,
+      pendingCount: null, failureCount: null, checks,
+    };
   }
 
   const status = (data ?? {}) as {
     tables?: boolean;
     settings_row?: boolean;
     functions?: boolean;
+    worker_schema?: boolean;
     bucket?: boolean;
     submission_count?: number;
+    pending_count?: number;
+    failure_count?: number;
   };
 
   checks.connection = { ok: true, detail: 'Supabase 에 정상적으로 닿았어요' };
@@ -82,6 +114,12 @@ export async function getHealth(): Promise<Health> {
     ok: Boolean(status.settings_row),
     detail: status.settings_row ? '접수 스위치 행이 있어요' : 'app_settings 에 id=1 행이 없어요',
   };
+  checks.workerSchema = {
+    ok: Boolean(status.worker_schema),
+    detail: status.worker_schema
+      ? '실패 로그 표와 재처리 함수가 있어요'
+      : '0002_worker.sql 을 아직 실행하지 않았어요',
+  };
   checks.bucket = {
     ok: Boolean(status.bucket),
     detail: status.bucket
@@ -93,6 +131,8 @@ export async function getHealth(): Promise<Health> {
     mode: 'supabase',
     ready: Object.values(checks).every((c) => c.ok),
     submissionCount: status.submission_count ?? null,
+    pendingCount: status.pending_count ?? null,
+    failureCount: status.failure_count ?? null,
     checks,
   };
 }
