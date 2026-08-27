@@ -532,6 +532,77 @@ gh pr create --fill --base main &amp;&amp; gh pr merge --merge --delete-branch</
   <section>
     <div class="sec-head">
       <span class="sec-num">07</span>
+      <h2>후처리 켜기 — SQL 한 번, 환경변수 세 개</h2>
+      <span class="sec-when">지금 · 10분</span>
+    </div>
+    <p class="sec-why">
+      접수가 들어오면 자동으로 <b>과목별 PDF 합치기 → Notion 등록 → 학생에게 접수 확인 메일</b>까지
+      나가게 하는 부분이에요. 코드는 다 올라가 있고, 아래 네 가지만 하면 켜집니다.
+    </p>
+    <ol class="tasks">
+      <li class="task"><input type="checkbox" data-k="w1"><div class="t-body">
+        <div class="t-title">Supabase 에서 <code>0002_worker.sql</code> 실행</div>
+        <div class="t-note">
+          2단계 때와 똑같아요. Finder 에서
+          <code>Downloads/KSAT-Feedback/supabase/migrations/0002_worker.sql</code> 을 열어
+          <b>전체 복사(⌘A ⌘C)</b> → Supabase &gt; SQL Editor 에 붙여넣고 <b>Run</b>.
+          실패 기록표와 재처리 함수가 만들어져요.
+        </div>
+      </div></li>
+
+      <li class="task"><input type="checkbox" data-k="w2"><div class="t-body">
+        <span class="flag trap">2단계 인증이 먼저 켜져 있어야 함</span>
+        <div class="t-title">구글 <b>앱 비밀번호</b> 발급받기</div>
+        <div class="t-note">
+          학생에게 나가는 확인 메일을 <b>juhhyun10031@gmail.com</b> 이름으로 보내려면 이게 필요해요.
+          평소 로그인 비밀번호로는 안 되고, 프로그램 전용 비밀번호를 따로 받아야 합니다.<br><br>
+          <b>1.</b> <code>myaccount.google.com/security</code> 에서 <b>2단계 인증</b>이 켜져 있는지 확인
+          (꺼져 있으면 먼저 켜야 앱 비밀번호 메뉴가 나타나요)<br>
+          <b>2.</b> <code>myaccount.google.com/apppasswords</code> 로 이동<br>
+          <b>3.</b> 앱 이름에 <code>ksat-feedback</code> 입력 → 만들기<br>
+          <b>4.</b> 화면에 뜨는 <b>영문 16자리</b>(예: <code>abcd efgh ijkl mnop</code>)를 복사.
+          <b>이 창을 닫으면 다시 못 봐요.</b> 띄어쓰기는 빼고 붙여도 되고 그대로 붙여도 됩니다.
+        </div>
+      </div></li>
+
+      <li class="task"><input type="checkbox" data-k="w3"><div class="t-body">
+        <div class="t-title">Vercel 환경변수 세 개 추가</div>
+        <div class="t-note">
+          Settings → Environment Variables → Add. <b>환경 세 개 모두 체크</b>하고,
+          앱 비밀번호와 시크릿은 <b>Sensitive</b> 를 켜세요.
+        </div>
+        <pre><b>GMAIL_USER</b>          = juhhyun10031@gmail.com
+<b>GMAIL_APP_PASSWORD</b>  = 방금 받은 16자리
+<b>WORKER_SECRET</b>       = qBqESQat7phUh8HptOvWmaoh8CDtu61Hvv-Rz_FgcPY</pre>
+        <div class="t-note">
+          <code>WORKER_SECRET</code> 은 제가 만들어 둔 값이에요. 막힌 접수를 다시 처리하는 주소를
+          아무나 못 부르게 잠그는 열쇠라, 아무 값이나 길면 됩니다.
+        </div>
+      </div></li>
+
+      <li class="task"><input type="checkbox" data-k="w4"><div class="t-body">
+        <div class="t-title">넣고 나서 <b>Redeploy</b>, 그다음 <code>/setup</code> 확인</div>
+        <div class="t-note">
+          환경변수는 다시 배포해야 반영돼요. Deployments 탭 → 맨 위 배포의 ⋯ → <b>Redeploy</b>.<br>
+          그다음 <code>/setup</code> 을 열면 <b>워커 표·함수 · Notion 자동 등록 · 접수 확인 메일 ·
+          재처리 주소 잠금</b> 네 칸이 새로 보여요. 전부 ✓ 면 끝입니다.
+        </div>
+      </div></li>
+
+      <li class="task"><input type="checkbox" data-k="w5"><div class="t-body">
+        <div class="t-title">폰으로 한 건 넣어서 끝까지 확인</div>
+        <div class="t-note">
+          제출하고 1분쯤 뒤에 세 군데를 보세요 —
+          <b>Notion</b> 에 과목 수만큼 줄이 생겼는지, 그 줄의 <b>시험지 PDF</b> 링크를 눌러 사진이 다 들어갔는지,
+          그리고 적으신 <b>메일함</b>에 접수 확인 메일이 왔는지. 스팸함도 한 번 봐주세요.
+        </div>
+      </div></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">08</span>
       <h2>안전 수칙</h2>
     </div>
     <div class="card warn">
@@ -558,8 +629,7 @@ gh pr create --fill --base main &amp;&amp; gh pr merge --merge --delete-branch</
     <div class="card" style="margin-top:14px">
       <h3>아직 없는 것 (알고는 계셔야 해요)</h3>
       <ul>
-        <li><b>시험지 PDF 합치기 · Notion 자동 등록</b> — 8/30 작업분이에요. 그전까지는 Supabase에서 직접 봐야 해요.</li>
-        <li><b>접수 확인 메일</b>이 아직 안 나가요. 학생은 완료 화면의 접수번호만 봐요.</li>
+                <li><b>피드백 회신은 사람이 직접</b> 보냅니다. 자동으로 나가는 건 접수 확인 메일까지예요.</li>
         <li><b>스팸 방지</b>가 없어요. 링크가 크게 퍼지면 장난 접수가 들어올 수 있어요. 상한을 걸어두는 걸 권해요.</li>
         <li>Supabase 무료 플랜은 <b>일주일 내내 아무 접속이 없으면 프로젝트가 잠들어요.</b> 9/1에 한 번 링크를 열어서 깨워두세요.</li>
       </ul>
