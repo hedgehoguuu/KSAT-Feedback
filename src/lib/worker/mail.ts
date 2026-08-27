@@ -24,8 +24,9 @@ export function mailConfigured(): boolean {
  * 2단계 인증을 켠 계정에서 발급한 앱 비밀번호가 필요하다.
  */
 export async function sendConfirmationMail(input: MailInput): Promise<void> {
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
+  const user = process.env.GMAIL_USER?.trim();
+  // 구글은 앱 비밀번호를 'abcd efgh ijkl mnop' 처럼 띄어서 보여준다. 그대로 붙여넣어도 되게 공백을 지운다.
+  const pass = process.env.GMAIL_APP_PASSWORD?.replace(/\s+/g, '');
   if (!user || !pass) throw new Error('GMAIL_USER / GMAIL_APP_PASSWORD 가 없습니다');
 
   const transporter = nodemailer.createTransport({

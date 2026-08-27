@@ -66,6 +66,29 @@ export async function createNotionPage(input: NotionInput): Promise<string> {
   return body.id;
 }
 
+/**
+ * 이미 만들어 둔 페이지에 시험지 PDF 링크만 채워 넣는다.
+ * 등록은 됐는데 PDF 병합이 나중에 성공한 경우, 재처리에서 이 함수가 빈 칸을 메운다.
+ */
+export async function updateNotionPdfUrl(pageId: string, pdfUrl: string): Promise<void> {
+  const token = process.env.NOTION_TOKEN;
+  if (!token) throw new Error('NOTION_TOKEN 이 없습니다');
+
+  const res = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Notion-Version': NOTION_VERSION,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ properties: { '시험지 PDF': { url: pdfUrl } } }),
+  });
+  if (!res.ok) {
+    const body = (await res.json()) as { message?: string };
+    throw new Error(`Notion PDF 링크 갱신 실패 (${res.status}) ${body.message ?? ''}`.trim());
+  }
+}
+
 /** 5문항을 사람이 읽을 수 있는 한 덩어리로 합친다. 답이 없는 문항은 빼고 넣는다. */
 function formatConcerns(subject: SubjectCode, answers: Record<string, string>): string {
   const lines = questionsFor(subject)

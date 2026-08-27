@@ -40,7 +40,15 @@ function isPng(bytes: Uint8Array): boolean {
   return bytes.length > 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
 }
 
-/** 파일명: {접수번호}_{학년}_{과목}.pdf (BE-3 AC) */
+/**
+ * 튜터가 내려받을 때 보이는 이름 (BE-3 AC).
+ * 저장 경로에는 쓰지 않는다 — 스토리지 키에 한글을 넣으면 "Invalid key" 로 거부당한다.
+ */
 export function pdfFileName(receiptNo: string, grade: number, subjectLabel: string): string {
   return `${receiptNo}_고${grade}_${subjectLabel}.pdf`;
+}
+
+/** 실제 저장 경로. 영문·숫자만 쓴다. */
+export function pdfStoragePath(receiptNo: string, subjectCode: string): string {
+  return `pdf/${receiptNo}/${subjectCode}.pdf`;
 }
