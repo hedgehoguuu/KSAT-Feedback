@@ -1,0 +1,605 @@
+<title>9모 접수 오픈 준비</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+
+<style>
+  :root {
+    --ground: #fbfbfd;
+    --panel: #ffffff;
+    --panel-2: #f2f4f9;
+    --ink: #161a22;
+    --ink-2: #4a5265;
+    --ink-3: #7d8698;
+    --line: #e2e6ef;
+    --line-strong: #cbd2e0;
+    --accent: #1f4fd8;
+    --on-accent: #ffffff;
+    --accent-soft: #e8edfd;
+    --danger: #c03514;
+    --danger-soft: #fdece6;
+    --good: #0e7350;
+    --good-soft: #e3f4ed;
+    --shadow: 0 1px 2px rgba(22, 26, 34, .06), 0 8px 24px -16px rgba(22, 26, 34, .3);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0f1219;
+      --panel: #161b25;
+      --panel-2: #1d2430;
+      --ink: #e9edf5;
+      --ink-2: #a8b1c2;
+      --ink-3: #757f92;
+      --line: #262e3c;
+      --line-strong: #37414f;
+      --accent: #7ea1ff;
+      --on-accent: #0f1219;
+      --accent-soft: #1a2440;
+      --danger: #ff8f6b;
+      --danger-soft: #351b13;
+      --good: #4fc79b;
+      --good-soft: #12291f;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0f1219;
+    --panel: #161b25;
+    --panel-2: #1d2430;
+    --ink: #e9edf5;
+    --ink-2: #a8b1c2;
+    --ink-3: #757f92;
+    --line: #262e3c;
+    --line-strong: #37414f;
+    --accent: #7ea1ff;
+    --on-accent: #0f1219;
+    --accent-soft: #1a2440;
+    --danger: #ff8f6b;
+    --danger-soft: #351b13;
+    --good: #4fc79b;
+    --good-soft: #12291f;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .8);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+    font-size: 16px;
+    line-height: 1.7;
+    word-break: keep-all;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 780px; margin: 0 auto; padding: 0 20px 96px; }
+
+  /* ---------- 상단 고정 진행바 ---------- */
+  .bar {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--ground) 92%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar-inner {
+    max-width: 780px; margin: 0 auto; padding: 10px 20px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .bar-label {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-3); white-space: nowrap;
+  }
+  .meter { flex: 1; height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; }
+  .meter > i { display: block; height: 100%; width: 0%; background: var(--accent); transition: width .25s ease; }
+  .bar-count {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 500; color: var(--ink-2);
+  }
+
+  /* ---------- 헤더 ---------- */
+  header.top { padding: 52px 0 8px; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent);
+    margin: 0 0 14px;
+  }
+  h1 { font-size: 36px; line-height: 1.25; font-weight: 700; margin: 0; text-wrap: balance; letter-spacing: -.02em; }
+  .lede { color: var(--ink-2); margin: 16px 0 0; max-width: 60ch; }
+
+  .deadline {
+    margin-top: 28px; display: flex; flex-wrap: wrap; gap: 0;
+    border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--panel);
+  }
+  .deadline div { flex: 1 1 150px; padding: 14px 18px; border-right: 1px solid var(--line); }
+  .deadline div:last-child { border-right: 0; }
+  .deadline dt {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin: 0;
+  }
+  .deadline dd { margin: 4px 0 0; font-size: 15px; font-weight: 600; }
+
+  /* ---------- 섹션 ---------- */
+  section { margin-top: 44px; }
+  .sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+  .sec-num {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 13px; font-weight: 600; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  h2 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+  .sec-when {
+    margin-left: auto; font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-3); white-space: nowrap;
+  }
+  .sec-why { color: var(--ink-2); font-size: 15px; margin: 0 0 18px; max-width: 62ch; }
+
+  /* ---------- 체크 항목 ---------- */
+  ol.tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  li.task {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; display: flex; gap: 13px; align-items: flex-start; box-shadow: var(--shadow);
+  }
+  li.task.done { background: var(--panel-2); border-color: var(--line); }
+  li.task.done .t-title { color: var(--ink-3); text-decoration: line-through; text-decoration-thickness: 1px; }
+
+  input[type="checkbox"] {
+    appearance: none; -webkit-appearance: none;
+    flex: 0 0 auto; width: 22px; height: 22px; margin: 3px 0 0;
+    border: 1.5px solid var(--line-strong); border-radius: 6px; background: var(--panel);
+    cursor: pointer; display: grid; place-content: center; transition: background .12s, border-color .12s;
+  }
+  input[type="checkbox"]::after {
+    content: ""; width: 11px; height: 6px; margin-top: -3px;
+    border-left: 2px solid var(--on-accent); border-bottom: 2px solid var(--on-accent);
+    transform: rotate(-45deg) scale(0); transition: transform .12s ease;
+  }
+  input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+  input[type="checkbox"]:checked::after { transform: rotate(-45deg) scale(1); }
+  input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .t-body { flex: 1; min-width: 0; }
+  .t-title { font-weight: 600; font-size: 15.5px; line-height: 1.55; }
+  .t-note { color: var(--ink-2); font-size: 14px; margin-top: 4px; }
+  .t-note b { color: var(--ink); font-weight: 600; }
+
+  code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .87em; background: var(--panel-2); border: 1px solid var(--line);
+    padding: 1px 5px; border-radius: 5px; word-break: break-all;
+  }
+  pre {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px;
+    padding: 11px 13px; margin: 9px 0 0; font-size: 13.5px; line-height: 1.65;
+    overflow-x: auto; color: var(--ink);
+  }
+  pre b { color: var(--accent); font-weight: 600; }
+
+  .flag {
+    display: inline-block; font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; font-weight: 600;
+    padding: 2px 7px; border-radius: 5px; margin-bottom: 6px;
+  }
+  .flag.trap { background: var(--danger-soft); color: var(--danger); }
+  .flag.pick { background: var(--accent-soft); color: var(--accent); }
+
+  /* ---------- 카드 ---------- */
+  .card { border-radius: 14px; padding: 20px 22px; border: 1px solid var(--line); background: var(--panel); }
+  .card h3 { margin: 0 0 4px; font-size: 17px; font-weight: 700; }
+  .card.warn { border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); background: var(--danger-soft); }
+  .card.warn h3 { color: var(--danger); }
+  .card.safe { border-color: color-mix(in srgb, var(--good) 30%, var(--line)); background: var(--good-soft); }
+  .card.safe h3 { color: var(--good); }
+  .card ul { margin: 12px 0 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+  .card ul li { display: flex; gap: 9px; font-size: 14.5px; line-height: 1.6; }
+  .card ul li::before { content: "—"; color: var(--ink-3); flex: 0 0 auto; }
+  .card.safe ul li::before { content: "✓"; color: var(--good); font-weight: 700; }
+  .card.warn ul li::before { content: "✕"; color: var(--danger); font-weight: 700; }
+
+  /* ---------- 표 ---------- */
+  .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); font-weight: 500;
+    background: var(--panel-2);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.q { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; color: var(--accent); white-space: nowrap; }
+
+  footer { margin-top: 52px; padding-top: 22px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 13.5px; }
+
+  @media (max-width: 560px) {
+    h1 { font-size: 28px; }
+    .wrap { padding: 0 16px 72px; }
+    .sec-when { margin-left: 0; width: 100%; }
+    .sec-head { flex-wrap: wrap; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+</style>
+
+<div class="bar">
+  <div class="bar-inner">
+    <span class="bar-label">준비</span>
+    <span class="meter"><i id="meter"></i></span>
+    <span class="bar-count" id="count">0 / 0</span>
+  </div>
+</div>
+
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">9모 시험지 피드백 · 접수 오픈 준비</p>
+    <h1>직접 해야 하는 것만 모았어요</h1>
+    <p class="lede">
+      코드는 다 됐어요. 여기 있는 건 제가 대신 못 하는 것들이에요 —
+      계정을 만들고, 비밀 키를 복사하고, 권한을 주는 일. 위에서부터 순서대로 하시면 돼요.
+      각 항목마다 <b>안 하면 무슨 일이 생기는지</b>도 적어놨어요.
+    </p>
+
+    <dl class="deadline">
+      <div><dt>접수 오픈</dt><dd>9월 2일 (수)</dd></div>
+      <div><dt>회의 시연</dt><dd>8월 29일 (토)</dd></div>
+      <div><dt>여기 걸리는 시간</dt><dd>1단계~4단계 약 30분</dd></div>
+    </dl>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>코드를 GitHub에 올리기</h2>
+      <span class="sec-when">오늘 · 5분</span>
+    </div>
+    <p class="sec-why">
+      지금 코드는 이 맥북 안에만 있어요. Vercel은 GitHub을 보고 배포하기 때문에, 올리지 않으면 그다음이 전부 막혀요.
+      제가 대신 못 하는 이유는 이 컴퓨터에 GitHub 로그인 정보가 없어서예요.
+    </p>
+    <ol class="tasks">
+      <li class="task"><input type="checkbox" data-k="a1"><div class="t-body">
+        <div class="t-title">터미널 열기</div>
+        <div class="t-note">⌘ + 스페이스 → <code>터미널</code> 입력 → 엔터. 검은 창이 뜨면 맞아요.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="a2"><div class="t-body">
+        <div class="t-title">GitHub 명령어 도구 설치하고 로그인</div>
+        <div class="t-note">아래를 한 줄씩 복사해서 붙여넣고 엔터. 두 번째 명령은 질문이 나와요 —
+          <b>GitHub.com</b> → <b>HTTPS</b> → <b>Y</b> → <b>Login with a web browser</b> 를 고르고,
+          화면에 뜬 여덟 자리 코드를 복사해 브라우저에 붙여넣으면 끝이에요.</div>
+        <pre>brew install gh
+gh auth login</pre>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="a3"><div class="t-body">
+        <div class="t-title">코드 올리고 main에 합치기</div>
+        <div class="t-note">세 줄을 차례로 붙여넣으세요. 마지막 줄까지 하면 GitHub의 <code>main</code>에 앱이 들어가요.</div>
+        <pre>cd ~/Downloads/KSAT-Feedback
+git push -u origin feat/apply-flow
+gh pr create --fill --base main &amp;&amp; gh pr merge --merge --delete-branch</pre>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="a4"><div class="t-body">
+        <span class="flag trap">빠뜨리기 쉬움</span>
+        <div class="t-title">github.com/hedgehoguuu/KSAT-Feedback 를 열어서 파일이 보이는지 확인</div>
+        <div class="t-note"><code>src</code>, <code>supabase</code> 폴더가 보이면 성공이에요.
+          README만 있으면 아직 안 올라간 거예요. <b>여기서 막히면 이 시점에 저를 부르세요</b> —
+          로그인만 되어 있으면 나머지는 제가 할 수 있어요.</div>
+      </div></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>Supabase 만들기</h2>
+      <span class="sec-when">오늘 · 10분</span>
+    </div>
+    <p class="sec-why">
+      학생이 올린 시험지 사진과 접수 내용이 저장되는 곳이에요. 무료 플랜으로 충분해요.
+    </p>
+    <ol class="tasks">
+      <li class="task"><input type="checkbox" data-k="b1"><div class="t-body">
+        <div class="t-title">supabase.com 에서 GitHub 계정으로 가입</div>
+        <div class="t-note">GitHub으로 로그인하면 비밀번호를 하나 덜 만들어도 돼요.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="b2"><div class="t-body">
+        <span class="flag pick">고르는 값 주의</span>
+        <div class="t-title">New project 만들기</div>
+        <div class="t-note">
+          <b>Name</b>: ksat-feedback (아무거나 괜찮아요)<br>
+          <b>Database Password</b>: 자동 생성 버튼을 누르고, 그 값을 <b>메모장에 저장</b>하세요. 지금은 안 쓰지만 잃어버리면 재설정해야 해요.<br>
+          <b>Region</b>: <b>Northeast Asia (Seoul)</b> — 학생들이 한국에서 접속해요. 다른 지역을 고르면 사진 업로드가 눈에 띄게 느려지고, 나중에 바꾸려면 프로젝트를 새로 만들어야 해요.
+        </div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="b3"><div class="t-body">
+        <div class="t-title">2~3분 기다렸다가, 왼쪽 메뉴 SQL Editor 열기</div>
+        <div class="t-note">프로젝트가 다 만들어질 때까지 초록 점이 돌아요.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="b4"><div class="t-body">
+        <div class="t-title">준비된 SQL 한 번 실행하기</div>
+        <div class="t-note">
+          Finder에서 <code>Downloads/KSAT-Feedback/supabase/migrations/0001_init.sql</code> 파일을 텍스트편집기로 열어
+          <b>전체 복사(⌘A ⌘C)</b> → SQL Editor에 붙여넣고 <b>Run</b>.
+          <b>Success. No rows returned</b> 가 나오면 정상이에요. 테이블·접수번호 발급기·저장소가 한 번에 만들어져요.
+        </div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="b5"><div class="t-body">
+        <div class="t-title">Storage 메뉴에 <code>exam-papers</code> 가 생겼는지 확인</div>
+        <div class="t-note">이름 옆에 <b>Public 표시가 없어야</b> 맞아요. 공개로 되어 있으면 남의 시험지를 아무나 볼 수 있게 돼요.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="b6"><div class="t-body">
+        <span class="flag trap">비밀 값</span>
+        <div class="t-title">Settings(톱니) → API 에서 두 값 복사해두기</div>
+        <div class="t-note">
+          <b>Project URL</b> — <code>https://…….supabase.co</code><br>
+          <b>service_role</b> 키 — 눈 아이콘을 눌러야 보여요. <b>이 값은 DB 전체를 여는 마스터 키예요.</b>
+          카톡·노션·문서에 붙여넣지 말고, 다음 단계에서 Vercel에만 넣으세요.<br>
+          (<code>anon</code> 키는 지금 안 써요.)
+        </div>
+      </div></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>Vercel에 올려서 링크 만들기</h2>
+      <span class="sec-when">오늘 · 10분</span>
+    </div>
+    <p class="sec-why">
+      여기서 나오는 주소가 학생에게 뿌릴 링크예요. 8/29 회의 시연도 이 링크로 하면 돼요.
+    </p>
+    <ol class="tasks">
+      <li class="task"><input type="checkbox" data-k="c1"><div class="t-body">
+        <div class="t-title">vercel.com 에서 <b>Continue with GitHub</b> 로 가입</div>
+        <div class="t-note">개인 용도는 무료(Hobby)로 충분해요.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="c2"><div class="t-body">
+        <div class="t-title">Add New… → Project → <code>KSAT-Feedback</code> Import</div>
+        <div class="t-note">Framework는 Next.js로 자동으로 잡혀요. Root Directory는 건드리지 마세요.
+          목록에 레포가 안 보이면 <b>Adjust GitHub App Permissions</b>에서 이 저장소에 접근 권한을 주세요.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="c3"><div class="t-body">
+        <span class="flag trap">여기서 제일 많이 틀려요</span>
+        <div class="t-title">Deploy 누르기 전에 Environment Variables 두 개 넣기</div>
+        <div class="t-note">
+          이름을 <b>한 글자도 다르게 쓰면 안 돼요.</b> 특히 앞에 <code>NEXT_PUBLIC_</code>를 붙이면 키가 브라우저로 새어 나가요.
+        </div>
+        <pre><b>SUPABASE_URL</b>               = 2단계에서 복사한 Project URL
+<b>SUPABASE_SERVICE_ROLE_KEY</b>  = 2단계에서 복사한 service_role 키</pre>
+        <div class="t-note">환경(Environment)은 <b>Production · Preview · Development 세 개 모두 체크</b>하세요.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="c4"><div class="t-body">
+        <div class="t-title">Deploy 누르고 1~2분 기다리기</div>
+        <div class="t-note">끝나면 <code>ksat-feedback-…….vercel.app</code> 같은 주소가 나와요. 그게 링크예요.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="c5"><div class="t-body">
+        <div class="t-title">Settings → Functions → Region을 <b>Seoul (icn1)</b> 으로 바꾸고 다시 배포</div>
+        <div class="t-note">기본값은 미국이에요. 서울로 바꾸면 사진 올릴 때 왕복 시간이 줄어요.
+          바꾼 뒤 Deployments 탭에서 맨 위 배포의 ⋯ → <b>Redeploy</b>.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="c6"><div class="t-body">
+        <div class="t-title">주소 뒤에 <code>/setup</code> 을 붙여서 열기</div>
+        <div class="t-note">제가 만들어 둔 <b>점검 화면</b>이에요. 환경변수·DB 연결·테이블·저장소가 전부 <b>✓</b>면 준비 끝이에요.
+          <b>✗</b>가 있으면 그 칸에 뭘 해야 하는지 한국어로 적혀 있어요.</div>
+      </div></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>진짜 시험지로 한 번 넣어보기</h2>
+      <span class="sec-when">배포 직후 · 5분</span>
+    </div>
+    <p class="sec-why">
+      이걸 안 하고 9/2에 열면, 학생 앞에서 처음 실행하는 셈이 돼요. 꼭 폰으로 해보세요.
+    </p>
+    <ol class="tasks">
+      <li class="task"><input type="checkbox" data-k="d1"><div class="t-body">
+        <div class="t-title">폰으로 링크를 열고, 실제 시험지 사진 3~4장으로 끝까지 제출</div>
+        <div class="t-note">Wi-Fi 말고 <b>LTE/5G로도 한 번</b> 해보세요. 학생 대부분이 하교길에 넣을 거예요.
+          아이폰이면 카메라로 바로 찍는 버튼도 눌러보시고요.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="d2"><div class="t-body">
+        <div class="t-title"><code>/setup</code> 에서 “지금까지 들어온 접수 1건” 확인</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="d3"><div class="t-body">
+        <div class="t-title">Supabase → Table Editor → <code>submissions</code> 에 줄이 생겼는지 확인</div>
+        <div class="t-note">접수번호(<code>F0902-001</code> 형태)와 이메일이 보이면 끝까지 잘 들어온 거예요.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="d4"><div class="t-body">
+        <div class="t-title">Storage → exam-papers → <code>raw/…</code> 에서 사진을 열어보기</div>
+        <div class="t-note">글씨가 읽히는지, 세로로 찍은 사진이 눕지 않았는지 봐주세요.
+          <b>장당 용량이 1MB를 넘으면 알려주세요</b> — 줄이는 설정을 조정할게요. (기준은 600KB)</div>
+      </div></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2>8/29 회의에서 정해서 알려주면 되는 값</h2>
+      <span class="sec-when">8월 29일</span>
+    </div>
+    <p class="sec-why">
+      전부 설정 파일 한 줄이라 회의에서 정해서 알려주시면 바로 반영돼요.
+      지금은 아래 임시값으로 화면에 표시되고 있어요.
+    </p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>PRD</th><th>정할 것</th><th>지금 임시값</th><th>바꾸는 곳</th></tr></thead>
+        <tbody>
+          <tr><td class="q">Q1</td><td>고1·2 과목 5개를 다 여는지</td><td>5개 다 열림</td><td>과목 설정 / Supabase 스위치</td></tr>
+          <tr><td class="q">Q2</td><td>고민 5문항 최종 문구 (서현)</td><td>제가 쓴 잠정안</td><td>문항 설정 파일</td></tr>
+          <tr><td class="q">Q3</td><td>접수 상한과 마감일</td><td>상한 없음</td><td>Supabase <code>app_settings</code></td></tr>
+          <tr><td class="q">Q4</td><td>사진 보관 기간</td><td>30일</td><td>설정 파일 (동의 문구에 자동 반영)</td></tr>
+          <tr><td class="q">Q5</td><td>회신 기한 (1주 vs 3일)</td><td>7일</td><td>설정 파일 (완료 화면 날짜에 반영)</td></tr>
+          <tr><td class="q">Q6</td><td>서비스 이름 · 도메인</td><td>vercel.app 기본 주소</td><td>설정 파일 + Vercel 도메인</td></tr>
+          <tr><td class="q">Q7</td><td>완료 화면에 과외 버튼을 넣을지</td><td>꺼둠</td><td>기능 플래그 한 줄</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <h2>8/30 전에 미리 만들어둘 것 — Notion</h2>
+      <span class="sec-when">8월 29~30일</span>
+    </div>
+    <p class="sec-why">
+      제가 8/30에 “접수 → 노션 자동 등록”을 붙이려면, 노션 쪽 방을 먼저 만들어두고 열쇠를 주셔야 해요.
+    </p>
+    <ol class="tasks">
+      <li class="task"><input type="checkbox" data-k="e1"><div class="t-body">
+        <div class="t-title"><code>notion.so/my-integrations</code> → New integration</div>
+        <div class="t-note">Type은 <b>Internal</b>, 워크스페이스는 팀 워크스페이스를 고르세요.
+          권한(Capabilities)은 <b>Read · Insert · Update</b> 세 개 다 켜주세요.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="e2"><div class="t-body">
+        <span class="flag trap">비밀 값</span>
+        <div class="t-title">Internal Integration Secret 복사해서 보관</div>
+        <div class="t-note"><code>ntn_</code> 또는 <code>secret_</code> 으로 시작해요. 이것도 마스터 키예요.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="e3"><div class="t-body">
+        <div class="t-title">접수 관리용 데이터베이스 페이지 만들기</div>
+        <div class="t-note">속성은 PRD 7.5 그대로:
+          이름 / 접수번호 / 학년 / 시험 / 과목 / 이메일 / 접수일시 / 시험지 PDF / 사진 수 / 고민 / 담당 / 상태 / 회신일 / 과외 의향.
+          <b>상태는 Status 타입</b>으로: 접수 → 배정 → 작성중 → 검수 → 회신완료.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="e4"><div class="t-body">
+        <span class="flag trap">제일 많이 빠뜨리는 단계</span>
+        <div class="t-title">그 페이지 우상단 ⋯ → Connections → 만든 integration 연결</div>
+        <div class="t-note">이걸 안 하면 노션은 그 페이지가 <b>없는 것처럼</b> 응답해요. 키가 맞는데도 “찾을 수 없음”이 뜨면 십중팔구 이거예요.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="e5"><div class="t-body">
+        <div class="t-title">그 페이지 URL을 저에게 보내주기</div>
+        <div class="t-note">주소 안에 있는 32자리 ID가 필요해요. 주소 전체를 주시면 제가 뽑아 쓸게요.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="e6"><div class="t-body">
+        <span class="flag pick">Q9 결정</span>
+        <div class="t-title">이 DB를 팀 워크스페이스 공용에 둘지, 따로 분리할지 정하기</div>
+        <div class="t-note">학생 이메일이 들어가요. 팀 전체가 보는 곳에 두면 모두가 학생 개인정보를 보게 돼요.
+          튜터 3명만 들어가는 페이지로 분리하는 쪽을 권해요.</div>
+      </div></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">07</span>
+      <h2>8/30 전에 미리 만들어둘 것 — Google Sheets</h2>
+      <span class="sec-when">8월 29~30일</span>
+    </div>
+    <p class="sec-why">
+      시트는 사람이 보기 쉬운 사본이에요. 로봇 계정(서비스 계정)을 하나 만들어서, 그 계정을 시트에 초대하는 방식이에요.
+    </p>
+    <ol class="tasks">
+      <li class="task"><input type="checkbox" data-k="f1"><div class="t-body">
+        <div class="t-title"><code>console.cloud.google.com</code> 에서 새 프로젝트 만들기</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="f2"><div class="t-body">
+        <div class="t-title">API 및 서비스 → 라이브러리 → <b>Google Sheets API</b> 사용 설정</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="f3"><div class="t-body">
+        <span class="flag trap">비밀 값</span>
+        <div class="t-title">사용자 인증 정보 → 서비스 계정 만들기 → 키 → <b>JSON</b> 다운로드</div>
+        <div class="t-note">받은 파일을 <b>KSAT-Feedback 폴더 안에 두지 마세요.</b> 실수로 GitHub에 올라갈 수 있어요.
+          바탕화면이나 다운로드에 두고, 저한테는 안에 있는 값 두 개(<code>client_email</code>, <code>private_key</code>)만 알려주시면 돼요.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="f4"><div class="t-body">
+        <div class="t-title">새 구글 시트를 만들고 탭 3개 만들기</div>
+        <div class="t-note">탭 이름은 정확히 <code>접수</code> / <code>_실패</code> / <code>_설정</code>.</div>
+      </div></li>
+      <li class="task"><input type="checkbox" data-k="f5"><div class="t-body">
+        <span class="flag trap">두 번째로 많이 빠뜨리는 단계</span>
+        <div class="t-title">시트 우상단 <b>공유</b> → 서비스 계정 이메일을 <b>편집자</b>로 추가</div>
+        <div class="t-note"><code>……@…….iam.gserviceaccount.com</code> 처럼 생긴 주소예요.
+          이걸 안 하면 “권한 없음” 오류가 나요.</div>
+      </div></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">08</span>
+      <h2>안전 수칙</h2>
+    </div>
+    <div class="card warn">
+      <h3>절대 하면 안 되는 것</h3>
+      <ul>
+        <li><b>service_role 키</b>를 카톡·노션·문서·깃허브에 붙여넣기. 그 키 하나로 학생 데이터 전체를 읽고 지울 수 있어요. Vercel 환경변수 칸에만 넣으세요.</li>
+        <li>환경변수 이름 앞에 <code>NEXT_PUBLIC_</code> 붙이기. 그 접두사가 붙으면 브라우저로 그대로 나가요.</li>
+        <li>구글 서비스 계정 <b>JSON 파일</b>을 KSAT-Feedback 폴더 안에 두기. 커밋에 딸려 올라갈 수 있어요.</li>
+        <li>Supabase 버킷을 <b>Public</b>으로 바꾸기. 남의 시험지를 주소만 알면 누구나 보게 돼요.</li>
+        <li>학생 이메일이 담긴 시트·노션을 링크 공개로 돌리기.</li>
+      </ul>
+    </div>
+    <div class="card safe" style="margin-top:14px">
+      <h3>이건 제가 이미 해뒀어요 — 안 하셔도 돼요</h3>
+      <ul>
+        <li>접수 데이터에 <b>RLS</b>를 켜서, 익명 접속자는 남의 접수를 읽지도 고치지도 못해요.</li>
+        <li>시험지 <b>버킷은 비공개</b>이고, 업로드는 서버가 그때그때 발급한 일회용 주소로만 돼요.</li>
+        <li>마스터 키는 <b>서버에서만</b> 쓰이도록 코드에 잠금(<code>server-only</code>)이 걸려 있어요.</li>
+        <li>제출은 <b>멱등키</b>로 묶여서, 학생이 여러 번 눌러도 접수는 1건이에요.</li>
+        <li>접수 1건 + 과목 + 사진 목록이 <b>한 번에 다 저장되거나, 아예 안 되거나</b> 둘 중 하나예요 (중간에 깨진 접수가 안 생겨요).</li>
+        <li>접수 <b>on/off·상한·과목별 차단</b>은 Supabase 표 한 줄만 고치면 배포 없이 바로 먹혀요.</li>
+        <li>360px 좁은 화면, 브라우저 뒤로가기, 새로고침, 통신 끊김 후 이어하기까지 확인해뒀어요.</li>
+      </ul>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>아직 없는 것 (알고는 계셔야 해요)</h3>
+      <ul>
+        <li><b>시험지 PDF 합치기 · 시트 · 노션 자동 등록</b> — 8/30 작업분이에요. 그전까지는 Supabase에서 직접 봐야 해요.</li>
+        <li><b>접수 확인 메일</b>이 아직 안 나가요. 학생은 완료 화면의 접수번호만 봐요.</li>
+        <li><b>스팸 방지</b>가 없어요. 링크가 크게 퍼지면 장난 접수가 들어올 수 있어요. 상한을 걸어두는 걸 권해요.</li>
+        <li>Supabase 무료 플랜은 <b>일주일 내내 아무 접속이 없으면 프로젝트가 잠들어요.</b> 9/1에 한 번 링크를 열어서 깨워두세요.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    막히면 어느 단계 몇 번에서 무슨 화면이 떴는지만 알려주세요. 화면 캡처면 더 좋고요.<br>
+    체크는 이 브라우저에 저장돼요.
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var boxes = Array.prototype.slice.call(document.querySelectorAll('input[type="checkbox"]'));
+    var meter = document.getElementById('meter');
+    var count = document.getElementById('count');
+    var KEY = 'ksat-setup-progress';
+    var saved = {};
+
+    try { saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { saved = {}; }
+
+    function paint() {
+      var done = 0;
+      boxes.forEach(function (b) {
+        if (b.checked) done += 1;
+        b.closest('li.task').classList.toggle('done', b.checked);
+      });
+      meter.style.width = (boxes.length ? (done / boxes.length) * 100 : 0) + '%';
+      count.textContent = done + ' / ' + boxes.length;
+    }
+
+    boxes.forEach(function (b) {
+      var k = b.getAttribute('data-k');
+      if (saved[k]) b.checked = true;
+      b.addEventListener('change', function () {
+        saved[k] = b.checked;
+        try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) { /* 저장 못 해도 화면은 동작 */ }
+        paint();
+      });
+    });
+
+    paint();
+  })();
+</script>
