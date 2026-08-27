@@ -532,13 +532,20 @@ gh pr create --fill --base main &amp;&amp; gh pr merge --merge --delete-branch</
   <section>
     <div class="sec-head">
       <span class="sec-num">07</span>
-      <h2>후처리 켜기 — SQL 한 번, 환경변수 세 개</h2>
-      <span class="sec-when">지금 · 10분</span>
+      <h2>후처리 — 동작 확인 완료</h2>
+      <span class="sec-when">끝</span>
     </div>
     <p class="sec-why">
-      접수가 들어오면 자동으로 <b>과목별 PDF 합치기 → Notion 등록 → 학생에게 접수 확인 메일</b>까지
-      나가게 하는 부분이에요. 코드는 다 올라가 있고, 아래 네 가지만 하면 켜집니다.
+      접수가 들어오면 자동으로 <b>과목별 PDF 합치기 → Notion 등록 → 학생에게 접수 확인 메일</b>까지 나갑니다.
+      실제 접수 2건으로 끝까지 확인했어요. 아래는 이미 하신 것들이라 기록용으로 남겨둡니다.
     </p>
+    <div class="card safe" style="margin-bottom:14px">
+      <h3>막혔을 때 보는 곳</h3>
+      <ul>
+        <li><code>/setup</code> — 아직 처리 안 된 접수와 해결 안 된 오류 건수가 맨 위에 뜹니다. 둘 다 0이면 정상이에요.</li>
+        <li>숫자가 0이 아니면 저에게 알려주세요. 무엇이 왜 막혔는지 확인하고 다시 돌릴 수 있어요.</li>
+      </ul>
+    </div>
     <ol class="tasks">
       <li class="task"><input type="checkbox" data-k="w1"><div class="t-body">
         <div class="t-title">Supabase 에서 <code>0002_worker.sql</code> 실행</div>
@@ -561,7 +568,7 @@ gh pr create --fill --base main &amp;&amp; gh pr merge --merge --delete-branch</
           <b>2.</b> <code>myaccount.google.com/apppasswords</code> 로 이동<br>
           <b>3.</b> 앱 이름에 <code>ksat-feedback</code> 입력 → 만들기<br>
           <b>4.</b> 화면에 뜨는 <b>영문 16자리</b>(예: <code>abcd efgh ijkl mnop</code>)를 복사.
-          <b>이 창을 닫으면 다시 못 봐요.</b> 띄어쓰기는 빼고 붙여도 되고 그대로 붙여도 됩니다.
+          <b>이 창을 닫으면 다시 못 봐요.</b> 띄어쓰기가 있어도 그대로 붙여넣으면 됩니다 — 코드에서 알아서 지워요.
         </div>
       </div></li>
 
