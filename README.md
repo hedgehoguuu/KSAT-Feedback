@@ -1,1 +1,83 @@
 # KSAT-Feedback
+
+9모 시험지 피드백 접수 사이트. 스펙은 `../PRD_9모_시험지_피드백.md` (v1.0).
+
+시험지 사진 한 장으로 시작하는 무료 피드백 접수 창구. **하드 데드라인 2026-09-02(수) 접수 오픈.**
+
+## 돌려보기
+
+```bash
+npm install
+npm run dev            # http://localhost:3000
+```
+
+Supabase 키가 없어도 ②단계까지 전부 동작한다. 환경변수가 비어 있으면 업로드가 **mock 모드**로 떨어져
+서명 URL 발급·업로드를 흉내낸다. 파일 이름에 `fail` 이 들어가면 일부러 실패시켜서 FE-4 실패 UI를 볼 수 있다.
+
+실제 스토리지에 붙이려면 `.env.example` 을 `.env.local` 로 복사하고 값을 채운 뒤,
+`supabase/migrations/0001_init.sql` 을 Supabase SQL Editor 에서 실행한다.
+
+## 지금까지 된 것 (8/28 기준)
+
+| 항목 | 상태 |
+|---|---|
+| FE-1 4단계 진행 표시 · 되돌아가기 · 상태 일관성 | 됨 |
+| FE-2 시험 선택 ① (선택 즉시 다음, 상단 요약 유지) | 됨 |
+| FE-3 과목 칩 + 과목별 업로드 섹션 ② (12장/40장 상한, 삭제·순서 변경) | 됨 |
+| FE-4 업로드 상태 피드백 (장별 진행률, `3장 중 2장`, 장별 재시도) | 됨 |
+| FE-5 과목별 고민 ③ (설정 파일 렌더링, 순차 진행, 건너뛰기 확인) | 됨 |
+| FE-6 이메일 + 동의 ④ (포커스아웃 검사, 오타 도메인 제안, 연타 방지) | 됨 |
+| FE-7 완료 화면 (접수번호·회신 예정일·요약, 새로고침 유지) | 됨 |
+| FE-8 이어하기 (localStorage 자동 저장 + 랜딩 복귀 배너, 제출 후 삭제) | 됨 |
+| FE-9 모바일 우선 (360px 가로 스크롤 없음, 하단 고정 버튼 48px+) | 됨 |
+| BE-1 이미지 정규화 (긴 변 2000px / JPEG q0.82) + 서명 URL 직접 업로드 | 됨 (mock 폴백) |
+| BE-2 제출 (원자적 생성 · 접수번호 발급 · 멱등키) | 됨 |
+| OPS-1 접수 스위치 (전체/과목별 on/off, 상한, 마감 화면) | 됨 (Supabase 한 줄로 조작) |
+| 데이터 모델 · RLS · 비공개 버킷 · 설치 점검 함수 | SQL 작성 완료, **실행은 수동** |
+| BE-3 PDF, BE-4 Sheets, BE-5 Notion | **없음 — 8/30** |
+| P1 (접수 확인 메일, 품질 힌트, 퍼널 계측, 스팸 방지) | **없음** |
+
+## 구조
+
+```
+src/config/     시험·과목·문항·운영 상수. 코드에 '국어'·'수학'을 하드코딩하지 않는다 (PRD §6 P2)
+  exams.ts            시험 3종 → 학년·과목이 여기서 결정된다
+  subjects.ts         과목 코드 ↔ 라벨
+  questions.config.ts ③단계 5문항. 문구·개수·타입을 코드 수정 없이 바꾼다
+  app.ts              장수 상한, 보관 기간, 회신 SLA, 접수 스위치, 기능 플래그
+  steps.ts            4단계 정의
+src/lib/        store(zustand+persist) · image(리사이즈) · upload · submit · email · flow
+                intake/health(서버 전용) · blobs · draft
+src/components/ ProgressSteps · ExamSummary · SubjectChips · UploadSection · AutoTextarea · BottomBar
+src/app/        / (랜딩) · /apply/{exam,upload,concerns/[subject],email} · /done/[receiptNo]
+                /setup (설치 점검, noindex) · /api/{upload-url,submit,intake,health}
+supabase/migrations/0001_init.sql
+```
+
+## 운영자용 화면
+
+- `/setup` — 무엇이 준비됐고 무엇이 빠졌는지 ✓/✗ 로 보여준다. 배포 후 여기부터 열어볼 것.
+- Supabase Table Editor > `app_settings` 한 줄 — 접수 on/off, 상한, 과목별 off, 마감 문구. **배포 없이 즉시 반영**된다.
+
+## 아직 정해지지 않은 값
+
+§9 미결 항목은 `src/config/app.ts` 에 `PROVISIONAL` 로 모아 뒀다. 38차 회의(8/29) 뒤 이 파일만 고치면 된다.
+
+- `POLICY.retentionDays = 30` — Q4 사진 보관 기간
+- `POLICY.replySlaDays = 7` — Q5 회신 SLA
+- `INTAKE_DEFAULTS.capacity = null` — Q3 접수 상한
+- `BRANDING.serviceName` — Q6 서비스 이름
+- 고1·2 과목 5개를 다 열지(Q1)는 `SUBJECTS[].enabled` 로 끄고 켠다
+- ③단계 문항 문구(Q2)는 `questions.config.ts` 잠정안
+
+## 알아 둘 것
+
+- **초안 경로**: 제출 전에는 접수번호가 없어서 이미지를 `raw/drafts/{draftId}/{과목}/{순번}.jpg` 에 쌓는다.
+  PRD 의 `raw/{접수번호}/...` 로 묶는 일은 제출(BE-2) 때 한다.
+- **새로고침 후 재시도**: 실패한 장의 원본 blob 은 메모리에만 있다. 새로고침하면 그 장은 다시 고르라고 안내한다.
+- **접수 스위치(OPS-1)** 는 Supabase `app_settings` 를 읽는다. 브라우저에서 세션당 한 번 읽으므로,
+  스위치를 바꾼 뒤에는 새로고침해야 반영된다. 제출 API 는 매번 서버에서 다시 확인한다.
+- **제출 멱등성**: 클라이언트가 만든 멱등키가 `submissions.idempotency_key` 에 유니크로 들어간다.
+  같은 제출을 여러 번 눌러도 접수는 1건이고, 같은 접수번호가 돌아온다.
+- **비밀값**: `SUPABASE_SERVICE_ROLE_KEY` 는 서버에서만 쓴다(`src/lib/supabase/admin.ts` 는 `server-only`).
+  절대 `NEXT_PUBLIC_` 접두사를 붙이지 말 것 — 붙이면 브라우저로 새어 나가 DB 전체가 열린다.
