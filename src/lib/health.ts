@@ -6,6 +6,8 @@ import { notionConfigured } from './worker/notion';
 export type Check = { ok: boolean; detail: string };
 
 export type Health = {
+  /** 지금 돌고 있는 배포의 커밋. 고친 게 반영됐는지 확인할 때 쓴다. */
+  commit: string | null;
   mode: 'mock' | 'supabase';
   ready: boolean;
   submissionCount: number | null;
@@ -19,6 +21,7 @@ export type Health = {
  * 키·URL 같은 비밀값은 절대 내보내지 않는다 — 준비됐는지 여부와 안내 문구만 담는다.
  */
 export async function getHealth(): Promise<Health> {
+  const commit = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null;
   const hasUrl = Boolean(process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL);
   const hasKey = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -66,7 +69,7 @@ export async function getHealth(): Promise<Health> {
       checks[key] = { ok: false, detail: 'Supabase 연결 전이라 확인할 수 없어요' };
     }
     return {
-      mode: 'mock', ready: false, submissionCount: null,
+      commit, mode: 'mock', ready: false, submissionCount: null,
       pendingCount: null, failureCount: null, checks,
     };
   }
@@ -85,7 +88,7 @@ export async function getHealth(): Promise<Health> {
       checks[key] = { ok: false, detail };
     }
     return {
-      mode: 'supabase', ready: false, submissionCount: null,
+      commit, mode: 'supabase', ready: false, submissionCount: null,
       pendingCount: null, failureCount: null, checks,
     };
   }
@@ -128,6 +131,7 @@ export async function getHealth(): Promise<Health> {
   };
 
   return {
+    commit,
     mode: 'supabase',
     ready: Object.values(checks).every((c) => c.ok),
     submissionCount: status.submission_count ?? null,

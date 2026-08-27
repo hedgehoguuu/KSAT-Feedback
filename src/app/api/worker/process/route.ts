@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { processPending, processSubmission } from '@/lib/worker/process';
 
 export const runtime = 'nodejs';
@@ -26,6 +27,11 @@ export async function POST(req: Request) {
     if (!/^[A-Za-z0-9-]{5,32}$/.test(receipt)) {
       return NextResponse.json({ error: 'invalid receipt' }, { status: 400 });
     }
+    // 사람이 콕 집어 다시 돌리는 것이니, 자동 재시도 한도에 걸려 있어도 풀어준다
+    await supabaseAdmin()
+      ?.from('submissions')
+      .update({ process_attempts: 0, status: 'failed' })
+      .eq('receipt_no', receipt);
     return NextResponse.json(await processSubmission(receipt));
   }
 
