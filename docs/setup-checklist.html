@@ -336,7 +336,9 @@ gh pr create --fill --base main &amp;&amp; gh pr merge --merge --delete-branch</
         <span class="flag trap">비밀 값</span>
         <div class="t-title">Settings(톱니) → API 에서 두 값 복사해두기</div>
         <div class="t-note">
-          <b>Project URL</b> — <code>https://…….supabase.co</code><br>
+          <b>Project URL</b> — <code>https://…….supabase.co</code> 로 <b>끝나야</b> 해요.
+          뒤에 <code>/rest/v1/</code> 가 붙어 있으면 바로 아래 <b>RESTful endpoint</b> 칸을 복사한 거예요.
+          그걸 넣으면 접속은 되는 것처럼 보이다가 사진 업로드와 접수 저장이 전부 실패해요. 끝의 슬래시도 지우세요.<br>
           <b>service_role</b> 키 — 눈 아이콘을 눌러야 보여요. <b>이 값은 DB 전체를 여는 마스터 키예요.</b>
           카톡·노션·문서에 붙여넣지 말고, 다음 단계에서 Vercel에만 넣으세요.<br>
           (<code>anon</code> 키는 지금 안 써요.)
@@ -368,11 +370,21 @@ gh pr create --fill --base main &amp;&amp; gh pr merge --merge --delete-branch</
         <span class="flag trap">여기서 제일 많이 틀려요</span>
         <div class="t-title">Deploy 누르기 전에 Environment Variables 두 개 넣기</div>
         <div class="t-note">
-          이름을 <b>한 글자도 다르게 쓰면 안 돼요.</b> 특히 앞에 <code>NEXT_PUBLIC_</code>를 붙이면 키가 브라우저로 새어 나가요.
+          <b>왼쪽 Key 칸에는 이름, 오른쪽 Value 칸에는 값</b>이에요. 자리가 바뀌면
+          “name contains invalid characters” 오류가 나요 — 이름에는 영문·숫자·밑줄만 들어갈 수 있거든요.<br>
+          이름을 <b>한 글자도 다르게 쓰면 안 돼요.</b> 특히 앞에 <code>NEXT_PUBLIC_</code>를 붙이면 키가 브라우저로 새어 나가요.<br>
+          여러 줄을 한꺼번에 붙여넣으면 Vercel이 알아서 여러 개로 쪼개요(“7 Detected” 같은 표시).
+          우리가 쓰는 건 아래 두 개뿐이니, 나머지 줄은 오른쪽 <b>−</b> 버튼으로 지우세요.
         </div>
         <pre><b>SUPABASE_URL</b>               = 2단계에서 복사한 Project URL
 <b>SUPABASE_SERVICE_ROLE_KEY</b>  = 2단계에서 복사한 service_role 키</pre>
-        <div class="t-note">환경(Environment)은 <b>Production · Preview · Development 세 개 모두 체크</b>하세요.</div>
+        <div class="t-note">
+          <b>이 화면에는 환경(Production/Preview/Development) 선택이 없어요 — 그게 정상이에요.</b>
+          처음 Import 할 때 넣은 변수는 자동으로 세 환경 모두에 적용돼요.
+          환경별 선택은 배포가 끝난 뒤 Settings → Environment Variables 에서만 나와요.<br>
+          값 칸 옆 노란 자물쇠(<b>Sensitive</b>)는 service_role 키에 켜두면 좋아요.
+          켜면 나중에 Vercel에서 값을 다시 볼 수 없지만, 필요하면 Supabase에서 다시 복사하면 돼요.
+        </div>
       </div></li>
       <li class="task"><input type="checkbox" data-k="c4"><div class="t-body">
         <div class="t-title">Deploy 누르고 1~2분 기다리기</div>
