@@ -34,6 +34,16 @@ export async function GET(req: Request) {
   out.failures = failures.data ?? [];
   if (failures.error) out.failuresError = failures.error.message;
 
+  type Row = {
+    receipt_no: string;
+    submission_subjects: {
+      subject_code: string;
+      pdf_path: string | null;
+      notion_page_id: string | null;
+      submission_files: { storage_path: string; bytes: number | null; order_index: number }[];
+    }[];
+  };
+
   const submissions = await db
     .from('submissions')
     .select(
@@ -48,7 +58,9 @@ export async function GET(req: Request) {
 
   // ----------------------------------------- 저장소에서 실제로 받아보기
   if (params.get('probe') === '1') {
-    const first = (submissions.data ?? [])
+    // 중첩 관계 조회는 타입이 넓게 잡힌다. 실제 모양은 위 Row 와 같다.
+    const rows = (submissions.data ?? []) as unknown as Row[];
+    const first = rows
       .flatMap((s) => s.submission_subjects ?? [])
       .flatMap((s) => s.submission_files ?? [])[0];
 
