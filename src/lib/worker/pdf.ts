@@ -41,11 +41,14 @@ function isPng(bytes: Uint8Array): boolean {
 }
 
 /**
- * 튜터가 내려받을 때 보이는 이름 (BE-3 AC).
- * 저장 경로에는 쓰지 않는다 — 스토리지 키에 한글을 넣으면 "Invalid key" 로 거부당한다.
+ * 튜터가 내려받을 때 보이는 이름.
+ *
+ * PRD BE-3 은 `{접수번호}_{학년}_{과목}.pdf` 를 한글로 적었지만 영문으로 간다.
+ * 스토리지 키에는 한글을 못 넣고("Invalid key"), 다운로드 파일명 파라미터도
+ * 서버가 디코드하지 않아 한글을 넣으면 `%25EA%25B3%25A0…` 처럼 이중 인코딩돼 더 읽기 나빠진다.
  */
-export function pdfFileName(receiptNo: string, grade: number, subjectLabel: string): string {
-  return `${receiptNo}_고${grade}_${subjectLabel}.pdf`;
+export function pdfFileName(receiptNo: string, grade: number, subjectCode: string): string {
+  return `${receiptNo}_G${grade}_${subjectCode}.pdf`;
 }
 
 /** 실제 저장 경로. 영문·숫자만 쓴다. */

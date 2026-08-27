@@ -165,7 +165,7 @@ export async function processSubmission(
         .from(RAW_BUCKET)
         .createSignedUrl(pdfPath, PDF_URL_TTL_SECONDS, {
           // 내려받을 때는 {접수번호}_{학년}_{과목}.pdf 로 저장되게 한다 (BE-3 AC)
-          download: pdfFileName(receiptNo, exam.grade, label),
+          download: pdfFileName(receiptNo, exam.grade, subject.subject_code),
         });
       pdfUrl = signed?.signedUrl ?? null;
     }

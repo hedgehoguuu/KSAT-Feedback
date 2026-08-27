@@ -35,7 +35,7 @@ supabase/migrations/0002_worker.sql 워커용 컬럼·실패 로그·claim 함�
 | BE-2 제출 (원자적 생성 · 접수번호 발급 · 멱등키) | 됨 |
 | OPS-1 접수 스위치 (전체/과목별 on/off, 상한, 마감 화면) | 됨 (Supabase 한 줄로 조작) |
 | 데이터 모델 · RLS · 비공개 버킷 · 설치 점검 함수 | SQL 작성 완료, **실행은 수동** |
-| BE-3 과목별 PDF 병합 | 됨 (세로·가로 섞여도 잘리지 않음) |
+| BE-3 과목별 PDF 병합 | 됨 (세로·가로 섞여도 잘리지 않음, 파일명은 영문 — 아래 참고) |
 | BE-5 Notion 자동 등록 | 됨 (과목 1건 = 페이지 1개, 재실행해도 중복 안 생김) |
 | P1-1 접수 확인 메일 | 됨 (Gmail SMTP, 발신 juhhyun10031@gmail.com) |
 | P1-4 퍼널 계측 (Vercel Web Analytics) | 붙임 — 대시보드에서 켜야 집계 시작 |
@@ -127,6 +127,13 @@ G4(자동 반영 성공률)는 Notion 단독 기준으로 읽는다.
 - **Vercel Web Analytics**: 단계마다 주소가 달라서 페이지뷰만으로 퍼널이 그려진다
   (`/` → `/apply/exam` → `/apply/upload` → `/apply/concerns/[과목]` → `/apply/email` → `/done`).
   완료 화면 주소의 접수번호는 `src/components/Analytics.tsx` 의 `beforeSend` 에서 잘라내고 보낸다.
+- **PDF 파일명은 영문이다.** PRD BE-3 은 `{접수번호}_{학년}_{과목}.pdf` 를 한글로 적었지만,
+  스토리지 키에 한글을 넣으면 `Invalid key` 로 거부당하고, 다운로드 파일명 파라미터도 서버가
+  디코드하지 않아 `%25EA%25B3%25A0…` 로 이중 인코딩된다. `F0902-013_G3_math.pdf` 형태로 간다.
+- **막힌 접수 되살리기**: `POST /api/worker/process?receipt=F0902-013` (헤더 `x-worker-secret`).
+  사람이 집어서 부르는 것이므로 자동 재시도 한도에 걸려 있어도 풀고 다시 돌린다.
+  무엇이 왜 막혔는지는 `GET /api/worker/status` — `?probe=1` 은 저장소에서 사진을 실제로 받아보고,
+  `?mail=1` 은 운영자 주소로 시험 메일을 보내본다.
 - **접수 스위치(OPS-1)** 는 Supabase `app_settings` 를 읽는다. 브라우저에서 세션당 한 번 읽으므로,
   스위치를 바꾼 뒤에는 새로고침해야 반영된다. 제출 API 는 매번 서버에서 다시 확인한다.
 - **제출 멱등성**: 클라이언트가 만든 멱등키가 `submissions.idempotency_key` 에 유니크로 들어간다.
