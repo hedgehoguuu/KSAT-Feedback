@@ -1,4 +1,5 @@
-// 한곳에서 바꾸는 운영 상수. §9에서 미결인 값은 PROVISIONAL 로 표시했다.
+// 한곳에서 바꾸는 운영 상수.
+// §9 Q1·Q3~Q7 은 확정됐다. 남은 미결은 Q2(고민 문항 문구, 서현) 하나뿐이고 questions.config.ts 에 있다.
 
 export const LIMITS = {
   /** 과목당 최대 장수 (PRD §4 ②) */
@@ -12,28 +13,32 @@ export const LIMITS = {
 } as const;
 
 export const POLICY = {
-  /** PROVISIONAL — §9 Q4 (제안 30일). 동의 문구와 자동 삭제에 함께 쓰인다. */
+  /** 확정 30일 — §9 Q4. 동의 문구와 자동 삭제에 함께 쓰인다. */
   retentionDays: 30,
-  /** PROVISIONAL — §9 Q5 (1주일 유지 vs 3일). 완료 화면 회신 예정일 계산에 쓰인다. */
+  /** 확정 7일 — §9 Q5. 완료 화면 회신 예정일 계산에 쓰인다. */
   replySlaDays: 7,
   minAge: 14,
 } as const;
 
 export const BRANDING = {
-  serviceName: '시험지 피드백', // PROVISIONAL — §9 Q6
+  /** §9 Q6 — 커스텀 도메인 없이 vercel.app 기본 주소로 간다. 이름은 페이지 제목에만 쓰인다. */
+  serviceName: '시험지 피드백',
   receiptPrefix: 'F',
 } as const;
 
-/** 화면에 넣고 뺄 수 있는 것들. §9 Q7 결론이 나면 여기만 바꾼다. */
+/** 화면에 넣고 뺄 수 있는 것들. */
 export const FEATURES = {
-  /** 완료 화면의 유료 전환 사전 의향 버튼 (PRD §4 완료 · P1-3) */
+  /** 완료 화면의 유료 전환 사전 의향 버튼 (PRD §4 완료 · P1-3). §9 Q7 — 끄기로 확정. */
   conversionCta: false,
 } as const;
 
-/** 접수 스위치 기본값 (OPS-1). 운영 중에는 `_설정` 시트/원격 값이 이 값을 덮는다. */
+/**
+ * 접수 스위치 기본값 (OPS-1). 실제 운영값은 Supabase `app_settings` 한 줄이 덮는다.
+ * 여기 값은 DB 를 못 읽을 때의 폴백일 뿐이다.
+ */
 export const INTAKE_DEFAULTS = {
   open: true,
-  /** PROVISIONAL — §9 Q3. null 이면 상한 없음. */
+  /** §9 Q3 — 상한 없이 간다. 필요해지면 app_settings.capacity 에 숫자만 넣으면 즉시 걸린다. */
   capacity: null as number | null,
   closedReason: '이번 회차 접수가 마감됐어요.',
 } as const;

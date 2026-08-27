@@ -436,26 +436,34 @@ gh pr create --fill --base main &amp;&amp; gh pr merge --merge --delete-branch</
   <section>
     <div class="sec-head">
       <span class="sec-num">05</span>
-      <h2>8/29 회의에서 정해서 알려주면 되는 값</h2>
-      <span class="sec-when">8월 29일</span>
+      <h2>회의에서 정해진 값 — 반영 완료</h2>
+      <span class="sec-when">8월 29일 · 끝</span>
     </div>
     <p class="sec-why">
-      전부 설정 파일 한 줄이라 회의에서 정해서 알려주시면 바로 반영돼요.
-      지금은 아래 임시값으로 화면에 표시되고 있어요.
+      일곱 개 모두 지금 화면에 들어가 있던 값과 같아서, 바꿀 코드는 없었어요.
+      “임시값” 표시만 떼고 확정으로 기록해뒀습니다. <b>남은 건 Q2 하나</b>예요.
     </p>
     <div class="scroll">
       <table>
-        <thead><tr><th>PRD</th><th>정할 것</th><th>지금 임시값</th><th>바꾸는 곳</th></tr></thead>
+        <thead><tr><th>PRD</th><th>정할 것</th><th>결정</th><th>상태</th></tr></thead>
         <tbody>
-          <tr><td class="q">Q1</td><td>고1·2 과목 5개를 다 여는지</td><td>5개 다 열림</td><td>과목 설정 / Supabase 스위치</td></tr>
-          <tr><td class="q">Q2</td><td>고민 5문항 최종 문구 (서현)</td><td>제가 쓴 잠정안</td><td>문항 설정 파일</td></tr>
-          <tr><td class="q">Q3</td><td>접수 상한과 마감일</td><td>상한 없음</td><td>Supabase <code>app_settings</code></td></tr>
-          <tr><td class="q">Q4</td><td>사진 보관 기간</td><td>30일</td><td>설정 파일 (동의 문구에 자동 반영)</td></tr>
-          <tr><td class="q">Q5</td><td>회신 기한 (1주 vs 3일)</td><td>7일</td><td>설정 파일 (완료 화면 날짜에 반영)</td></tr>
-          <tr><td class="q">Q6</td><td>서비스 이름 · 도메인</td><td>vercel.app 기본 주소</td><td>설정 파일 + Vercel 도메인</td></tr>
-          <tr><td class="q">Q7</td><td>완료 화면에 과외 버튼을 넣을지</td><td>꺼둠</td><td>기능 플래그 한 줄</td></tr>
+          <tr><td class="q">Q1</td><td>고1·2 과목 5개를 다 여는지</td><td>5개 다 열기</td><td>반영됨</td></tr>
+          <tr><td class="q">Q2</td><td>고민 5문항 최종 문구 (서현)</td><td>아직 미정</td><td><b>8/30까지 필요</b></td></tr>
+          <tr><td class="q">Q3</td><td>접수 상한과 마감일</td><td>상한 없음</td><td>반영됨</td></tr>
+          <tr><td class="q">Q4</td><td>사진 보관 기간</td><td>30일</td><td>반영됨</td></tr>
+          <tr><td class="q">Q5</td><td>회신 기한</td><td>7일</td><td>반영됨</td></tr>
+          <tr><td class="q">Q6</td><td>서비스 이름 · 도메인</td><td>vercel.app 기본 주소</td><td>반영됨</td></tr>
+          <tr><td class="q">Q7</td><td>완료 화면에 과외 버튼</td><td>넣지 않음</td><td>반영됨</td></tr>
         </tbody>
       </table>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>아직 답이 필요한 것</h3>
+      <ul>
+        <li><b>Q2 — 고민 5문항 문구</b> (서현, 8/30까지). 그때까지는 제가 쓴 잠정안이 학생에게 나가요.</li>
+        <li><b>Q8 — 접수 확인 메일</b>을 누가, 어떤 주소로 보낼지. 지금은 메일이 아예 안 나가요.</li>
+        <li><b>Q9 — Notion DB를 팀 워크스페이스에 둘지, 분리할지.</b> 6단계 시작 전에 정해야 해요.</li>
+      </ul>
     </div>
   </section>
 

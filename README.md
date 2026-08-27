@@ -59,16 +59,23 @@ supabase/migrations/0001_init.sql
 - `/setup` — 무엇이 준비됐고 무엇이 빠졌는지 ✓/✗ 로 보여준다. 배포 후 여기부터 열어볼 것.
 - Supabase Table Editor > `app_settings` 한 줄 — 접수 on/off, 상한, 과목별 off, 마감 문구. **배포 없이 즉시 반영**된다.
 
-## 아직 정해지지 않은 값
+## 정해진 값 / 남은 미결
 
-§9 미결 항목은 `src/config/app.ts` 에 `PROVISIONAL` 로 모아 뒀다. 38차 회의(8/29) 뒤 이 파일만 고치면 된다.
+§9 결정 사항은 `src/config/app.ts` 한곳에 모여 있다. 38차 회의에서 아래대로 확정됐다.
 
-- `POLICY.retentionDays = 30` — Q4 사진 보관 기간
-- `POLICY.replySlaDays = 7` — Q5 회신 SLA
-- `INTAKE_DEFAULTS.capacity = null` — Q3 접수 상한
-- `BRANDING.serviceName` — Q6 서비스 이름
-- 고1·2 과목 5개를 다 열지(Q1)는 `SUBJECTS[].enabled` 로 끄고 켠다
-- ③단계 문항 문구(Q2)는 `questions.config.ts` 잠정안
+| PRD | 결정 | 어디에 |
+|---|---|---|
+| Q1 | 고1·2 과목 5개 모두 연다 | `subjects.ts` (닫을 땐 `app_settings.disabled_subjects`) |
+| Q3 | 접수 상한 없음 | `app_settings.capacity` 에 숫자를 넣으면 즉시 걸린다 |
+| Q4 | 사진 보관 30일 | `POLICY.retentionDays` — 동의 문구에 자동 반영 |
+| Q5 | 회신 SLA 7일 | `POLICY.replySlaDays` — 완료 화면 날짜에 자동 반영 |
+| Q6 | 커스텀 도메인 없이 vercel.app 기본 주소 | `BRANDING.serviceName` 은 페이지 제목에만 쓰임 |
+| Q7 | 완료 화면 과외 버튼 끔 | `FEATURES.conversionCta` |
+
+**남은 미결 — Q2 (고민 5문항 최종 문구, 서현, 8/30까지).** 그때까지는 `questions.config.ts` 의 잠정안이 나간다.
+문구·개수·타입만 바꾸는 일이라 코드 수정은 필요 없다.
+
+운영 쪽 미결: Q8(접수 확인 메일 발송 주체·발신 주소), Q9(Notion DB 를 팀 워크스페이스에 둘지 분리할지).
 
 ## 알아 둘 것
 

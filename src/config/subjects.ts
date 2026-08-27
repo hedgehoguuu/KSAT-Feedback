@@ -9,6 +9,8 @@ export type Subject = {
   enabled: boolean;
 };
 
+// §9 Q1 — 고1·2 과목 5개를 모두 연다. 다시 닫을 때는 여기 enabled 를 끄거나(배포 필요),
+// Supabase app_settings.disabled_subjects 에 과목 코드를 넣는다(배포 불필요).
 export const SUBJECTS: readonly Subject[] = [
   { code: 'korean', label: '국어', enabled: true },
   { code: 'math', label: '수학', enabled: true },
