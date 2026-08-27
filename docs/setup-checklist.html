@@ -396,10 +396,12 @@ gh pr create --fill --base main &amp;&amp; gh pr merge --merge --delete-branch</
           바꾼 뒤 Deployments 탭에서 맨 위 배포의 ⋯ → <b>Redeploy</b>.</div>
       </div></li>
       <li class="task"><input type="checkbox" data-k="c7"><div class="t-body">
-        <div class="t-title">Analytics 탭에서 <b>Web Analytics</b> 켜기</div>
+        <div class="t-title">Analytics 탭에서 숫자가 들어오는지 확인</div>
         <div class="t-note">
-          Vercel 프로젝트 상단 <b>Analytics</b> 탭 → <b>Enable</b>. 코드는 이미 붙여뒀지만,
-          여기서 켜지 않으면 숫자가 하나도 안 쌓여요. 켠 뒤부터의 방문만 집계되니 접수 오픈 전에 켜두셔야 해요.<br>
+          <b>따로 켜는 버튼은 없어요.</b> 왼쪽 메뉴 <b>Analytics</b> 에 “Get Started” 3단계가 보이면
+          그게 켜져 있고 데이터를 기다리는 상태예요. 1·2단계(패키지 설치, 컴포넌트 추가)는 이미 되어 있으니,
+          배포된 사이트를 한 번 열었다가 1분쯤 뒤 이 탭을 새로고침하면 숫자가 뜹니다.<br>
+          아래 <b>Implement with Vercel Agent</b> 버튼은 <b>누르지 마세요</b> — 같은 작업을 하는 PR을 또 만들어요.<br>
           단계마다 주소가 달라서 별도 설정 없이 퍼널이 그려집니다 —
           랜딩 몇 명 → 시험 선택 몇 명 → 업로드 몇 명 → 제출 완료 몇 명.
         </div>
