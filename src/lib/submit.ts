@@ -1,5 +1,6 @@
 'use client';
 
+import { getDraftId } from './draft';
 import { filledSubjects } from './flow';
 import { useApply } from './store';
 
@@ -12,6 +13,7 @@ export async function submitApplication(): Promise<SubmitResult> {
 
   const payload = {
     idempotencyKey: s.ensureSubmitKey(),
+    draftId: getDraftId(),
     examCode: s.examCode,
     email: s.email.trim(),
     consent: s.consent,

@@ -26,10 +26,11 @@ export function UploadSection({ subject }: { subject: SubjectCode }) {
   const failedCount = mine.filter((p) => p.status === 'error').length;
   const busy = mine.some((p) => p.status === 'queued' || p.status === 'uploading');
 
-  async function send(photo: Photo, blob: Blob, order: number) {
+  async function send(photo: Photo, blob: Blob) {
     patchPhoto(photo.id, { status: 'uploading', progress: 0, error: undefined });
     try {
-      const target = await requestUploadTarget({ draftId: getDraftId(), subject, order });
+      // 사진 id 를 그대로 경로에 쓴다. 다시 올려도 같은 자리에 덮어써서 쓰레기가 남지 않는다.
+      const target = await requestUploadTarget({ draftId: getDraftId(), subject, fileId: photo.id });
       await uploadBlob(target, blob, photo.name, (p) => patchPhoto(photo.id, { progress: p }));
       patchPhoto(photo.id, { status: 'done', progress: 100, storagePath: target.path });
       return true;
@@ -63,7 +64,6 @@ export function UploadSection({ subject }: { subject: SubjectCode }) {
     const files = picked.slice(0, allowed);
     setBatch({ total: files.length, done: 0 });
 
-    let order = mine.length;
     for (const file of files) {
       try {
         const normalized = await normalizeImage(file);
@@ -75,11 +75,10 @@ export function UploadSection({ subject }: { subject: SubjectCode }) {
           },
         ]);
         keepBlob(photo.id, normalized.blob);
-        await send(photo, normalized.blob, order);
+        await send(photo, normalized.blob);
       } catch {
         setNotice('이 사진은 열 수가 없었어요. 다른 사진으로 올려볼래요?');
       }
-      order += 1;
       setBatch((b) => (b ? { ...b, done: b.done + 1 } : b));
     }
 
@@ -93,8 +92,7 @@ export function UploadSection({ subject }: { subject: SubjectCode }) {
       removePhoto(photo.id);
       return;
     }
-    const order = photosOf(useApply.getState().photos, subject).findIndex((p) => p.id === photo.id);
-    await send(photo, blob, Math.max(0, order));
+    await send(photo, blob);
   }
 
   function remove(photo: Photo) {

@@ -16,6 +16,7 @@ type FileIn = { storagePath: string; orderIndex: number; bytes?: number };
 type SubjectIn = { subjectCode: string; concerns: Record<string, string>; files: FileIn[] };
 type Body = {
   idempotencyKey?: string;
+  draftId?: string;
   examCode?: string;
   email?: string;
   consent?: boolean;
@@ -26,6 +27,8 @@ type Body = {
 /** Supabase 없이 로컬에서 돌릴 때 쓰는 임시 접수번호 발급기 (프로세스 메모리) */
 const mockSeq = new Map<string, number>();
 const mockIssued = new Map<string, string>();
+
+const ID_SHAPE = /^[A-Za-z0-9-]{8,64}$/;
 
 function bad(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -39,9 +42,10 @@ export async function POST(req: Request) {
     return bad('invalid json');
   }
 
-  const { idempotencyKey, examCode, email, consent, ageOk, subjects } = body;
+  const { idempotencyKey, draftId, examCode, email, consent, ageOk, subjects } = body;
 
-  if (!idempotencyKey || !/^[a-zA-Z0-9-]{8,64}$/.test(idempotencyKey)) return bad('invalid idempotencyKey');
+  if (!idempotencyKey || !ID_SHAPE.test(idempotencyKey)) return bad('invalid idempotencyKey');
+  if (!draftId || !ID_SHAPE.test(draftId)) return bad('invalid draftId');
   if (!examCode || !isExamCode(examCode)) return bad('invalid examCode');
   if (!email || !isValidEmail(email)) return bad('invalid email');
   if (consent !== true) return bad('consent required');
@@ -57,6 +61,8 @@ export async function POST(req: Request) {
 
   let totalFiles = 0;
   const seen = new Set<string>();
+  const paths = new Set<string>();
+  const expectedPath = /^raw\/drafts\/[A-Za-z0-9-]{8,64}\/[a-z_]{3,12}\/[A-Za-z0-9-]{8,64}\.jpg$/;
   for (const s of subjects) {
     if (!s || !isSubjectCode(s.subjectCode)) return bad('invalid subject');
     if (!allowed.has(s.subjectCode)) return bad('subject not in exam');
@@ -69,6 +75,14 @@ export async function POST(req: Request) {
     for (const f of s.files) {
       if (!f?.storagePath || typeof f.storagePath !== 'string') return bad('invalid file');
       if (!Number.isInteger(f.orderIndex)) return bad('invalid file order');
+      // 이 초안·이 과목의 사진만 받는다. 남의 접수 경로를 끼워 넣지 못하게 한다.
+      if (!expectedPath.test(f.storagePath)) return bad('invalid file path');
+      if (!f.storagePath.startsWith(`raw/drafts/${draftId}/${s.subjectCode}/`)) {
+        return bad('file path does not belong to this submission');
+      }
+      // 같은 파일을 두 번 넣으면 PDF 에 같은 장이 두 번 들어간다
+      if (paths.has(f.storagePath)) return bad('duplicate file path');
+      paths.add(f.storagePath);
     }
     totalFiles += s.files.length;
   }

@@ -34,6 +34,10 @@ export async function sendConfirmationMail(input: MailInput): Promise<void> {
     port: 465,
     secure: true,
     auth: { user, pass },
+    // 응답이 없을 때 함수 시간을 다 잡아먹지 않게 끊는다
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 15_000,
   });
 
   const summary = input.subjects

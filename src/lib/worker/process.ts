@@ -283,13 +283,20 @@ export async function processSubmission(
   }
 }
 
-/** 밀린 접수를 순서대로 처리한다. 재처리 호출과 크론이 같이 쓴다. */
-export async function processPending(limit = 5): Promise<ProcessResult[]> {
+/**
+ * 밀린 접수를 순서대로 처리한다.
+ * 함수가 잘리면 그 건은 'processing' 인 채로 남아 10분 뒤 다시 집어오게 되므로,
+ * 남은 시간이 한 건을 처리하기에 빠듯하면 더 시작하지 않는다.
+ */
+export async function processPending(limit = 5, budgetMs = 45_000): Promise<ProcessResult[]> {
   const db = supabaseAdmin();
   if (!db) return [];
 
+  const startedAt = Date.now();
   const results: ProcessResult[] = [];
+
   for (let i = 0; i < limit; i += 1) {
+    if (Date.now() - startedAt > budgetMs) break;
     const { data: receiptNo } = await db.rpc('claim_submission', { p_receipt_no: null });
     if (!receiptNo) break;
     results.push(await processSubmission(receiptNo as string, { alreadyClaimed: true }));

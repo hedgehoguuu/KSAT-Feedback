@@ -10,7 +10,8 @@ export type UploadTarget =
 export async function requestUploadTarget(params: {
   draftId: string;
   subject: string;
-  order: number;
+  /** 사진마다 고유한 값. 순번을 쓰면 지웠다 다시 올릴 때 먼저 올린 파일을 덮어쓴다. */
+  fileId: string;
 }): Promise<UploadTarget> {
   const res = await fetch('/api/upload-url', {
     method: 'POST',
