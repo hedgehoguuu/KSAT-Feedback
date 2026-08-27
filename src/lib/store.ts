@@ -47,6 +47,11 @@ type State = {
   submitKey: string | null;
   updatedAt: number | null;
   receipt: Receipt | null;
+  /**
+   * 방금 제출을 끝냈다는 표시. 저장하지 않는다.
+   * 제출 직후에는 입력값이 비므로, 이 표시가 없으면 ①단계로 되돌리는 가드가 완료 화면을 가로챈다.
+   */
+  justCompleted: boolean;
 };
 
 type Actions = {
@@ -79,6 +84,7 @@ const EMPTY: State = {
   submitKey: null,
   updatedAt: null,
   receipt: null,
+  justCompleted: false,
 };
 
 const touch = () => ({ updatedAt: Date.now() });
@@ -179,7 +185,7 @@ export const useApply = create<State & Actions>()(
 
       complete: (r) => {
         get().photos.forEach((p) => p.previewUrl && URL.revokeObjectURL(p.previewUrl));
-        set({ ...EMPTY, receipt: r, updatedAt: Date.now() });
+        set({ ...EMPTY, receipt: r, justCompleted: true, updatedAt: Date.now() });
       },
 
       reset: () => {

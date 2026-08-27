@@ -14,6 +14,7 @@ export default function ApplyLayout({ children }: LayoutProps<'/apply'>) {
 
   const examCode = useApply((s) => s.examCode);
   const photos = useApply((s) => s.photos);
+  const justCompleted = useApply((s) => s.justCompleted);
   const markPath = useApply((s) => s.markPath);
 
   const step = stepByPath(pathname) ?? STEPS[0];
@@ -25,9 +26,11 @@ export default function ApplyLayout({ children }: LayoutProps<'/apply'>) {
 
   useEffect(() => {
     if (!hydrated) return;
+    // 제출 직후에는 완료 화면으로 넘어가는 중이다. 여기서 되돌리면 완료 화면을 못 본다.
+    if (justCompleted) return;
     if (at > reachable) router.replace(STEPS[reachable].path);
     else markPath(pathname);
-  }, [hydrated, at, reachable, pathname, router, markPath]);
+  }, [hydrated, at, reachable, pathname, router, markPath, justCompleted]);
 
   return (
     <>
