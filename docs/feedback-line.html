@@ -1,0 +1,570 @@
+<title>과목당 20분 피드백 라인</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+
+<style>
+  :root {
+    --ground: #f6f8fb; --panel: #ffffff; --panel-2: #eef1f7;
+    --ink: #131820; --ink-2: #4a5566; --ink-3: #7b8698;
+    --line: #dfe4ec; --line-2: #c6cedb;
+    --accent: #1b64da; --accent-soft: #e7eefc;
+    --good: #0f7a52; --good-soft: #e2f3ec;
+    --warn: #9a5300; --warn-soft: #fbeedd;
+    --shadow: 0 1px 2px rgba(19,24,32,.05), 0 10px 28px -20px rgba(19,24,32,.45);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0d1117; --panel: #151b24; --panel-2: #1c2430;
+      --ink: #e8edf6; --ink-2: #a5b0c2; --ink-3: #717d90;
+      --line: #242d3a; --line-2: #35404f;
+      --accent: #7aa5ff; --accent-soft: #17243d;
+      --good: #4cc492; --good-soft: #11291f;
+      --warn: #e0a45c; --warn-soft: #2c1f10;
+      --shadow: 0 1px 2px rgba(0,0,0,.5), 0 10px 28px -20px rgba(0,0,0,.9);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0d1117; --panel: #151b24; --panel-2: #1c2430;
+    --ink: #e8edf6; --ink-2: #a5b0c2; --ink-3: #717d90;
+    --line: #242d3a; --line-2: #35404f;
+    --accent: #7aa5ff; --accent-soft: #17243d;
+    --good: #4cc492; --good-soft: #11291f;
+    --warn: #e0a45c; --warn-soft: #2c1f10;
+    --shadow: 0 1px 2px rgba(0,0,0,.5), 0 10px 28px -20px rgba(0,0,0,.9);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+    font-size: 15.5px; line-height: 1.75; word-break: keep-all; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 0 24px 110px; }
+
+  header.cover { padding: 62px 0 0; }
+  .kicker {
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 18px;
+  }
+  h1 {
+    font-family: "Gowun Batang", "Apple SD Gothic Neo", serif;
+    font-size: 40px; font-weight: 700; line-height: 1.28; letter-spacing: -.01em; margin: 0; text-wrap: balance;
+  }
+  .sub { color: var(--ink-2); margin: 18px 0 0; max-width: 62ch; font-size: 16px; }
+
+  .verdict {
+    margin-top: 32px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+    background: var(--accent-soft); border-radius: 14px; padding: 22px 24px;
+  }
+  .verdict h2 { font-family: inherit; font-size: 17px; font-weight: 700; margin: 0 0 10px; color: var(--accent); }
+  .verdict p { margin: 0; font-size: 15.5px; line-height: 1.7; }
+  .verdict ol { margin: 12px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 15px; }
+
+  section { margin-top: 58px; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+  .sec-n { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600; color: var(--accent); padding-top: 4px; }
+  h2 { font-family: "Gowun Batang", "Apple SD Gothic Neo", serif; font-size: 25px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+  h3 { font-size: 16.5px; font-weight: 700; margin: 32px 0 8px; }
+  .lead { color: var(--ink-2); margin: 0 0 22px; max-width: 66ch; }
+  p { max-width: 68ch; }
+
+  figure { margin: 26px 0 0; }
+  figure svg { display: block; width: 100%; min-width: 780px; height: auto; }
+  .frame { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 22px 20px; overflow-x: auto; box-shadow: var(--shadow); }
+  figcaption { margin-top: 12px; font-size: 13.5px; color: var(--ink-2); line-height: 1.65; }
+  figcaption b { color: var(--ink); font-weight: 600; }
+  .swipe { display: none; margin: 9px 0 0; font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-3); }
+  @media (max-width: 880px) { .swipe { display: block; } }
+  .dnode { fill: var(--panel-2); stroke: var(--line-2); }
+  .dnode-a { fill: var(--accent-soft); stroke: var(--accent); }
+  .dtext { fill: var(--ink); font-family: "IBM Plex Sans KR", sans-serif; font-size: 12.5px; font-weight: 600; }
+  .dsub { fill: var(--ink-3); font-family: "IBM Plex Sans KR", sans-serif; font-size: 10.5px; }
+  .dedge { stroke: var(--ink-3); fill: none; }
+  .dlabel { fill: var(--ink-2); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; }
+  .dlabel-a { fill: var(--accent); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; font-weight: 600; }
+
+  .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); margin-top: 20px; }
+  table { border-collapse: collapse; width: 100%; min-width: 580px; font-size: 14px; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; background: var(--panel-2); }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.id { font-family: "IBM Plex Mono", monospace; font-weight: 600; color: var(--accent); white-space: nowrap; font-size: 12.5px; }
+
+  code { font-family: "IBM Plex Mono", monospace; font-size: .86em; background: var(--panel-2); border: 1px solid var(--line); padding: 1px 5px; border-radius: 5px; }
+
+  .block { position: relative; margin-top: 16px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); overflow: hidden; }
+  .block-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 16px; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+  .block-head span { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .block button {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--line-2); background: var(--panel); color: var(--ink-2);
+    border-radius: 7px; padding: 5px 11px; min-height: 30px;
+  }
+  .block button:hover { color: var(--accent); border-color: var(--accent); }
+  .block button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .block pre {
+    margin: 0; padding: 18px 18px 20px; overflow-x: auto;
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px; line-height: 1.75;
+    color: var(--ink); white-space: pre-wrap; word-break: break-word;
+  }
+  .block pre b { color: var(--accent); font-weight: 600; }
+
+  .note { border-radius: 13px; padding: 19px 21px; margin-top: 20px; border: 1px solid var(--line); background: var(--panel); }
+  .note.warn { border-color: color-mix(in srgb, var(--warn) 32%, var(--line)); background: var(--warn-soft); }
+  .note.good { border-color: color-mix(in srgb, var(--good) 28%, var(--line)); background: var(--good-soft); }
+  .note h4 { margin: 0 0 10px; font-size: 15.5px; font-weight: 700; }
+  .note.warn h4 { color: var(--warn); } .note.good h4 { color: var(--good); }
+  .note ul { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+  .note li { display: flex; gap: 10px; font-size: 14.5px; line-height: 1.65; }
+  .note li::before { content: "—"; color: var(--ink-3); flex: 0 0 auto; }
+  .note.good li::before { content: "✓"; color: var(--good); font-weight: 700; }
+  .note.warn li::before { content: "!"; color: var(--warn); font-weight: 700; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 20px; }
+  .card { border: 1px solid var(--line); border-radius: 13px; background: var(--panel); padding: 17px 19px; }
+  .card h4 { margin: 0 0 5px; font-size: 15px; font-weight: 700; }
+  .card p { margin: 0; font-size: 13.5px; color: var(--ink-2); line-height: 1.65; }
+  .card .tag { display: inline-block; font-family: "IBM Plex Mono", monospace; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 7px; }
+
+  footer { margin-top: 66px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 13px; }
+  @media (max-width: 620px) { h1 { font-size: 30px; } h2 { font-size: 21px; } .wrap { padding: 0 17px 80px; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="cover">
+    <p class="kicker">시험지 피드백 · 생산 방식 검토</p>
+    <h1>튜터의 시간을<br>쓰기에서 고르기로</h1>
+    <p class="sub">
+      제안하신 방식은 됩니다. 다만 지금 설계대로 가면 튜터 한 명이 과목당 40분씩 쓰게 되고,
+      검수가 병목이 됩니다. 세 곳을 바꾸면 과목당 20분으로 내려갑니다.
+    </p>
+
+    <div class="verdict">
+      <h2>세 질문에 대한 답</h2>
+      <p><b>가능한가</b> — 됩니다. 기술적 장벽은 없습니다. 무너지는 곳은 사람 쪽입니다.</p>
+      <ol>
+        <li><b>진단은 Claude, 문구도 Claude 초안, 판단만 튜터.</b> 백지에서 쓰게 하면 안 됩니다.</li>
+        <li><b>전건 검수를 표본 검수로.</b> 주현·서현 2명이 60과목을 다 보면 그 자체가 10시간입니다.</li>
+        <li><b>“문서화” 단계를 없앱니다.</b> 처음부터 최종 형식에 쓰면 옮겨 적을 일이 없습니다.</li>
+      </ol>
+    </div>
+  </header>
+
+  <!-- ===================================== 01 -->
+  <section>
+    <div class="sec-head"><span class="sec-n">01</span><h2>지금 계획에서 무너지는 곳</h2></div>
+    <p class="lead">원안이 틀렸다는 뜻은 아닙니다. 순서와 역할 분담만 어긋나 있습니다.</p>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>문제</th><th>왜 문제인가</th><th>바꿀 것</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="id">백지 작성</td>
+            <td>Claude가 “진단”까지만 하고 해결책·조언은 튜터가 백지에서 씁니다. 가장 오래 걸리고 사람마다 품질이 갈리는 구간입니다.</td>
+            <td>해결책·조언도 <b>초안까지</b> 받고, 튜터는 고르고 고칩니다</td>
+          </tr>
+          <tr>
+            <td class="id">검수 병목</td>
+            <td>접수 30건이면 60과목. 2명이 전건을 보면 과목당 10분만 잡아도 10시간입니다. 회신 기한 안에 안 끝납니다.</td>
+            <td>첫 5건은 전수, 이후는 <b>위험 신호가 있는 것만</b></td>
+          </tr>
+          <tr>
+            <td class="id">문서화 중복</td>
+            <td>문구 작성 → 검수 → 파일 제작. 같은 내용을 두 번 만집니다.</td>
+            <td>처음부터 <b>최종 템플릿에 직접</b> 작성</td>
+          </tr>
+          <tr>
+            <td class="id">더미 데이터 과다</td>
+            <td>강사 해설 영상까지 모으는 건 시행 후 며칠이 걸립니다. 1주일 기한에서 며칠을 준비에 씁니다.</td>
+            <td>필수는 <b>문항 PDF + 정답표 + 유형 태그</b> 셋뿐</td>
+          </tr>
+          <tr>
+            <td class="id">오진단 위험</td>
+            <td>흐릿한 폰 사진에서 “가계도를 그렸다”를 단정하면, 틀렸을 때 신뢰가 한 번에 무너집니다.</td>
+            <td>진단마다 <b>문항 번호 근거 + 확신도</b>를 붙이고 튜터가 기각 가능하게</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================================== 02 -->
+  <section>
+    <div class="sec-head"><span class="sec-n">02</span><h2>시간이 어디로 가는가</h2></div>
+    <p class="lead">
+      과목 1건을 처리하는 데 드는 시간을 구간별로 나눈 것입니다. 실측이 아니라 추정이며,
+      첫 5건을 처리해보고 다시 재야 합니다. 다만 <b>어느 구간이 가장 무거운지</b>는 바뀌지 않습니다.
+    </p>
+
+    <figure>
+      <div class="frame">
+        <svg viewBox="0 0 950 222" role="img" aria-label="원안은 자료 찾기 8분, 시험지 읽기 10분, 진단 8분, 문구 작성 12분, 문서화 5분으로 합계 43분. 제안은 진단 후보 검토 5분, 채택과 수정 8분, 기출 고르기 2분, 마무리 5분으로 합계 20분. 문구를 백지에서 쓰는 구간과 문서화 구간이 사라진다.">
+          <text class="dtext" x="0" y="34">원안</text>
+          <text class="dsub" x="0" y="50">튜터가 백지에서</text>
+          <g stroke-width="1.2">
+            <rect class="dnode" x="120" y="24" width="136" height="34" />
+            <rect class="dnode" x="256" y="24" width="170" height="34" />
+            <rect class="dnode" x="426" y="24" width="136" height="34" />
+            <rect class="dnode" x="562" y="24" width="204" height="34" />
+            <rect class="dnode" x="766" y="24" width="85" height="34" />
+          </g>
+          <g class="dsub" text-anchor="middle" fill="var(--ink-2)">
+            <text x="188" y="45">자료 찾기</text>
+            <text x="341" y="45">시험지 읽기</text>
+            <text x="494" y="45">진단</text>
+            <text x="664" y="45">문구 작성</text>
+            <text x="808" y="45">문서화</text>
+          </g>
+          <g class="dlabel" text-anchor="middle">
+            <text x="188" y="74">8분</text><text x="341" y="74">10분</text><text x="494" y="74">8분</text>
+            <text x="664" y="74">12분</text><text x="808" y="74">5분</text>
+          </g>
+          <text class="dtext" x="866" y="45">43분</text>
+
+          <path class="dedge" d="M 562 84 L 562 92 L 851 92 L 851 84" stroke-width="1.2" />
+          <text class="dlabel" x="706" y="108" text-anchor="middle">이 17분이 가장 무겁고, 사람마다 품질이 가장 크게 갈린다</text>
+
+          <text class="dtext" x="0" y="146">제안</text>
+          <text class="dsub" x="0" y="162">초안을 고치는 쪽으로</text>
+          <g stroke-width="1.2">
+            <rect class="dnode-a" x="120" y="136" width="85" height="34" />
+            <rect class="dnode-a" x="205" y="136" width="136" height="34" />
+            <rect class="dnode-a" x="341" y="136" width="34" height="34" />
+            <rect class="dnode-a" x="375" y="136" width="85" height="34" />
+          </g>
+          <g class="dsub" text-anchor="middle" fill="var(--ink-2)">
+            <text x="162" y="157">진단 검토</text>
+            <text x="273" y="157">채택 · 수정</text>
+            <text x="417" y="157">마무리</text>
+          </g>
+          <text class="dsub" x="358" y="130" text-anchor="middle" fill="var(--ink-2)">기출</text>
+          <g class="dlabel" text-anchor="middle">
+            <text x="162" y="186">5분</text><text x="273" y="186">8분</text>
+            <text x="358" y="186">2분</text><text x="417" y="186">5분</text>
+          </g>
+          <text class="dtext" x="475" y="157" fill="var(--accent)">20분</text>
+
+          <line x1="0" y1="202" x2="950" y2="202" stroke="var(--line)" stroke-width="1" />
+          <text class="dlabel" x="0" y="218">과목 1건 기준 · 추정치 · 첫 5건 처리 후 실측으로 교체할 것</text>
+        </svg>
+      </div>
+      <p class="swipe">← 옆으로 밀어서 전체 보기</p>
+      <figcaption>
+        <b>같은 눈금의 두 막대.</b> 줄어든 23분은 대부분 「문구 작성」과 「문서화」에서 나옵니다.
+        시험지를 읽는 시간을 줄인 게 아니라, <b>백지에서 쓰는 일을 없앤 것</b>입니다.
+        진단 검토가 5분으로 짧은 이유는 Claude가 근거를 문항 번호로 달아 오기 때문입니다.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ===================================== 03 -->
+  <section>
+    <div class="sec-head"><span class="sec-n">03</span><h2>누가 무엇을 하는가</h2></div>
+    <p class="lead">
+      접수부터 발송까지 여섯 공정입니다. 앞의 둘은 이미 자동으로 돌고 있고, 사람이 붙는 곳은 뒤의 셋입니다.
+    </p>
+
+    <figure>
+      <div class="frame">
+        <svg viewBox="0 0 950 264" role="img" aria-label="접수와 자료 묶기는 자동으로 처리되고, Claude가 진단과 문구 초안을 만들며, 튜터가 채택하고 고쳐 쓰고, 주현 서현이 검수한 뒤 사람이 발송한다.">
+          <defs>
+            <marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+            </marker>
+          </defs>
+
+          <g stroke="var(--line)" stroke-width="1">
+            <line x1="96" y1="20" x2="950" y2="20" /><line x1="96" y1="96" x2="950" y2="96" />
+            <line x1="96" y1="172" x2="950" y2="172" /><line x1="96" y1="248" x2="950" y2="248" />
+          </g>
+          <g class="dlabel" text-anchor="start">
+            <text x="0" y="62">자동</text>
+            <text x="0" y="138">CLAUDE</text>
+            <text x="0" y="214">사람</text>
+          </g>
+
+          <g stroke-width="1.4">
+            <rect class="dnode" x="110" y="36" width="150" height="44" rx="9" />
+            <rect class="dnode" x="286" y="36" width="150" height="44" rx="9" />
+            <rect class="dnode-a" x="462" y="112" width="150" height="44" rx="9" />
+            <rect class="dnode" x="638" y="188" width="150" height="44" rx="9" />
+            <rect class="dnode" x="814" y="188" width="136" height="44" rx="9" />
+          </g>
+          <g class="dtext" text-anchor="middle">
+            <text x="185" y="56">접수 처리</text>
+            <text x="361" y="56">자료 묶기</text>
+            <text x="537" y="132">진단 · 문구 초안</text>
+            <text x="713" y="208">채택 · 고쳐쓰기</text>
+            <text x="882" y="208">검수 · 발송</text>
+          </g>
+          <g class="dsub" text-anchor="middle">
+            <text x="185" y="72">PDF · Notion · 확인 메일</text>
+            <text x="361" y="72">정답표 · 유형 태그</text>
+            <text x="537" y="148">후보 3개 · 근거 · 확신도</text>
+            <text x="713" y="224">튜터 · 20분</text>
+            <text x="882" y="224">주현 · 서현</text>
+          </g>
+
+          <g class="dedge" stroke-width="1.5" color="var(--ink-3)">
+            <line x1="260" y1="58" x2="280" y2="58" marker-end="url(#fa)" />
+            <path d="M 436 58 L 449 58 L 449 134 L 456 134" marker-end="url(#fa)" />
+            <path d="M 612 134 L 625 134 L 625 210 L 632 210" marker-end="url(#fa)" />
+            <line x1="788" y1="210" x2="808" y2="210" marker-end="url(#fa)" />
+          </g>
+          <text class="dlabel-a" x="449" y="100" text-anchor="middle">시험지 PDF + 고민</text>
+          <text class="dlabel" x="625" y="176" text-anchor="middle">후보를 고른다</text>
+
+          <path class="dedge" d="M 882 232 L 882 254 L 700 254 L 700 236" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#fa)" color="var(--ink-3)" />
+          <text class="dlabel" x="790" y="250" text-anchor="middle">반려는 여기로</text>
+        </svg>
+      </div>
+      <p class="swipe">← 옆으로 밀어서 전체 보기</p>
+      <figcaption>
+        <b>공정과 담당.</b> 「자료 묶기」는 회차마다 한 번만 준비하면 되는 일입니다 —
+        정답표와 문항별 유형 태그를 한 파일로 만들어 두면, 접수마다 시험지 PDF와 함께 Claude에 넣습니다.
+        Claude는 <b>후보를 내는 자리</b>이고 판정은 사람이 합니다.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ===================================== 04 -->
+  <section>
+    <div class="sec-head"><span class="sec-n">04</span><h2>지금 바로 쓰는 것</h2></div>
+    <p class="lead">셋 다 그대로 복사해 쓰시면 됩니다. 첫 5건 돌려보고 고치는 걸 전제로 만들었습니다.</p>
+
+    <h3>① 진단 프롬프트</h3>
+    <p>
+      Claude에 시험지 PDF와 학생 고민을 넣고 이 지시문을 함께 줍니다.
+      핵심은 <b>답을 하나로 정해주지 않는 것</b>입니다. 후보를 여러 개 내고 근거를 달게 해야 튜터가 5분 만에 판단할 수 있습니다.
+    </p>
+    <div class="block">
+      <div class="block-head"><span>진단 프롬프트</span><button type="button" data-copy="p1">복사</button></div>
+      <pre id="p1">너는 학생의 시험지 사진을 보고 풀이 흔적에서 행동 패턴을 읽어내는 조교다.
+너는 학생에게 갈 최종 피드백을 쓰지 않는다. 튜터가 고를 수 있는 진단 후보를 만든다.
+
+[받는 것]
+- 시험지 PDF (학생 필기가 그대로 있는 사진)
+- 학생이 직접 적은 고민
+- 정답표와 문항별 유형 태그
+- 학년과 시험 이름
+
+[할 일]
+1. 문항을 번호 순서대로 훑으면서 무엇이 적혀 있는지 사실만 적는다.
+   그림, 계산식, 밑줄, 동그라미, 지운 흔적, 아무것도 없음 — 보이는 대로.
+2. 그 흔적에서 읽히는 행동 패턴 후보를 최대 3개 만든다.
+   서로 다른 각도여야 한다. 같은 말을 바꿔 쓴 것은 후보가 아니다.
+3. 후보마다 아래를 채운다.
+   - 진단 : 한 문장. 평가나 위로 없이 사실 서술로.
+   - 근거 : 반드시 문항 번호로. "14번에서 그래프를 그리지 않고 식만 세 줄" 처럼.
+   - 확신도 : 높음 / 중간 / 낮음. 그렇게 본 이유를 한 줄로.
+   - 학생 고민과의 관계 : 일치 / 어긋남 / 학생이 말하지 않은 것.
+   - 이 진단이 틀렸을 수 있는 이유 : 반드시 하나 적는다.
+4. 후보마다 해결책 문구 초안을 2개씩 쓴다.
+   - 다음 시험에서 당장 할 수 있는 행동이어야 한다.
+   - "집중해라" "꼼꼼히 봐라" 같은 말은 금지. 무엇을 언제 어떻게 하는지 적는다.
+5. 연습할 기출을 1~2개 고르고, 왜 이걸 고르는지 한 줄로 적는다.
+
+[하지 말 것]
+- 사진에서 확인되지 않는 것을 추측해서 단정하지 마라. 안 보이면 "확인 불가"라고 써라.
+- 점수나 등급을 추정하지 마라.
+- 격려나 조언을 쓰지 마라. 그건 튜터가 자기 경험으로 쓴다.
+- 학생을 탓하는 표현을 쓰지 마라.
+
+[출력 형식]
+## 훑어본 것
+{문항 번호} : {보이는 흔적}
+(전 문항. 흔적이 없으면 "없음")
+
+## 후보 1
+진단 :
+근거 :
+확신도 :
+학생 고민과의 관계 :
+틀렸을 수 있는 이유 :
+해결책 초안 A :
+해결책 초안 B :
+연습할 기출 :
+
+## 후보 2
+(같은 형식)
+
+## 후보 3
+(같은 형식)
+
+## 튜터에게 남기는 메모
+사진이 흐리거나 잘려서 판단하지 못한 부분을 적는다.</pre>
+    </div>
+
+    <h3>② 피드백 문서 템플릿</h3>
+    <p>
+      학생에게 나가는 결과물입니다. <b>과목 하나에 A4 한 장</b>을 넘기지 않습니다.
+      길게 쓰면 정성이 아니라 부담으로 읽힙니다. 튜터는 처음부터 이 형식에 직접 씁니다 — 옮겨 적는 단계가 없습니다.
+    </p>
+    <div class="block">
+      <div class="block-head"><span>피드백 문서</span><button type="button" data-copy="p2">복사</button></div>
+      <pre id="p2">{과목} · {시험 이름} · 접수번호 {번호}
+
+■ 네가 적어준 고민
+"{학생이 쓴 문장 그대로 인용}"
+
+여기부터 답할게. {고민에 대한 직접적인 답 2~3줄}
+
+■ 시험지에서 보이는 것
+{문항 번호}번, {문항 번호}번에서 {구체적인 흔적}.
+{이게 무엇을 뜻하는지 2~3줄}
+
+■ 다음엔 이렇게 해보자
+{행동 하나. 두 개 이상 쓰지 않는다}
+{언제 어떻게 하는지 3~4줄}
+
+■ 이걸로 연습해봐
+1. {기출 출처와 번호} — {왜 이걸 고르는지 한 줄}
+2. {기출 출처와 번호} — {한 줄}
+
+■ 한마디
+{튜터 본인 경험에 근거한 3줄 이내}
+
+— {튜터 이름}</pre>
+    </div>
+
+    <h3>③ 검수 체크리스트</h3>
+    <p>주현·서현이 보는 기준입니다. 여섯 개 중 하나라도 걸리면 반려합니다.</p>
+    <div class="block">
+      <div class="block-head"><span>검수 6항목</span><button type="button" data-copy="p3">복사</button></div>
+      <pre id="p3">[ ] 진단에 문항 번호가 붙어 있는가        학생이 자기 시험지에서 확인할 수 있어야 한다
+[ ] 해결책이 행동인가                     "집중해라" 같은 추상어면 반려
+[ ] 학생이 적은 고민에 답했는가            고민을 인용만 하고 답하지 않은 경우가 가장 흔하다
+[ ] 사실 오류는 없는가                    문항 번호, 기출 출처, 정답
+[ ] 사람이 쓴 글로 읽히는가                열거식 나열, "~할 수 있습니다" 투가 남아 있으면 반려
+[ ] 학생을 탓하지 않는가                  "왜 안 했니"가 아니라 "다음엔 이렇게"</pre>
+    </div>
+  </section>
+
+  <!-- ===================================== 05 -->
+  <section>
+    <div class="sec-head"><span class="sec-n">05</span><h2>회차가 쌓일수록 빨라지는 장치</h2></div>
+    <p class="lead">
+      이번 회차만 보면 20분이 한계입니다. 다음 회차부터 더 줄이려면 <b>같은 일을 두 번 하지 않는 구조</b>가 필요합니다.
+    </p>
+    <div class="cards">
+      <div class="card">
+        <span class="tag">누적 1 · 가장 효과 큼</span>
+        <h4>문구 은행</h4>
+        <p>학생이 다른 것 같아도 진단은 반복됩니다 — 시간 부족, 정보 과처리, 계산 의존, 검토 누락.
+          검수를 통과한 문구를 진단 이름표를 붙여 모아두면, 2회차부터는 고르고 다듬는 일이 됩니다.</p>
+      </div>
+      <div class="card">
+        <span class="tag">누적 2</span>
+        <h4>기출 인덱스</h4>
+        <p>기출 추천을 튜터 기억에 맡기면 사람마다 다르고 매번 시간이 듭니다.
+          유형 태그 하나에 기출 3~5개를 미리 붙여두면 고르는 시간이 2분으로 끝납니다.</p>
+      </div>
+      <div class="card">
+        <span class="tag">즉시</span>
+        <h4>과목별로 묶어서</h4>
+        <p>접수 순서대로 처리하지 말고 과목으로 모아서 처리하세요.
+          수학 10건을 연달아 보면 머리를 바꿔 끼우는 비용이 사라지고, 비교가 되니 판단도 빨라집니다.
+          Notion에서 과목으로 걸러 보면 됩니다.</p>
+      </div>
+      <div class="card">
+        <span class="tag">즉시</span>
+        <h4>검수는 표본으로</h4>
+        <p>첫 5건은 전수로 보고 기준을 맞춥니다. 그다음부터는 새 튜터가 쓴 것, Claude 확신도가 낮았던 것,
+          학생 고민이 민감한 것만 봅니다. 나머지는 통과시킵니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================== 06 -->
+  <section>
+    <div class="sec-head"><span class="sec-n">06</span><h2>준비물은 셋이면 됩니다</h2></div>
+    <p class="lead">원안의 더미 데이터를 줄였습니다. 없어도 되는 것에 시간을 쓰면 회신 기한이 무너집니다.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>자료</th><th>판단</th><th>이유</th></tr></thead>
+        <tbody>
+          <tr><td class="id">원본 문항</td><td>필수</td><td>시행 당일 공개. 진단의 기준점</td></tr>
+          <tr><td class="id">정답표</td><td>필수</td><td>맞았는지 틀렸는지를 알아야 흔적이 해석된다</td></tr>
+          <tr><td class="id">문항별 유형 태그</td><td>필수</td><td>기출 추천이 여기서 나온다. 만드는 데 과목당 1시간이면 충분</td></tr>
+          <tr><td class="id">튜터 풀이</td><td>있으면 좋음</td><td>Claude 진단의 정확도를 올린다. 없어도 진행 가능</td></tr>
+          <tr><td class="id">강사 해설 자료·영상</td><td>이번엔 제외</td><td>모으는 데 며칠이 든다. <b>저작권 문제도 있다</b> — 아래 참고</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note warn">
+      <h4>짚어둘 위험 두 가지</h4>
+      <ul>
+        <li><b>강사 해설 자료를 학생에게 전달하면 안 됩니다.</b> 내부 참고용으로 Claude에 넣는 것과,
+          그 내용을 학생에게 보내는 것은 다른 문제입니다. 피드백 문서에는 <b>출처와 문항 번호만</b> 적고 자료 자체는 붙이지 마세요.</li>
+        <li><b>AI로 초안을 만든다는 사실과 「직접 보고 알려드릴게요」라는 약속이 부딪힙니다.</b>
+          진단 후보를 기계가 내더라도 최종 문장은 사람이 손대야 하고, 특히 학생 고민에 대한 답과 마지막 한마디는
+          튜터 본인의 말이어야 합니다. 문체에서 티가 나는 순간 신뢰가 한 번에 무너집니다.
+          PRD가 「자동 채점·AI 자동 분석」을 하지 않기로 한 항목과 어떻게 다른지, 회의에서 한 번 정리하고 넘어가시길 권합니다.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================================== 07 -->
+  <section>
+    <div class="sec-head"><span class="sec-n">07</span><h2>이번 회차에 할 것</h2></div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>시점</th><th>할 일</th><th>담당</th></tr></thead>
+        <tbody>
+          <tr><td class="id">9/1까지</td><td>고민 5문항 최종 문구 확정 — 진단 프롬프트가 이걸 읽는다</td><td>서현</td></tr>
+          <tr><td class="id">9/2 시행 직후</td><td>문항 PDF · 정답표 확보, 문항별 유형 태그 작성</td><td>튜터 3명 · 과목 나눠서</td></tr>
+          <tr><td class="id">9/3~9/4</td><td>먼저 들어온 <b>5건으로 시범 운영</b>. 프롬프트와 템플릿을 여기서 고친다</td><td>전원</td></tr>
+          <tr><td class="id">9/4</td><td>과목당 실제 소요 시간 측정 → 20분 가정 검증</td><td>주현</td></tr>
+          <tr><td class="id">9/5~9/8</td><td>과목별로 묶어서 본 처리. 검수는 표본으로 전환</td><td>튜터 3명</td></tr>
+          <tr><td class="id">~9/9</td><td>전건 회신</td><td>전원</td></tr>
+          <tr><td class="id">9/10 이후</td><td>통과한 문구를 진단 이름표 붙여 <b>문구 은행</b>에 적립</td><td>주현 · 서현</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note good">
+      <h4>시범 5건에서 확인할 것</h4>
+      <ul>
+        <li>Claude 진단 후보 3개 중 튜터가 실제로 채택하는 비율. 1개도 못 쓰면 프롬프트를 고쳐야 합니다.</li>
+        <li>사진 품질이 진단에 충분한지. 흐려서 못 읽는 비율이 높으면 업로드 화면에 촬영 안내를 넣겠습니다.</li>
+        <li>과목당 실제 시간. 20분을 크게 넘으면 문서 분량을 더 줄이는 쪽이 맞습니다.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    시험지 피드백 생산 방식 검토 · 2026년 8월 28일<br>
+    시간 수치는 추정입니다. 시범 5건 이후 실측으로 교체하세요.
+  </footer>
+</div>
+
+<script>
+  document.querySelectorAll('[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var el = document.getElementById(btn.getAttribute('data-copy'));
+      if (!el) return;
+      var done = function () {
+        var before = btn.textContent;
+        btn.textContent = '복사됨';
+        setTimeout(function () { btn.textContent = before; }, 1600);
+      };
+      try {
+        navigator.clipboard.writeText(el.textContent).then(done, fallback);
+      } catch (e) { fallback(); }
+      function fallback() {
+        // 클립보드 접근이 막힌 환경 — 대신 전체를 선택해 준다
+        var range = document.createRange();
+        range.selectNodeContents(el);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        btn.textContent = '선택됨 · ⌘C';
+        setTimeout(function () { btn.textContent = '복사'; }, 2200);
+      }
+    });
+  });
+</script>
