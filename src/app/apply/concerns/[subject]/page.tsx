@@ -56,26 +56,35 @@ export default function ConcernStep() {
             {`${subjectLabel(subject)}, 어땠어요?`}
           </h1>
           <p className="mt-2 text-[15px] text-muted">편하게, 생각나는 대로 적어도 돼요. 정답 없어요.</p>
+          <p className="mt-3 rounded-xl bg-surface px-4 py-3 text-[14px] leading-[1.6] text-muted">
+            <span className="font-bold text-foreground">{questions.length}개 모두 선택이에요.</span>{' '}
+            답하고 싶은 것만 적어도 되고, 하나도 안 적고 넘어가도 괜찮아요.
+          </p>
         </header>
 
-        <ol className="flex flex-col gap-6">
-          {questions.map((q) => (
+        <ol className="flex flex-col gap-7">
+          {questions.map((q, i) => (
             <li key={q.id} className="flex flex-col gap-2">
-              <label htmlFor={`${subject}-${q.id}`} className="text-[15px] font-bold leading-[1.5]">
-                {q.label.replace('{subject}', subjectLabel(subject))}
+              <label htmlFor={`${subject}-${q.id}`} className="flex gap-2 text-[15px] font-bold leading-[1.5]">
+                <span className="shrink-0 text-muted tabular-nums">{i + 1}.</span>
+                <span>{q.label.replace('{subject}', subjectLabel(subject))}</span>
               </label>
-              {q.helper ? <p className="-mt-1 text-[13px] text-muted">{q.helper}</p> : null}
-              <Field
-                question={q}
-                id={`${subject}-${q.id}`}
-                value={answers[q.id] ?? ''}
-                onChange={(v) => setConcern(subject, q.id, v)}
-              />
+              {q.helper ? <p className="-mt-1 pl-6 text-[13px] text-muted">{q.helper}</p> : null}
+              <div className="pl-6">
+                <Field
+                  question={q}
+                  id={`${subject}-${q.id}`}
+                  value={answers[q.id] ?? ''}
+                  onChange={(v) => setConcern(subject, q.id, v)}
+                />
+              </div>
             </li>
           ))}
         </ol>
 
-        <p className="text-[13px] text-muted">한 개만 적어도 도움이 많이 돼요. 다 비워도 넘어갈 수 있어요.</p>
+        <p className="text-[13px] leading-relaxed text-muted">
+          한 개만 적어도 도움이 많이 돼요. 많이 적을수록 피드백이 정확해지고요.
+        </p>
       </main>
 
       <BottomBar label={isLast ? '다 적었어요' : '다음 과목'} onClick={onNext} />

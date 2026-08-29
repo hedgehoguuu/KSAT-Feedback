@@ -1,7 +1,7 @@
 import 'server-only';
 import { POLICY } from '@/config/app';
 import type { Exam } from '@/config/exams';
-import { questionsFor } from '@/config/questions.config';
+import { answerText, questionsFor } from '@/config/questions.config';
 import { subjectLabel, type SubjectCode } from '@/config/subjects';
 
 const NOTION_VERSION = '2022-06-28';
@@ -68,7 +68,7 @@ export async function createNotionPage(input: NotionInput): Promise<string> {
     '이메일': { email: input.email },
     '접수일시': { date: { start: input.createdAt } },
     '사진 수': { number: input.photoCount },
-    '고민': { rich_text: [{ text: { content: formatConcerns(input.subject, input.concerns) } }] },
+    '고민': { rich_text: [{ text: { content: concernSummary(input.subject, input.concerns) } }] },
     '상태': { select: { name: '접수' } },
     '과외 의향': { select: { name: '미확인' } },
   };
@@ -78,7 +78,12 @@ export async function createNotionPage(input: NotionInput): Promise<string> {
 
   const res = await notionFetch('https://api.notion.com/v1/pages', {
     method: 'POST',
-    body: JSON.stringify({ parent: { database_id: databaseId }, properties }),
+    body: JSON.stringify({
+      parent: { database_id: databaseId },
+      properties,
+      // 문답 전문은 페이지 본문에 넣는다. 속성 칸에 열 문항을 밀어 넣으면 읽을 수가 없다.
+      children: concernBlocks(input.subject, input.concerns),
+    }),
   });
 
   const body = (await res.json()) as { id?: string; message?: string };
@@ -103,29 +108,96 @@ export async function updateNotionPdfUrl(pageId: string, pdfUrl: string): Promis
   }
 }
 
-/** 5문항을 사람이 읽을 수 있는 한 덩어리로 합친다. 답이 없는 문항은 빼고 넣는다. */
-function formatConcerns(subject: SubjectCode, answers: Record<string, string>): string {
-  const lines = questionsFor(subject)
-    .map((q) => {
-      const raw = (answers[q.id] ?? '').trim();
-      if (!raw) return null;
-      const value =
-        q.type === 'choice'
-          ? (q.options?.find((o) => o.value === raw)?.label ?? raw)
-          : raw;
-      const label = q.label.replace('{subject}', subjectLabel(subject));
-      return `${label}\n→ ${value}`;
-    })
-    .filter((v): v is string => v !== null);
+/**
+ * 속성 칸에 들어갈 한 줄 요약.
+ * 열 문항을 그대로 밀어 넣으면 2000자 제한에 걸리고, 표에서 읽히지도 않는다.
+ * 목록에서 훑을 때 쓸모 있는 것만 남긴다 — 몇 개 답했는지, 어려웠던 문항, 무엇을 원하는지.
+ */
+function concernSummary(subject: SubjectCode, answers: Record<string, string>): string {
+  const questions = questionsFor(subject);
+  const answered = questions.filter((q) => (answers[q.id] ?? '').trim());
+  if (answered.length === 0) return '적지 않고 넘어갔어요';
 
-  if (lines.length === 0) return '(적지 않고 넘어갔어요)';
-  const text = lines.join('\n\n');
-  // Notion rich_text 한 조각의 상한은 2000자다
-  return text.length > 1900 ? `${text.slice(0, 1900)}…` : text;
+  const parts = [`답변 ${answered.length}/${questions.length}`];
+
+  const hard = questions.find((q) => q.type === 'short' && (answers[q.id] ?? '').trim());
+  if (hard) parts.push(`어려운 문항 ${answers[hard.id].trim()}`);
+
+  const want = questions[questions.length - 1];
+  const wantValue = answerText(want, answers[want.id] ?? '');
+  if (want.type === 'choice' && wantValue) parts.push(`원하는 것: ${wantValue}`);
+
+  const first = answered.find((q) => q.type === 'long');
+  if (first) {
+    const text = answers[first.id].trim().replace(/\s+/g, ' ');
+    parts.push(text.length > 70 ? `${text.slice(0, 70)}…` : text);
+  }
+
+  const line = parts.join(' · ');
+  return line.length > 1900 ? `${line.slice(0, 1900)}…` : line;
+}
+
+/** 페이지 본문에 들어갈 문답 전문. 답하지 않은 문항은 넣지 않는다. */
+function concernBlocks(subject: SubjectCode, answers: Record<string, string>): unknown[] {
+  const questions = questionsFor(subject);
+  const label = subjectLabel(subject);
+
+  const blocks: unknown[] = [
+    {
+      object: 'block',
+      type: 'heading_2',
+      heading_2: { rich_text: [{ text: { content: `${label} — 학생이 적어준 것` } }] },
+    },
+  ];
+
+  let answeredCount = 0;
+  for (const q of questions) {
+    const value = answerText(q, answers[q.id] ?? '');
+    if (!value) continue;
+    answeredCount += 1;
+    blocks.push({
+      object: 'block',
+      type: 'heading_3',
+      heading_3: {
+        rich_text: [{ text: { content: q.label.replace('{subject}', label) } }],
+      },
+    });
+    blocks.push({
+      object: 'block',
+      type: 'paragraph',
+      paragraph: { rich_text: chunk(value) },
+    });
+  }
+
+  if (answeredCount === 0) {
+    blocks.push({
+      object: 'block',
+      type: 'paragraph',
+      paragraph: {
+        rich_text: [{ text: { content: '적지 않고 넘어갔어요. 시험지만 보고 판단해야 합니다.' } }],
+      },
+    });
+  }
+
+  return blocks;
+}
+
+/** Notion 은 조각 하나에 2000자까지만 받는다. 길면 잘라서 여러 조각으로 나눈다. */
+function chunk(text: string): { text: { content: string } }[] {
+  const size = 1900;
+  if (text.length <= size) return [{ text: { content: text } }];
+  const out: { text: { content: string } }[] = [];
+  for (let i = 0; i < text.length && out.length < 20; i += size) {
+    out.push({ text: { content: text.slice(i, i + size) } });
+  }
+  return out;
 }
 
 /** 접수번호 + 과목으로 이미 만들어진 페이지를 찾는다. 없으면 null. */
-export async function findNotionPageId(receiptNo: string, subjectLabelText: string): Promise<string | null> {
+export async function findNotionPageId(
+  receiptNo: string,
+  subjectLabelText: string,
+): Promise<string | null> {
   const databaseId = process.env.NOTION_DATABASE_ID;
   if (!databaseId) return null;
 
