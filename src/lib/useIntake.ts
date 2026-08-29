@@ -7,6 +7,8 @@ export type IntakeState = {
   open: boolean;
   reason: string;
   disabledSubjects: string[];
+  /** 오늘 남은 자리. 하루 상한이 없으면 null */
+  remainingToday: number | null;
   loading: boolean;
 };
 
@@ -14,6 +16,7 @@ const FALLBACK: IntakeState = {
   open: INTAKE_DEFAULTS.open,
   reason: INTAKE_DEFAULTS.closedReason,
   disabledSubjects: [],
+  remainingToday: null,
   loading: true,
 };
 
@@ -35,6 +38,8 @@ export function useIntake(): IntakeState {
               open: Boolean(data.open),
               reason: data.reason ?? INTAKE_DEFAULTS.closedReason,
               disabledSubjects: Array.isArray(data.disabledSubjects) ? data.disabledSubjects : [],
+              remainingToday:
+                typeof data.remainingToday === 'number' ? data.remainingToday : null,
               loading: false,
             }
           : { ...FALLBACK, loading: false };

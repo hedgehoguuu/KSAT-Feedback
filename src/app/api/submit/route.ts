@@ -1,5 +1,5 @@
 import { NextResponse, after } from 'next/server';
-import { LIMITS, POLICY, formatReceiptNo, replyDueDate } from '@/config/app';
+import { INTAKE_DEFAULTS, LIMITS, POLICY, formatReceiptNo, replyDueDate } from '@/config/app';
 import { findExam, isExamCode } from '@/config/exams';
 import { isSubjectCode } from '@/config/subjects';
 import { isValidEmail } from '@/lib/email';
@@ -127,6 +127,11 @@ export async function POST(req: Request) {
 
   const { data, error } = await db.rpc('create_submission', { payload });
   if (error || typeof data !== 'string') {
+    // 화면을 통과했더라도 마지막 한 자리를 남이 먼저 가져갔을 수 있다.
+    // 그 판정은 접수를 만드는 트랜잭션 안에서만 정확하다 (0003_daily_cap.sql).
+    if (error?.message?.includes('DAILY_CAPACITY_REACHED')) {
+      return bad(INTAKE_DEFAULTS.dailyClosedReason, 409);
+    }
     console.error('[submit] create_submission failed', error);
     return NextResponse.json({ error: '접수 저장에 실패했어요' }, { status: 500 });
   }

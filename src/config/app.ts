@@ -43,9 +43,15 @@ export const FEATURES = {
  */
 export const INTAKE_DEFAULTS = {
   open: true,
-  /** §9 Q3 — 상한 없이 간다. 필요해지면 app_settings.capacity 에 숫자만 넣으면 즉시 걸린다. */
+  /** 통틀어 몇 건. 상한 없이 간다 — 하루 상한만 쓴다. */
   capacity: null as number | null,
+  /**
+   * 하루 몇 건 (2026-08-29 결정 · 100건).
+   * 한국 날짜가 바뀌면 저절로 다시 열린다. 실제 운영값은 app_settings.daily_capacity 다.
+   */
+  dailyCapacity: 100 as number | null,
   closedReason: '이번 회차 접수가 마감됐어요.',
+  dailyClosedReason: '오늘 접수는 다 찼어요. 내일 다시 열려요.',
 } as const;
 
 /** 접수일 기준 회신 예정일 (YYYY-MM-DD) */
