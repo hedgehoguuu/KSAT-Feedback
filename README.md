@@ -72,9 +72,10 @@ src/app/                          화면과 API — 폴더 이름이 그대로 �
     intake/route.ts        11     접수 열림/닫힘 조회
     health/route.ts         9     설치 점검 결과 (/setup 이 읽는다)
     worker/                       자물쇠 걸린 운영용 — WORKER_SECRET 헤더 필요
-      cron/route.ts        45     매일 03:00(KST) 자동 정리
+      cron/route.ts        50     매일 03:00(KST) 자동 정리
       process/route.ts     39     막힌 접수 다시 처리
       purge/route.ts       51     보관 기간 지난 파일 삭제 · 접수 통째 삭제
+      storage/route.ts     59     저장소에 쌓인 양 확인 · 주인 없는 사진 삭제
       status/route.ts     100     무엇이 왜 막혔는지 진단 (?probe=1, ?mail=1)
 
 src/config/                       문구·숫자만 들어 있다. 여기부터 고친다
@@ -110,6 +111,7 @@ src/lib/worker/                   접수 뒤에 자동으로 도는 것들 (전�
   process.ts              309  ★  전체 지휘 — PDF → Notion → 확인 메일
   notion.ts               223     Notion 페이지 생성 · 본문에 문답 기록 · 429 대기
   purge.ts                133     파일 · DB 기록 · Notion 페이지 삭제
+  storage.ts              150     저장소 훑기 · 주인 없는 사진 정리 · 버킷 비우기
   mail.ts                 101     접수 확인 메일 (Gmail SMTP)
   pdf.ts                   57     사진 여러 장을 PDF 한 개로
 
@@ -224,9 +226,20 @@ G4(자동 반영 성공률)는 Notion 단독 기준으로 읽는다.
   ① 밀린 접수 처리 — 제출 직후 후처리가 시간 초과로 잘린 건을 되살린다. 이게 없으면 아무도 다시 돌려주지 않는다.
   ② 보관 기간이 지난 사진·PDF 삭제. `purge_after` 가 지난 접수의 파일을 지우고 `status = 'purged'` 로 표시한다.
   접수 기록 자체는 남긴다 — 몇 건 받았고 언제 회신했는지는 계속 봐야 하기 때문이다.
+  ③ 주인 없는 사진 삭제 (24시간 지난 것만).
   **`CRON_SECRET` 을 `WORKER_SECRET` 과 같은 값으로 넣어야 자동으로 돈다.**
+- **주인 없는 사진이 저장소를 갉아먹는다.** 사진은 ②단계에서 곧바로 저장소로 올라가지만
+  접수 기록은 ④단계를 끝내야 생긴다. 중간에 창을 닫으면 사진만 남고 접수는 없다.
+  보관 기간 정리는 접수 기록을 따라가므로 이 파일들을 영영 못 잡는다. 무료 용량이 1GB 라
+  쌓이는 만큼 받을 수 있는 학생이 줄어든다. 그래서 크론이 매일 따로 훑는다.
+  지금 무엇이 얼마나 쌓였는지는 `GET /api/worker/storage`.
+  손으로 치우려면 `POST /api/worker/storage?mode=orphans` (24시간 지난 것),
+  `&hours=0` 이면 방금 올라온 것까지 — **접수를 열기 전에만 쓴다.**
+  `&dry=1` 은 지우지 않고 개수만 센다.
 - **접수 1건 통째로 지우기**: `POST /api/worker/purge?receipt=F0902-013&mode=delete`.
   사진·PDF·DB 기록·Notion 페이지까지 지운다. 되돌릴 수 없다.
+- **버킷 통째로 비우기**: `POST /api/worker/storage?mode=wipe&confirm=WIPE-ALL`.
+  접수에 걸려 있는 사진까지 전부 지운다. 실수로 부를 수 없게 확인 문구를 받는다.
 - **고민 답변은 Notion 페이지 본문에 들어간다.** 속성 칸에 합쳐 넣으면 2000자 제한에 걸리고
   표에서 읽히지도 않는다. 속성 `고민` 은 목록에서 훑을 한 줄 요약(답변 개수 · 어려운 문항 · 원하는 피드백 ·
   첫 답변 앞부분)이고, 문답 전문은 본문에 문항별 제목과 문단으로 들어간다.
