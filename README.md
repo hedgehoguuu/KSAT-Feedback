@@ -18,7 +18,7 @@ Supabase 키가 없어도 ②단계까지 전부 동작한다. 환경변수가 �
 `supabase/migrations/0001_init.sql   스키마·RLS·버킷·제출 함수
 supabase/migrations/0002_worker.sql 워커용 컬럼·실패 로그·claim 함수` 을 Supabase SQL Editor 에서 실행한다.
 
-## 지금까지 된 것 (8/28 기준)
+## 지금까지 된 것 (8/29 기준)
 
 | 항목 | 상태 |
 |---|---|
@@ -44,23 +44,100 @@ supabase/migrations/0002_worker.sql 워커용 컬럼·실패 로그·claim 함�
 
 ## 구조
 
+파일마다 무슨 일을 하는지 한 줄로 붙여 뒀다. `★` 는 실제로 손대게 되는 곳.
+
 ```
-src/config/     시험·과목·문항·운영 상수. 코드에 '국어'·'수학'을 하드코딩하지 않는다 (PRD §6 P2)
-  exams.ts            시험 3종 → 학년·과목이 여기서 결정된다
-  subjects.ts         과목 코드 ↔ 라벨
-  questions.config.ts ③단계 문항 10개. 문구·개수·타입을 코드 수정 없이 바꾼다
-  app.ts              장수 상한, 보관 기간, 회신 SLA, 접수 스위치, 기능 플래그
-  steps.ts            4단계 정의
-src/lib/        store(zustand+persist) · image(리사이즈) · upload · submit · email · flow
-                intake/health(서버 전용) · blobs · draft
-src/lib/worker/ process(접수 1건 처리) · pdf(병합) · notion(등록) · mail(확인 메일) — 전부 서버 전용
-src/components/ ProgressSteps · ExamSummary · SubjectChips · UploadSection · AutoTextarea · BottomBar
-src/app/        / (랜딩) · /apply/{exam,upload,concerns/[subject],email} · /done/[receiptNo]
-                /setup (설치 점검, noindex)
-                /api/{upload-url,submit,intake,health} · /api/worker/process (재처리)
-supabase/migrations/0001_init.sql   스키마·RLS·버킷·제출 함수
-supabase/migrations/0002_worker.sql 워커용 컬럼·실패 로그·claim 함수
+src/app/                          화면과 API — 폴더 이름이 그대로 주소가 된다
+  layout.tsx               36     모든 화면 공통 껍데기 · 폰트 · 480px 모바일 폭
+  globals.css              57     색·여백 등 전체 스타일 변수
+  page.tsx                 88  ★  랜딩 (제목 · 배지 · 시험지 보내기 버튼)
+
+  apply/                          접수 4단계
+    layout.tsx             48     상단 진행 표시 · 단계 건너뛰기 방지
+    exam/page.tsx          74     ① 시험 선택
+    upload/page.tsx        83     ② 과목 선택 + 시험지 사진 업로드
+    concerns/page.tsx      22        첫 과목으로 넘겨주는 중계
+    concerns/[subject]/
+      page.tsx            184  ★  ③ 고민 10문항 (과목마다 반복)
+    email/page.tsx        188  ★  ④ 이메일 + 동의 + 제출
+
+  done/[receiptNo]/
+    page.tsx              109  ★  완료 화면 (접수번호 · 회신 예정일 · 문의 메일)
+
+  setup/page.tsx           77     설치 점검 11항목 ✓/✗ (운영자용, noindex)
+
+  api/                            브라우저가 부르는 서버 주소
+    upload-url/route.ts    57     사진 올릴 일회용 서명 주소 발급
+    submit/route.ts       146  ★  접수 저장 → 접수번호 발급 → 후처리 시작
+    intake/route.ts        11     접수 열림/닫힘 조회
+    health/route.ts         9     설치 점검 결과 (/setup 이 읽는다)
+    worker/                       자물쇠 걸린 운영용 — WORKER_SECRET 헤더 필요
+      cron/route.ts        45     매일 03:00(KST) 자동 정리
+      process/route.ts     39     막힌 접수 다시 처리
+      purge/route.ts       51     보관 기간 지난 파일 삭제 · 접수 통째 삭제
+      status/route.ts     100     무엇이 왜 막혔는지 진단 (?probe=1, ?mail=1)
+
+src/config/                       문구·숫자만 들어 있다. 여기부터 고친다
+  questions.config.ts     131  ★  ③단계 고민 10문항 — 문구 · 순서 · 선택지
+  app.ts                   63  ★  장수 상한 · 회신 SLA · 보관 기간 · 문의 메일 · 기능 플래그
+  exams.ts                 63     시험 3종 → 학년과 과목이 여기서 결정된다
+  subjects.ts              30     과목 코드 ↔ 라벨 (math ↔ 수학)
+  steps.ts                 20     4단계 이름
+
+src/components/                   여러 화면이 함께 쓰는 조각
+  UploadSection.tsx       247  ★  사진 업로드 — 장별 진행률 · 재시도 · 순서 변경
+  ProgressSteps.tsx        62     상단 4단계 표시
+  SubjectChips.tsx         40     과목 선택 칩
+  BottomBar.tsx            34     화면 아래 고정 버튼
+  AutoTextarea.tsx         34     글 길이만큼 늘어나는 입력칸
+  ExamSummary.tsx          21     상단 "고3 · 9월 모평 · 바꾸기"
+  Analytics.tsx            23     방문 통계 — 완료 화면 주소의 접수번호는 잘라내고 보낸다
+
+src/lib/                          화면 뒤에서 도는 로직
+  store.ts                245  ★  입력값 보관 · 자동 저장 (이어하기)
+  image.ts                 64     사진을 긴 변 2000px · JPEG 로 줄인다
+  upload.ts                73     서명 주소로 실제 전송
+  submit.ts                42     제출 payload 조립
+  email.ts                 70     이메일 형식 검사 · 오타 도메인 제안
+  flow.ts                  22     사진이 있는 과목만 골라낸다
+  draft.ts blobs.ts id.ts         임시 id · 재시도용 사진 보관
+  useIntake.ts             55     접수 열림 여부 조회 (브라우저)
+  intake.ts                48     접수 스위치 읽기 (서버 전용)
+  health.ts               148     설치 점검 11항목 (서버 전용)
+  supabase/admin.ts        18     DB 접속 — 마스터 키는 이 파일에서만 쓴다
+
+src/lib/worker/                   접수 뒤에 자동으로 도는 것들 (전부 서버 전용)
+  process.ts              309  ★  전체 지휘 — PDF → Notion → 확인 메일
+  notion.ts               223     Notion 페이지 생성 · 본문에 문답 기록 · 429 대기
+  purge.ts                133     파일 · DB 기록 · Notion 페이지 삭제
+  mail.ts                 101     접수 확인 메일 (Gmail SMTP)
+  pdf.ts                   57     사진 여러 장을 PDF 한 개로
+
+supabase/migrations/              데이터베이스 설계도 — SQL Editor 에 붙여넣는 것
+  0001_init.sql           211     표 · RLS · 비공개 버킷 · 접수번호 발급 함수
+  0002_worker.sql         103     실패 기록표 · 재처리 함수 · 설치 점검 함수
+
+docs/                             아티팩트로 공유한 문서
+  setup-checklist.html            준비 체크리스트
+  report.html                     개발 완료 보고
+  feedback-line.html              피드백 생산 방식 검토
+  math-samples.html               수학 피드백 예시 5장
+
+.env.example                      필요한 환경변수 목록 (실제 값은 Vercel 에)
+vercel.json                       매일 03:00(KST) 크론 설정
 ```
+
+### 무엇을 바꾸려면 어디를 여나
+
+| 바꾸고 싶은 것 | 파일 |
+|---|---|
+| 고민 문항 문구 · 순서 · 선택지 | `src/config/questions.config.ts` |
+| 회신 기한 · 사진 장수 상한 · 문의 메일 | `src/config/app.ts` |
+| 시험 종류 · 과목 구성 | `src/config/exams.ts` |
+| 랜딩 제목 · 배지 | `src/app/page.tsx` |
+| 완료 화면 문구 | `src/app/done/[receiptNo]/page.tsx` |
+| 접수 확인 메일 내용 | `src/lib/worker/mail.ts` |
+| **접수 열기/닫기 · 상한 · 과목별 차단** | 코드 아님 — Supabase `app_settings` 한 줄 |
 
 ## 운영자용 화면
 
