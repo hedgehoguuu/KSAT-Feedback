@@ -24,7 +24,8 @@ export type ProcessResult = {
 type SubjectRow = {
   id: string;
   subject_code: SubjectCode;
-  concerns: Record<string, string>;
+  /** 문항 타입에 따라 문자열이거나 {번호, 이유} 목록이다 */
+  concerns: Record<string, unknown>;
   pdf_path: string | null;
   notion_page_id: string | null;
   submission_files: { storage_path: string; order_index: number }[];

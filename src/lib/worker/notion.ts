@@ -1,7 +1,7 @@
 import 'server-only';
 import { POLICY } from '@/config/app';
 import type { Exam } from '@/config/exams';
-import { answerText, questionsFor } from '@/config/questions.config';
+import { answerText, isAnswered, itemNumbers, questionsFor } from '@/config/questions.config';
 import { subjectLabel, type SubjectCode } from '@/config/subjects';
 
 const NOTION_VERSION = '2022-06-28';
@@ -35,7 +35,7 @@ export type NotionInput = {
   subject: SubjectCode;
   email: string;
   createdAt: string;
-  concerns: Record<string, string>;
+  concerns: Record<string, unknown>;
   photoCount: number;
   pdfUrl: string | null;
 };
@@ -113,24 +113,21 @@ export async function updateNotionPdfUrl(pageId: string, pdfUrl: string): Promis
  * 열 문항을 그대로 밀어 넣으면 2000자 제한에 걸리고, 표에서 읽히지도 않는다.
  * 목록에서 훑을 때 쓸모 있는 것만 남긴다 — 몇 개 답했는지, 어려웠던 문항, 무엇을 원하는지.
  */
-function concernSummary(subject: SubjectCode, answers: Record<string, string>): string {
+function concernSummary(subject: SubjectCode, answers: Record<string, unknown>): string {
   const questions = questionsFor(subject);
-  const answered = questions.filter((q) => (answers[q.id] ?? '').trim());
+  const answered = questions.filter((q) => isAnswered(q, answers[q.id] as never));
   if (answered.length === 0) return '적지 않고 넘어갔어요';
 
   const parts = [`답변 ${answered.length}/${questions.length}`];
 
-  const hard = questions.find((q) => q.summary === 'hard' && (answers[q.id] ?? '').trim());
-  if (hard) parts.push(`어려운 문항 ${answers[hard.id].trim()}`);
-
-  const want = questions.find((q) => q.summary === 'want');
-  const wantValue = want ? answerText(want, answers[want.id] ?? '') : '';
-  if (wantValue) parts.push(`원하는 것: ${wantValue}`);
+  const hard = questions.find((q) => q.summary === 'hard');
+  const numbers = hard ? itemNumbers(answers[hard.id] as never) : '';
+  if (numbers) parts.push(`어려운 문항 ${numbers}`);
 
   const first = answered.find((q) => q.type === 'long');
   if (first) {
-    const text = answers[first.id].trim().replace(/\s+/g, ' ');
-    parts.push(text.length > 70 ? `${text.slice(0, 70)}…` : text);
+    const text = answerText(first, answers[first.id] as never).replace(/\s+/g, ' ');
+    parts.push(text.length > 80 ? `${text.slice(0, 80)}…` : text);
   }
 
   const line = parts.join(' · ');
@@ -138,7 +135,7 @@ function concernSummary(subject: SubjectCode, answers: Record<string, string>): 
 }
 
 /** 페이지 본문에 들어갈 문답 전문. 답하지 않은 문항은 넣지 않는다. */
-function concernBlocks(subject: SubjectCode, answers: Record<string, string>): unknown[] {
+function concernBlocks(subject: SubjectCode, answers: Record<string, unknown>): unknown[] {
   const questions = questionsFor(subject);
   const label = subjectLabel(subject);
 
@@ -152,7 +149,7 @@ function concernBlocks(subject: SubjectCode, answers: Record<string, string>): u
 
   let answeredCount = 0;
   for (const q of questions) {
-    const value = answerText(q, answers[q.id] ?? '');
+    const value = answerText(q, answers[q.id] as never);
     if (!value) continue;
     answeredCount += 1;
     blocks.push({

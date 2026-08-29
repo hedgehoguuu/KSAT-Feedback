@@ -5,6 +5,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { useSyncExternalStore } from 'react';
 import type { ExamCode } from '@/config/exams';
 import { findExam } from '@/config/exams';
+import type { ConcernValue } from '@/config/questions.config';
 import type { SubjectCode } from '@/config/subjects';
 import { uid } from './id';
 
@@ -37,7 +38,7 @@ type State = {
   examCode: ExamCode | null;
   subjects: SubjectCode[];
   photos: Photo[];
-  concerns: Partial<Record<SubjectCode, Record<string, string>>>;
+  concerns: Partial<Record<SubjectCode, Record<string, ConcernValue>>>;
   email: string;
   consent: boolean;
   ageOk: boolean;
@@ -61,7 +62,7 @@ type Actions = {
   patchPhoto: (id: string, patch: Partial<Photo>) => void;
   removePhoto: (id: string) => void;
   movePhoto: (id: string, dir: -1 | 1) => void;
-  setConcern: (subject: SubjectCode, questionId: string, value: string) => void;
+  setConcern: (subject: SubjectCode, questionId: string, value: ConcernValue) => void;
   setEmail: (v: string) => void;
   setConsent: (v: boolean) => void;
   setAgeOk: (v: boolean) => void;

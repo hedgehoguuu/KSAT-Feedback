@@ -13,7 +13,8 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 type FileIn = { storagePath: string; orderIndex: number; bytes?: number };
-type SubjectIn = { subjectCode: string; concerns: Record<string, string>; files: FileIn[] };
+// 고민 답변은 문항 타입에 따라 문자열이거나 {번호, 이유} 목록이다. 그대로 jsonb 에 넣는다.
+type SubjectIn = { subjectCode: string; concerns: Record<string, unknown>; files: FileIn[] };
 type Body = {
   idempotencyKey?: string;
   draftId?: string;

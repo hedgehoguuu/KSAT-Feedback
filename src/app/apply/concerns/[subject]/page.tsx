@@ -4,7 +4,14 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { AutoTextarea } from '@/components/AutoTextarea';
 import { BottomBar } from '@/components/BottomBar';
-import { questionsFor, type Question } from '@/config/questions.config';
+import {
+  isAnswered,
+  itemsOf,
+  questionsFor,
+  type ConcernItem,
+  type ConcernValue,
+  type Question,
+} from '@/config/questions.config';
 import { isSubjectCode, subjectLabel, type SubjectCode } from '@/config/subjects';
 import { filledSubjects } from '@/lib/flow';
 import { useApply } from '@/lib/store';
@@ -34,7 +41,7 @@ export default function ConcernStep() {
 
   const questions = questionsFor(subject);
   const answers = concerns[subject] ?? {};
-  const allEmpty = questions.every((q) => !(answers[q.id] ?? '').trim());
+  const allEmpty = questions.every((q) => !isAnswered(q, answers[q.id]));
   const isLast = at === targets.length - 1;
   const goNext = () =>
     router.push(isLast ? '/apply/email' : `/apply/concerns/${targets[at + 1]}`);
@@ -74,7 +81,7 @@ export default function ConcernStep() {
                 <Field
                   question={q}
                   id={`${subject}-${q.id}`}
-                  value={answers[q.id] ?? ''}
+                  value={answers[q.id]}
                   onChange={(v) => setConcern(subject, q.id, v)}
                 />
               </div>
@@ -110,40 +117,21 @@ function Field({
 }: {
   question: Question;
   id: string;
-  value: string;
-  onChange: (v: string) => void;
+  value: ConcernValue | undefined;
+  onChange: (v: ConcernValue) => void;
 }) {
-  if (question.type === 'choice') {
-    return (
-      <div className="flex flex-wrap gap-2">
-        {(question.options ?? []).map((opt) => {
-          const on = value === opt.value;
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              aria-pressed={on}
-              // 같은 걸 다시 누르면 선택이 풀린다 — 필수가 아니니까
-              onClick={() => onChange(on ? '' : opt.value)}
-              className={[
-                'min-h-12 rounded-xl border px-4 text-[15px] font-semibold transition-colors',
-                on ? 'border-brand bg-brand text-white' : 'border-line bg-background active:bg-surface',
-              ].join(' ')}
-            >
-              {opt.label}
-            </button>
-          );
-        })}
-      </div>
-    );
+  if (question.type === 'items') {
+    return <ItemsField id={id} value={itemsOf(value)} onChange={onChange} />;
   }
+
+  const text = typeof value === 'string' ? value : '';
 
   if (question.type === 'short') {
     return (
       <input
         id={id}
         type="text"
-        value={value}
+        value={text}
         placeholder={question.placeholder}
         onChange={(e) => onChange(e.target.value)}
         className="min-h-13 w-full rounded-xl border border-line bg-background px-4 text-[16px] outline-none placeholder:text-muted focus:border-brand"
@@ -151,7 +139,79 @@ function Field({
     );
   }
 
-  return <AutoTextarea id={id} value={value} onChange={onChange} placeholder={question.placeholder} />;
+  return <AutoTextarea id={id} value={text} onChange={onChange} placeholder={question.placeholder} />;
+}
+
+/**
+ * 문항 번호와 어려웠던 이유를 한 줄씩 쌓는 입력.
+ * 폭이 좁아 번호와 이유를 나란히 두면 둘 다 못 쓰게 되므로 세로로 쌓는다.
+ */
+function ItemsField({
+  id,
+  value,
+  onChange,
+}: {
+  id: string;
+  value: ConcernItem[];
+  onChange: (v: ConcernItem[]) => void;
+}) {
+  // 처음 들어오면 빈 줄 하나를 보여준다. 버튼을 먼저 찾게 하지 않기 위해서.
+  const rows = value.length > 0 ? value : [{ no: '', why: '' }];
+
+  const patch = (i: number, part: Partial<ConcernItem>) =>
+    onChange(rows.map((row, at) => (at === i ? { ...row, ...part } : row)));
+
+  const remove = (i: number) => {
+    const next = rows.filter((_, at) => at !== i);
+    onChange(next.length > 0 ? next : [{ no: '', why: '' }]);
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      {rows.map((row, i) => (
+        <div key={i} className="rounded-xl border border-line bg-background p-3">
+          <div className="flex items-center gap-2">
+            <input
+              id={i === 0 ? id : undefined}
+              type="text"
+              inputMode="numeric"
+              value={row.no}
+              placeholder="예) 14번"
+              aria-label={`${i + 1}번째 문항 번호`}
+              onChange={(e) => patch(i, { no: e.target.value })}
+              className="min-h-12 w-[124px] shrink-0 rounded-lg border border-line bg-background px-3 text-[16px] font-semibold outline-none placeholder:font-normal placeholder:text-muted focus:border-brand"
+            />
+            {rows.length > 1 || row.no.trim() || row.why.trim() ? (
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                aria-label={`${i + 1}번째 문항 지우기`}
+                className="ml-auto min-h-12 rounded-lg px-3 text-[14px] font-semibold text-muted active:bg-surface"
+              >
+                지우기
+              </button>
+            ) : null}
+          </div>
+          <input
+            type="text"
+            value={row.why}
+            placeholder="어려웠던 이유 — 예) 계산이 안 맞아서 세 번 다시 했어요"
+            aria-label={`${i + 1}번째 문항이 어려웠던 이유`}
+            onChange={(e) => patch(i, { why: e.target.value })}
+            className="mt-2 min-h-12 w-full rounded-lg border border-line bg-background px-3 text-[16px] outline-none placeholder:text-muted focus:border-brand"
+          />
+        </div>
+      ))}
+
+      <button
+        type="button"
+        onClick={() => onChange([...rows, { no: '', why: '' }])}
+        className="min-h-12 rounded-xl border border-dashed border-line text-[15px] font-semibold text-muted active:bg-surface"
+      >
+        + 문항 추가
+      </button>
+    </div>
+  );
 }
 
 function SkipSheet({ onStay, onGo }: { onStay: () => void; onGo: () => void }) {
