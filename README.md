@@ -48,7 +48,7 @@ supabase/migrations/0002_worker.sql 워커용 컬럼·실패 로그·claim 함�
 src/config/     시험·과목·문항·운영 상수. 코드에 '국어'·'수학'을 하드코딩하지 않는다 (PRD §6 P2)
   exams.ts            시험 3종 → 학년·과목이 여기서 결정된다
   subjects.ts         과목 코드 ↔ 라벨
-  questions.config.ts ③단계 5문항. 문구·개수·타입을 코드 수정 없이 바꾼다
+  questions.config.ts ③단계 문항 10개. 문구·개수·타입을 코드 수정 없이 바꾼다
   app.ts              장수 상한, 보관 기간, 회신 SLA, 접수 스위치, 기능 플래그
   steps.ts            4단계 정의
 src/lib/        store(zustand+persist) · image(리사이즈) · upload · submit · email · flow
@@ -80,8 +80,9 @@ supabase/migrations/0002_worker.sql 워커용 컬럼·실패 로그·claim 함�
 | Q6 | 커스텀 도메인 없이 vercel.app 기본 주소 | `BRANDING.serviceName` 은 페이지 제목에만 쓰임 |
 | Q7 | 완료 화면 과외 버튼 끔 | `FEATURES.conversionCta` |
 
-**남은 미결 — Q2 (고민 5문항 최종 문구, 서현, 8/30까지).** 그때까지는 `questions.config.ts` 의 잠정안이 나간다.
-문구·개수·타입만 바꾸는 일이라 코드 수정은 필요 없다.
+**Q2 확정 (2026-08-29, 서현).** 열 문항으로 확정되어 `questions.config.ts` 에 들어갔다 —
+서술형 7 · 단답 1 · 선택 3. 전부 선택 입력이고, 하나도 안 적어도 넘어간다.
+§9 미결은 모두 닫혔다.
 
 운영 쪽 미결: Q8(접수 확인 메일 발송 주체·발신 주소), Q9(Notion DB 를 팀 워크스페이스에 둘지 분리할지).
 
@@ -147,6 +148,9 @@ G4(자동 반영 성공률)는 Notion 단독 기준으로 읽는다.
   **`CRON_SECRET` 을 `WORKER_SECRET` 과 같은 값으로 넣어야 자동으로 돈다.**
 - **접수 1건 통째로 지우기**: `POST /api/worker/purge?receipt=F0902-013&mode=delete`.
   사진·PDF·DB 기록·Notion 페이지까지 지운다. 되돌릴 수 없다.
+- **고민 답변은 Notion 페이지 본문에 들어간다.** 문항이 열 개라 속성 칸에 합쳐 넣으면 2000자 제한에 걸리고
+  표에서 읽히지도 않는다. 속성 `고민` 은 목록에서 훑을 한 줄 요약(답변 개수 · 어려운 문항 · 원하는 피드백 ·
+  첫 답변 앞부분)이고, 문답 전문은 본문에 문항별 제목과 문단으로 들어간다.
 - **접수 스위치(OPS-1)** 는 Supabase `app_settings` 를 읽는다. 브라우저에서 세션당 한 번 읽으므로,
   스위치를 바꾼 뒤에는 새로고침해야 반영된다. 제출 API 는 매번 서버에서 다시 확인한다.
 - **제출 멱등성**: 클라이언트가 만든 멱등키가 `submissions.idempotency_key` 에 유니크로 들어간다.
