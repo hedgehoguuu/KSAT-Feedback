@@ -1,0 +1,381 @@
+<title>시험지만 보내주세요</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;500;700;800&family=Gowun+Batang:wght@400;700&display=swap">
+
+<style>
+  :root {
+    --ground: #ffffff;
+    --surface: #f4f6f9;
+    --line: #e4e8ee;
+    --ink: #16181d;
+    --ink-2: #4d5766;
+    --ink-3: #8a94a3;
+    --accent: #2f6fe4;
+    --accent-soft: #eaf1fe;
+    --deep: #141a26;
+    --deep-ink: #f0f4fa;
+    --deep-dim: #9aa8bd;
+    --deep-mark: #85b3ff;
+    --shadow: 0 1px 2px rgba(16,22,32,.04), 0 16px 36px -26px rgba(16,22,32,.45);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0b0e14; --surface: #141a23; --line: #222b38;
+      --ink: #e9eef6; --ink-2: #a6b1c1; --ink-3: #74808f;
+      --accent: #7cabff; --accent-soft: #16243c;
+      --deep: #17233a; --deep-ink: #eaf1fd; --deep-dim: #9db2d4; --deep-mark: #9cc4ff;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 16px 36px -26px rgba(0,0,0,.95);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0b0e14; --surface: #141a23; --line: #222b38;
+    --ink: #e9eef6; --ink-2: #a6b1c1; --ink-3: #74808f;
+    --accent: #7cabff; --accent-soft: #16243c;
+    --deep: #17233a; --deep-ink: #eaf1fd; --deep-dim: #9db2d4; --deep-mark: #9cc4ff;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 16px 36px -26px rgba(0,0,0,.95);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: "Gothic A1", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+    font-size: 16.5px; line-height: 1.75; word-break: keep-all; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px 40px; }
+
+  /* ---------------- 히어로 ---------------- */
+  header.hero { padding: 74px 0 0; }
+  .eyebrow { font-size: 14px; font-weight: 700; color: var(--accent); margin: 0 0 20px; letter-spacing: -.01em; }
+  h1 {
+    font-size: 48px; font-weight: 800; line-height: 1.24; letter-spacing: -.035em;
+    margin: 0; text-wrap: balance;
+  }
+  .hero .lede {
+    margin: 22px 0 0; font-size: 18.5px; line-height: 1.72; color: var(--ink-2); max-width: 44ch;
+  }
+  .hero .lede b { color: var(--ink); font-weight: 700; }
+
+  .badges { margin: 28px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+  .badges li {
+    background: var(--surface); border-radius: 999px; padding: 8px 17px;
+    font-size: 14.5px; font-weight: 500; color: var(--ink-2);
+  }
+
+  .cta { margin-top: 34px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+  .cta a {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 56px; padding: 0 32px; border-radius: 14px; text-decoration: none;
+    font-size: 17px; font-weight: 800; letter-spacing: -.015em;
+    background: var(--accent); color: #ffffff;
+  }
+  .cta a.ghost { background: var(--ground); color: var(--ink); border: 1px solid var(--line); font-weight: 700; }
+  .cta a:hover { filter: brightness(1.06); }
+  .cta a.ghost:hover { filter: none; border-color: var(--accent); color: var(--accent); }
+  .cta a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .cta span { font-size: 14.5px; color: var(--ink-3); }
+
+  /* ---------------- 섹션 ---------------- */
+  section { margin-top: 76px; }
+  h2 { font-size: 28px; font-weight: 800; margin: 0; letter-spacing: -.03em; text-wrap: balance; }
+  .sub { margin: 14px 0 0; color: var(--ink-2); max-width: 56ch; font-size: 16.5px; }
+  p { max-width: 60ch; }
+
+  /* ---------------- 공감 ---------------- */
+  .relate { margin: 30px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+  .relate li {
+    padding: 22px 0; border-top: 1px solid var(--line);
+    font-size: 18px; font-weight: 700; letter-spacing: -.015em; color: var(--ink);
+    display: flex; gap: 16px;
+  }
+  .relate li:last-child { border-bottom: 1px solid var(--line); }
+  .relate li::before { content: "―"; color: var(--accent); flex: 0 0 auto; font-weight: 400; }
+  .relate + p { margin-top: 26px; font-size: 17px; color: var(--ink-2); }
+
+  /* ---------------- 산출물 ---------------- */
+  .four {
+    margin-top: 30px; display: grid; gap: 1px; background: var(--line);
+    grid-template-columns: repeat(auto-fit, minmax(202px, 1fr));
+    border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  }
+  .four > div { background: var(--ground); padding: 26px 24px 28px; }
+  .four .n {
+    font-size: 13px; font-weight: 800; color: var(--accent);
+    font-variant-numeric: tabular-nums; letter-spacing: .04em;
+  }
+  .four h3 { margin: 10px 0 7px; font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+  .four p { margin: 0; font-size: 15px; line-height: 1.7; color: var(--ink-2); }
+
+  .example {
+    margin-top: 22px; background: var(--surface); border-radius: 14px;
+    padding: 24px 26px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px 22px;
+  }
+  .example p { margin: 0; font-size: 16px; color: var(--ink-2); flex: 1 1 260px; }
+  .example b { color: var(--ink); font-weight: 700; }
+  .example a {
+    display: inline-flex; align-items: center; min-height: 48px; padding: 0 22px;
+    border-radius: 11px; background: var(--ground); border: 1px solid var(--line);
+    color: var(--ink); text-decoration: none; font-size: 15.5px; font-weight: 700; white-space: nowrap;
+  }
+  .example a:hover { border-color: var(--accent); color: var(--accent); }
+  .example a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  /* ---------------- 누가 ---------------- */
+  .voice {
+    margin-top: 30px; background: var(--deep); color: var(--deep-ink);
+    border-radius: 18px; padding: 40px 40px 42px;
+  }
+  .voice .tag { font-size: 13px; font-weight: 800; color: var(--deep-mark); letter-spacing: .06em; margin: 0 0 16px; }
+  .voice blockquote {
+    margin: 0; font-family: "Gowun Batang", "Apple SD Gothic Neo", serif;
+    font-size: 25px; font-weight: 700; line-height: 1.6; letter-spacing: -.015em; text-wrap: balance;
+  }
+  .voice .body { margin: 22px 0 0; font-size: 16px; line-height: 1.85; color: var(--deep-dim); max-width: 58ch; }
+  .voice .body strong { color: var(--deep-ink); font-weight: 700; }
+  .voice .body + .body { margin-top: 14px; }
+
+  /* ---------------- 절차 ---------------- */
+  .steps { margin: 30px 0 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 2px; grid-template-columns: repeat(auto-fit, minmax(238px, 1fr)); }
+  .steps li {
+    counter-increment: s; background: var(--surface); border-radius: 14px; padding: 26px 24px 28px;
+  }
+  .steps li::before {
+    content: counter(s); display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 999px; background: var(--accent); color: #fff;
+    font-size: 14px; font-weight: 800; margin-bottom: 14px;
+  }
+  .steps h3 { margin: 0 0 6px; font-size: 17.5px; font-weight: 800; letter-spacing: -.02em; }
+  .steps p { margin: 0; font-size: 15px; color: var(--ink-2); line-height: 1.7; }
+
+  /* ---------------- 자주 묻는 것 ---------------- */
+  .faq { margin: 30px 0 0; border-top: 1px solid var(--line); }
+  .faq details { border-bottom: 1px solid var(--line); }
+  .faq summary {
+    cursor: pointer; list-style: none; padding: 22px 34px 22px 0; position: relative;
+    font-size: 17.5px; font-weight: 700; letter-spacing: -.02em;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after {
+    content: "+"; position: absolute; right: 4px; top: 20px;
+    font-size: 22px; font-weight: 400; color: var(--ink-3); line-height: 1;
+  }
+  .faq details[open] summary::after { content: "−"; }
+  .faq summary:hover { color: var(--accent); }
+  .faq summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  .faq .a { padding: 0 0 24px; margin: 0; color: var(--ink-2); font-size: 16px; line-height: 1.8; max-width: 62ch; }
+  .faq .a + .a { padding-top: 0; margin-top: -10px; }
+
+  /* ---------------- 마무리 ---------------- */
+  .close {
+    margin-top: 76px; background: var(--surface); border-radius: 20px;
+    padding: 52px 40px 54px; text-align: center;
+  }
+  .close h2 { text-align: center; }
+  .close p { margin: 14px auto 0; color: var(--ink-2); max-width: 38ch; font-size: 16.5px; }
+  .close .cta { justify-content: center; margin-top: 30px; }
+  .close small { display: block; margin-top: 18px; color: var(--ink-3); font-size: 13.5px; }
+
+  footer { margin-top: 34px; text-align: center; color: var(--ink-3); font-size: 13.5px; line-height: 1.7; }
+
+  @media (max-width: 720px) {
+    h1 { font-size: 34px; }
+    h2 { font-size: 23px; }
+    .hero .lede { font-size: 17px; }
+    .relate li { font-size: 16.5px; }
+    .voice { padding: 30px 24px 32px; }
+    .voice blockquote { font-size: 20px; }
+    .wrap { padding: 0 18px 34px; }
+    header.hero { padding: 52px 0 0; }
+    section { margin-top: 58px; }
+    .close { padding: 38px 22px 40px; }
+    .cta a { width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <p class="eyebrow">9월 모의고사 · 고1 · 고2 · 고3</p>
+    <h1>채점은 끝났는데,<br>뭘 고쳐야 할지는<br>모르겠다면</h1>
+    <p class="lede">
+      시험지를 찍어서 보내주세요. <b>어디서 시간이 샜는지, 왜 그 문제에서 막혔는지</b>를
+      문항 번호로 짚어서 돌려드릴게요. 얼마 전 같은 시험을 치러본 선배들이 직접 봅니다.
+    </p>
+
+    <ul class="badges">
+      <li>무료</li>
+      <li>이메일만 물어봐요</li>
+      <li>1주일 안에 보내드려요</li>
+      <li>재종에서의 경험을 살렸어요</li>
+    </ul>
+
+    <div class="cta">
+      <a href="https://ksat-feedback.vercel.app" target="_blank" rel="noopener">시험지 보내기</a>
+      <span>폰으로 2분이면 끝나요</span>
+    </div>
+  </header>
+
+  <!-- ==================== 공감 -->
+  <section>
+    <h2>이런 적 있지 않나요</h2>
+    <ul class="relate">
+      <li>분명 아는 문제였는데 시간이 모자라서 못 풀었다</li>
+      <li>왜 틀렸는지는 아는데, 다음엔 뭘 다르게 해야 할지 모르겠다</li>
+      <li>해설을 봐도 “아 그렇구나”에서 끝나고 내 습관은 그대로다</li>
+      <li>채점하고 오답 정리까지는 했는데, 그게 점수로 이어지질 않는다</li>
+    </ul>
+    <p>
+      점수는 시험지가 알려주지만, <b>무엇을 고쳐야 하는지는 알려주지 않습니다.</b>
+      그건 옆에서 시험지를 같이 넘겨보며 짚어주는 사람이 필요한 일이에요.
+    </p>
+  </section>
+
+  <!-- ==================== 무엇을 -->
+  <section>
+    <h2>시험지 한 장에 네 가지로 답합니다</h2>
+    <p class="sub">
+      과목마다 이렇게 정리해서 이메일로 보내드려요. 학생이 보내는 건 시험지 사진과 고민뿐입니다.
+    </p>
+
+    <div class="four">
+      <div>
+        <span class="n">01</span>
+        <h3>문제점</h3>
+        <p>몇 번 문항에서 무엇을 했는지, 그 흔적이 어떤 습관을 뜻하는지 짚어요.</p>
+      </div>
+      <div>
+        <span class="n">02</span>
+        <h3>해결책</h3>
+        <p>다음 시험에서 당장 바꿀 수 있는 행동 하나를 구체적으로 알려드려요.</p>
+      </div>
+      <div>
+        <span class="n">03</span>
+        <h3>관련 개념</h3>
+        <p>다시 만나지 않으려면 무엇을 다시 볼지, 어떤 기출을 풀지 함께 짚어요.</p>
+      </div>
+      <div>
+        <span class="n">04</span>
+        <h3>조언</h3>
+        <p>잘한 건 잘했다고, 고칠 건 왜 고쳐야 하는지 이유와 함께 말해줘요.</p>
+      </div>
+    </div>
+
+    <div class="example">
+      <p><b>말보다 실물을 보는 게 빠릅니다.</b> 수학 문항 다섯 개에 실제로 어떻게 답하는지 그대로 올려뒀어요.</p>
+      <a href="https://claude.ai/code/artifact/41cbbe29-f101-42a2-a45c-1959034ac109" target="_blank" rel="noopener">피드백 예시 보기</a>
+    </div>
+  </section>
+
+  <!-- ==================== 누가 -->
+  <section>
+    <h2>누가 보나요</h2>
+    <p class="sub">
+      재수 종합반에서 이 피드백을 직접 받아본 사람들이, 같은 방식으로 시험지를 봅니다.
+    </p>
+
+    <div class="voice">
+      <p class="tag">우리가 이걸 하는 이유</p>
+      <blockquote>
+        학원 강의도 아니고 잔소리도 아닌,<br>
+        바로 얼마 전 같은 시험을 치러본 사람의 눈.
+      </blockquote>
+      <p class="body">
+        재수할 때 재종 선생님께 이런 피드백을 받고 행동을 하나하나 교정했습니다.
+        파이널에 실전 모의고사를 풀 때 <strong>푸는 것 자체에 매달리지 않고,
+        내가 어디가 부족한지 알고 고치는 것</strong>이 결국 점수를 만들었어요.
+      </p>
+      <p class="body">
+        그런데 현역은 그럴 기회가 없습니다. 자기 문제를 알아채기도 어렵고, 알아도 막막하고,
+        솔직히 하기도 싫죠. 그래도 해야 실전에서 점수가 나온다는 건
+        수험생활을 지나온 사람들은 다 압니다. <strong>그 부분을 저희가 대신 봐드릴게요.</strong>
+      </p>
+    </div>
+  </section>
+
+  <!-- ==================== 어떻게 -->
+  <section>
+    <h2>신청은 2분이면 끝나요</h2>
+    <ol class="steps">
+      <li>
+        <h3>시험지를 찍어요</h3>
+        <p>과목별로 사진을 올려요. 푼 그대로가 좋아요. 지우거나 다시 풀지 마세요.</p>
+      </li>
+      <li>
+        <h3>고민을 적어요</h3>
+        <p>어디가 어려웠는지, 시간은 어땠는지. 전부 선택이라 답하고 싶은 것만 적어도 돼요.</p>
+      </li>
+      <li>
+        <h3>이메일을 남겨요</h3>
+        <p>회원가입도 로그인도 없어요. 1주일 안에 그 주소로 피드백이 갑니다.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ==================== FAQ -->
+  <section>
+    <h2>자주 묻는 것</h2>
+
+    <div class="faq">
+      <details>
+        <summary>정말 무료인가요?</summary>
+        <p class="a">
+          네, 시험지 피드백은 무료입니다. 결제 정보를 받지 않고 유료로 바뀌는 것도 없어요.
+          다만 저희가 함께 운영하는 <b>시험지 피드백 그룹과외 안내</b>가 회신 메일에 같이 들어갈 수 있습니다.
+          신청과는 아무 상관이 없고, 안 보셔도 피드백은 그대로 나갑니다.
+        </p>
+      </details>
+      <details>
+        <summary>개인정보는 뭘 받나요?</summary>
+        <p class="a">
+          이메일 하나뿐입니다. 이름도 학교도 전화번호도 묻지 않아요.
+          피드백을 보낼 주소가 필요해서 받는 것이고, 다른 용도로 쓰지 않습니다.
+        </p>
+      </details>
+      <details>
+        <summary>못 푼 시험지를 보여주기가 좀…</summary>
+        <p class="a">
+          그래서 이름을 안 받습니다. 누가 보냈는지 저희도 모르고, 아는 사람에게 보여지는 일도 없어요.
+          그리고 <b>못 푼 시험지일수록 볼 게 많습니다.</b> 다 맞은 시험지에서는 고칠 게 나오지 않아요.
+        </p>
+      </details>
+      <details>
+        <summary>언제 받아볼 수 있나요?</summary>
+        <p class="a">
+          접수하고 <b>1주일 안에</b> 적어주신 이메일로 보내드립니다.
+          접수하면 바로 접수번호가 담긴 확인 메일이 먼저 가요.
+        </p>
+      </details>
+      <details>
+        <summary>몇 과목까지 되나요?</summary>
+        <p class="a">
+          고3은 국어·수학, 고1과 고2는 국어·수학·영어·통합과학·통합사회 중에서 고르면 됩니다.
+          여러 과목을 한 번에 보내도 되고, 과목마다 따로 정리해서 답해드려요.
+        </p>
+      </details>
+      <details>
+        <summary>사진이 흐리거나 지저분해도 되나요?</summary>
+        <p class="a">
+          괜찮습니다. 오히려 <b>시험장에서 푼 그대로</b>가 가장 좋아요.
+          급하게 쓴 계산, 지운 자국, 넘겼다 돌아온 흔적에 볼 게 다 들어 있습니다.
+          다만 글씨가 아예 안 보일 정도면 다시 찍어주세요.
+        </p>
+      </details>
+    </div>
+  </section>
+
+  <!-- ==================== 마무리 -->
+  <div class="close">
+    <h2>9월 2일부터 받습니다</h2>
+    <p>시험 본 날 그대로의 시험지가 가장 좋아요. 미루지 말고 그날 보내주세요.</p>
+    <div class="cta">
+      <a href="https://ksat-feedback.vercel.app" target="_blank" rel="noopener">시험지 보내기</a>
+    </div>
+    <small>회신은 9월 9일까지 순차적으로 나갑니다</small>
+  </div>
+
+  <footer>
+    9월 모의고사 시험지 피드백<br>
+    문의 juhhyun10031@gmail.com
+  </footer>
+</div>

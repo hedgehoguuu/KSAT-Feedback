@@ -1,0 +1,470 @@
+<title>무료 피드백에서 그룹과외까지</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;500;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --ground: #ffffff;
+    --surface: #f2f4f6;
+    --surface-2: #e8ebef;
+    --line: #e5e8ec;
+    --ink: #191f28;
+    --ink-2: #4e5968;
+    --ink-3: #8b95a1;
+    --accent: #3182f6;
+    --accent-soft: #eaf2ff;
+    --deep: #10182a;
+    --deep-ink: #f3f6fb;
+    --deep-dim: #93a3bd;
+    --deep-mark: #7cb0ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0b0e14;
+      --surface: #141a24;
+      --surface-2: #1b2330;
+      --line: #222b39;
+      --ink: #e9eef5;
+      --ink-2: #a6b2c2;
+      --ink-3: #74808f;
+      --accent: #6fa5ff;
+      --accent-soft: #15243d;
+      --deep: #17233a;
+      --deep-ink: #eef3fb;
+      --deep-dim: #9db0cd;
+      --deep-mark: #8dbaff;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0b0e14;
+    --surface: #141a24;
+    --surface-2: #1b2330;
+    --line: #222b39;
+    --ink: #e9eef5;
+    --ink-2: #a6b2c2;
+    --ink-3: #74808f;
+    --accent: #6fa5ff;
+    --accent-soft: #15243d;
+    --deep: #17233a;
+    --deep-ink: #eef3fb;
+    --deep-dim: #9db0cd;
+    --deep-mark: #8dbaff;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Gothic A1", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    word-break: keep-all;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 940px; margin: 0 auto; padding: 0 28px 96px; }
+
+  .mono {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11.5px; letter-spacing: .13em; text-transform: uppercase;
+  }
+
+  /* ---------------- 히어로 ---------------- */
+  header.hero { padding: 78px 0 0; }
+  .hero .mono { color: var(--accent); display: block; margin-bottom: 22px; }
+  h1 {
+    font-size: 50px; font-weight: 800; line-height: 1.24; letter-spacing: -.035em;
+    margin: 0; text-wrap: balance;
+  }
+  .hero .thesis {
+    margin: 24px 0 0; font-size: 18.5px; line-height: 1.7; color: var(--ink-2); max-width: 44ch;
+  }
+  .hero .thesis b { color: var(--ink); font-weight: 700; }
+
+  .meta {
+    margin-top: 40px; display: grid; gap: 1px; background: var(--line);
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    border: 1px solid var(--line); border-radius: 4px; overflow: hidden;
+  }
+  .meta > div { background: var(--ground); padding: 16px 20px; }
+  .meta dt { margin: 0 0 6px; color: var(--ink-3); }
+  .meta dd { margin: 0; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* ---------------- 섹션 ---------------- */
+  section { margin-top: 78px; }
+  .head { margin-bottom: 26px; }
+  .head .mono { color: var(--ink-3); display: block; margin-bottom: 10px; }
+  h2 { font-size: 27px; font-weight: 800; margin: 0; letter-spacing: -.025em; text-wrap: balance; }
+  .head p { margin: 12px 0 0; color: var(--ink-2); max-width: 58ch; font-size: 16.5px; }
+
+  p { max-width: 62ch; }
+
+  /* ---------------- 문제 목록 ---------------- */
+  .points { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+  .points li {
+    padding: 20px 0; border-top: 1px solid var(--line);
+    display: grid; grid-template-columns: 190px 1fr; gap: 28px; align-items: baseline;
+  }
+  .points li:last-child { border-bottom: 1px solid var(--line); }
+  .points h3 { margin: 0; font-size: 16.5px; font-weight: 700; letter-spacing: -.01em; }
+  .points p { margin: 0; color: var(--ink-2); font-size: 15.5px; line-height: 1.72; }
+
+  /* ---------------- 큰 인용 ---------------- */
+  .pull { margin-top: 78px; padding: 56px 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
+  .pull blockquote {
+    margin: 0; font-size: 38px; font-weight: 800; line-height: 1.36; letter-spacing: -.035em;
+    text-wrap: balance;
+  }
+  .pull blockquote em { font-style: normal; color: var(--accent); }
+  .pull .who { margin: 22px 0 0; color: var(--ink-3); font-size: 14.5px; }
+
+  /* ---------------- 회고 ---------------- */
+  .memoir {
+    margin-top: 40px; background: var(--surface); border-radius: 6px; padding: 32px 34px;
+  }
+  .memoir p { margin: 0; font-size: 16.5px; line-height: 1.85; color: var(--ink-2); max-width: 64ch; }
+  .memoir p + p { margin-top: 16px; }
+  .memoir strong { color: var(--ink); font-weight: 700; }
+  .memoir .punch {
+    margin-top: 24px; font-size: 21px; font-weight: 800; color: var(--ink); letter-spacing: -.02em;
+  }
+
+  /* ---------------- 산출물 ---------------- */
+  .deliver { display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .deliver > div { background: var(--ground); padding: 24px 22px 26px; }
+  .deliver .n { color: var(--accent); }
+  .deliver h3 { margin: 12px 0 6px; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+  .deliver p { margin: 0; font-size: 14.5px; line-height: 1.7; color: var(--ink-2); }
+
+  .io { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: baseline; color: var(--ink-2); font-size: 15px; }
+  .io b { color: var(--ink); font-weight: 700; }
+
+  /* ---------------- 절차 ---------------- */
+  .steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 2px; }
+  .steps li {
+    counter-increment: s; background: var(--surface); border-radius: 6px;
+    padding: 22px 26px; display: grid; grid-template-columns: 34px 1fr; gap: 18px; align-items: baseline;
+  }
+  .steps li::before {
+    content: counter(s, decimal-leading-zero);
+    font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 500; color: var(--accent);
+  }
+  .steps h3 { margin: 0 0 4px; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+  .steps p { margin: 0; color: var(--ink-2); font-size: 15px; }
+
+  /* ---------------- 도식 ---------------- */
+  figure { margin: 0; }
+  .frame { overflow-x: auto; }
+  figure svg { display: block; width: 100%; min-width: 780px; height: auto; }
+  figcaption { margin-top: 18px; font-size: 14.5px; line-height: 1.7; color: var(--ink-2); max-width: 60ch; }
+  figcaption b { color: var(--ink); font-weight: 700; }
+  .swipe { display: none; margin: 10px 0 0; color: var(--ink-3); }
+  @media (max-width: 900px) { .swipe { display: block; } }
+  .d-box { fill: var(--ground); stroke: var(--accent); }
+  .d-deep { fill: var(--deep); stroke: var(--deep); }
+  .d-step { fill: var(--surface); stroke: none; }
+  .d-t { fill: var(--ink); font-family: "Gothic A1", sans-serif; font-size: 14px; font-weight: 700; }
+  .d-s { fill: var(--ink-2); font-family: "Gothic A1", sans-serif; font-size: 12.5px; }
+  .d-l { fill: var(--accent); font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .1em; }
+  .d-wt { fill: var(--deep-ink); font-family: "Gothic A1", sans-serif; font-size: 19px; font-weight: 800; }
+  .d-ws { fill: var(--deep-dim); font-family: "Gothic A1", sans-serif; font-size: 12.5px; }
+  .d-wl { fill: var(--deep-mark); font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .1em; }
+  .d-arrow { stroke: var(--ink-3); fill: none; }
+
+  .split { margin-top: 22px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 2px; }
+  .split > div { background: var(--surface); border-radius: 6px; padding: 22px 24px; }
+  .split .mono { color: var(--ink-3); display: block; margin-bottom: 8px; }
+  .split h3 { margin: 0 0 6px; font-size: 17px; font-weight: 700; }
+  .split p { margin: 0; font-size: 15px; color: var(--ink-2); }
+
+  /* ---------------- 팀 ---------------- */
+  .who-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 34px; }
+  .who-grid h3 { margin: 0 0 10px; font-size: 16.5px; font-weight: 700; }
+  .who-grid p { margin: 0; color: var(--ink-2); font-size: 15.5px; }
+  .names { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .names span {
+    background: var(--surface); border-radius: 999px; padding: 6px 15px;
+    font-size: 14.5px; font-weight: 500;
+  }
+
+  /* ---------------- 링크 ---------------- */
+  .links { margin-top: 78px; padding-top: 34px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 12px; }
+  .links a {
+    display: inline-flex; align-items: center; min-height: 50px; padding: 0 24px;
+    border-radius: 6px; text-decoration: none; font-size: 15.5px; font-weight: 700;
+    border: 1px solid var(--line); color: var(--ink); background: var(--ground);
+  }
+  .links a.go { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .links a:hover { border-color: var(--accent); color: var(--accent); }
+  .links a.go:hover { color: #fff; filter: brightness(1.06); }
+  .links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  footer { margin-top: 34px; color: var(--ink-3); font-size: 13.5px; }
+
+  @media (max-width: 720px) {
+    h1 { font-size: 34px; }
+    h2 { font-size: 23px; }
+    .pull blockquote { font-size: 26px; }
+    .wrap { padding: 0 18px 72px; }
+    header.hero { padding: 54px 0 0; }
+    section { margin-top: 58px; }
+    .points li { grid-template-columns: 1fr; gap: 6px; }
+    .memoir { padding: 26px 22px; }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <span class="mono">Uni-T · 9월 모의고사</span>
+    <h1>채점은 끝났는데,<br>무엇을 고쳐야 할지는 모른다</h1>
+    <p class="thesis">
+      현장에서 푼 날 것의 시험지를 받아 <b>무엇이 문제였는지 짚어 무료로 돌려주고</b>,
+      그 경험을 <b>시험지 피드백 기반 그룹과외</b>로 잇습니다.
+    </p>
+
+    <dl class="meta">
+      <div><dt class="mono">기간</dt><dd>9월 2일 — 9월 9일</dd></div>
+      <div><dt class="mono">1차</dt><dd>무료 피드백</dd></div>
+      <div><dt class="mono">2차</dt><dd>그룹과외 전환</dd></div>
+      <div><dt class="mono">대상</dt><dd>고3 · 고1 · 고2</dd></div>
+    </dl>
+  </header>
+
+  <!-- ============================ 왜 -->
+  <section>
+    <div class="head">
+      <span class="mono">왜 지금</span>
+      <h2>학생은 자기 문제를 모른다</h2>
+      <p>
+        점수는 알아도 왜 그 점수인지는 모릅니다. 어디서 시간을 흘렸는지, 어떤 풀이가 불필요했는지를
+        스스로 짚어내는 일은 수험생 혼자 하기 어렵습니다.
+      </p>
+    </div>
+
+    <ul class="points">
+      <li>
+        <h3>메타인지가 없다</h3>
+        <p>자신이 어디서 문제인지, 어떻게 했으면 더 높은 점수를 받았을지 스스로 인지하기 어렵습니다.
+          인지하더라도 개선은 막막하고, 무엇보다 하기 싫어합니다.</p>
+      </li>
+      <li>
+        <h3>단과 학원은 안 해준다</h3>
+        <p>강의는 문제를 푸는 법을 알려주지, 이 학생이 시험장에서 무엇을 잘못했는지는 보지 않습니다.
+          역할이 비어 있는데, 학생에게는 무조건 필요한 일입니다.</p>
+      </li>
+      <li>
+        <h3>재종에는 있다</h3>
+        <p>재수 종합반에서는 선생님이 시험지를 넘겨보며 행동을 하나하나 교정해 줍니다.
+          현역 학생은 그 경험을 가질 기회가 없습니다.</p>
+      </li>
+      <li>
+        <h3>날 것의 시험지가 답을 갖고 있다</h3>
+        <p>현장에서 푼 그대로의 시험지에는 어디서 오래 붙잡았는지, 어떤 풀이를 돌아갔는지가
+          전부 남아 있습니다. 가장 정확한 자료입니다.</p>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============================ 인용 -->
+  <div class="pull">
+    <blockquote>
+      부모님의 잔소리도, 강사의 강의 팔이도 아닌 —<br>
+      <em>입시 경험이 가장 최근인 형들의 조언</em>
+    </blockquote>
+    <p class="who">우리가 팔 수 있는 것 중 학원이 흉내 낼 수 없는 유일한 것</p>
+  </div>
+
+  <!-- ============================ 회고 -->
+  <section>
+    <div class="head">
+      <span class="mono">출발점</span>
+      <h2>겪어본 사람이 안다</h2>
+    </div>
+    <div class="memoir">
+      <p>
+        재수할 당시 재종 선생님께 이런 피드백을 받고 행동을 하나하나 교정했습니다.
+        파이널 기간에 실전 모의고사를 풀 때 <strong>푸는 것 자체에 매몰되지 않고,
+        내가 어디가 부족한지 인지하고 개선하는 것</strong>이 결국 점수를 만들었습니다.
+      </p>
+      <p>
+        현역 학생들은 자신의 문제를 인지하는 것도 어렵고, 개선하는 것도 막막해합니다.
+        그리고 그걸 하기 싫어합니다. 그러나 해야만 실전에서 좋은 점수가 나온다는 것은
+        수험생활을 거쳐본 선배들은 다 아는 지점입니다.
+      </p>
+      <p class="punch">그래서, 우리가 해줍니다.</p>
+    </div>
+  </section>
+
+  <!-- ============================ 1차 산출물 -->
+  <section>
+    <div class="head">
+      <span class="mono">1차 · 무료</span>
+      <h2>시험지 한 장에 이 네 가지로 답합니다</h2>
+      <p>학생이 내는 것은 시험지 사진과 고민뿐입니다. 이름도 학교도 묻지 않습니다.</p>
+    </div>
+
+    <div class="deliver">
+      <div>
+        <span class="mono n">01</span>
+        <h3>문제점 진단</h3>
+        <p>몇 번 문항에서 무엇을 했는지, 그 흔적이 무슨 습관을 뜻하는지 짚습니다.</p>
+      </div>
+      <div>
+        <span class="mono n">02</span>
+        <h3>해결책 제시</h3>
+        <p>다음 시험에서 당장 바꿀 수 있는 행동 하나를 구체적으로 줍니다.</p>
+      </div>
+      <div>
+        <span class="mono n">03</span>
+        <h3>관련 개념 제안</h3>
+        <p>그 문제를 다시 만나지 않으려면 무엇을 다시 볼지, 어떤 기출을 풀지 짚어줍니다.</p>
+      </div>
+      <div>
+        <span class="mono n">04</span>
+        <h3>조언</h3>
+        <p>경험에 근거한 한마디. 잘한 것은 잘했다고 말하고, 고칠 것은 이유와 함께 말합니다.</p>
+      </div>
+    </div>
+
+    <p class="io">
+      <span><b>받는 것</b> 시험지 사진 · 과목별 고민</span>
+      <span><b>돌려주는 것</b> 문서로 정리한 피드백, 이메일로</span>
+      <span><b>기한</b> 접수 후 1주일 이내</span>
+    </p>
+  </section>
+
+  <!-- ============================ 절차 -->
+  <section>
+    <div class="head">
+      <span class="mono">어떻게</span>
+      <h2>세 단계로 돌아갑니다</h2>
+    </div>
+    <ol class="steps">
+      <li>
+        <div>
+          <h3>학생이 사이트에 시험지와 고민을 넣는다</h3>
+          <p>폰으로 2분. 회원가입도 로그인도 없고, 묻는 것은 이메일 하나입니다.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>포레스터가 답변을 만들어 이메일로 보낸다</h3>
+          <p>문제점 진단부터 조언까지 문서로 정리해 전달합니다. 유료 과외 안내가 함께 나갑니다.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>시험지 피드백 기반 과외 모델로 잇는다</h3>
+          <p>무료 피드백에서 신뢰가 생긴 학생을 그룹과외로 전환하고, 같은 방식으로 운영합니다.</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ============================ 2단 구조 -->
+  <section>
+    <div class="head">
+      <span class="mono">사업 구조</span>
+      <h2>무료가 끝이 아니라 입구입니다</h2>
+      <p>
+        1차는 돈을 받지 않습니다. 대신 학생이 “이 사람들 진짜네”를 느끼는 순간을 만듭니다.
+        그 순간이 2차의 전제입니다.
+      </p>
+    </div>
+
+    <figure>
+      <div class="frame">
+        <svg viewBox="0 0 960 212" role="img" aria-label="1차 무료 단계에서 학생이 시험지 사진과 고민을 내면 문제점 진단, 해결책, 관련 개념, 조언을 만들어 문서로 이메일 전달한다. 여기서 생긴 신뢰를 발판으로 2차 유료 단계인 시험지 피드백 기반 그룹과외로 전환한다.">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+            </marker>
+          </defs>
+
+          <rect class="d-box" x="1" y="30" width="540" height="160" rx="10" stroke-width="1.5" />
+          <text class="d-l" x="25" y="58">1차 · 무료</text>
+
+          <rect class="d-step" x="25" y="86" width="150" height="72" rx="7" />
+          <text class="d-t" x="41" y="116">학생이 낸 것</text>
+          <text class="d-s" x="41" y="138">시험지 사진 · 고민</text>
+
+          <rect class="d-step" x="195" y="86" width="170" height="72" rx="7" />
+          <text class="d-t" x="211" y="116">우리가 만든 것</text>
+          <text class="d-s" x="211" y="138">진단 · 해결책 · 개념 · 조언</text>
+
+          <rect class="d-step" x="385" y="86" width="135" height="72" rx="7" />
+          <text class="d-t" x="401" y="116">전달</text>
+          <text class="d-s" x="401" y="138">문서 · 이메일</text>
+
+          <g class="d-arrow" stroke-width="1.4" color="var(--ink-3)">
+            <line x1="177" y1="122" x2="191" y2="122" marker-end="url(#ar)" />
+            <line x1="367" y1="122" x2="381" y2="122" marker-end="url(#ar)" />
+            <line x1="543" y1="110" x2="615" y2="110" marker-end="url(#ar)" />
+          </g>
+          <text class="d-l" x="579" y="95" text-anchor="middle">AHA MOMENT</text>
+          <text class="d-s" x="579" y="132" text-anchor="middle">“이 사람들 진짜네”</text>
+
+          <rect class="d-deep" x="620" y="30" width="339" height="160" rx="10" stroke-width="1.5" />
+          <text class="d-wl" x="644" y="58">2차 · 유료 전환</text>
+          <text class="d-wt" x="644" y="112">시험지 피드백 기반</text>
+          <text class="d-wt" x="644" y="140">그룹과외</text>
+          <text class="d-ws" x="644" y="168">9모 전후 운영 · 고3 대상</text>
+        </svg>
+      </div>
+      <p class="swipe mono">← 옆으로 밀어서 보기</p>
+      <figcaption>
+        <b>두 단계는 같은 재료를 씁니다.</b> 무료로 한 번 해본 그 방식 그대로 과외를 운영하기 때문에,
+        학생은 무엇을 사는지 이미 알고 결정합니다. 파는 쪽도 설득할 것이 줄어듭니다.
+      </figcaption>
+    </figure>
+
+    <div class="split">
+      <div>
+        <span class="mono">고3</span>
+        <h3>그룹과외 전환</h3>
+        <p>9모 전후로 운영하는 시험지 피드백 그룹과외의 입구. 이번 회차의 주된 목표입니다.</p>
+      </div>
+      <div>
+        <span class="mono">고1 · 고2</span>
+        <h3>내년을 위한 포석</h3>
+        <p>지금 전환을 노리지 않습니다. 내년 서비스의 테스트베드이자 얼리어답터로 확보합니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ 누가 언제 -->
+  <section>
+    <div class="head">
+      <span class="mono">누가 · 언제</span>
+      <h2>네 명과 포레스트 용역, 일주일</h2>
+    </div>
+    <div class="who-grid">
+      <div>
+        <h3>사람</h3>
+        <div class="names">
+          <span>주현</span><span>서현</span><span>송하</span><span>주연</span><span>+ 포레스트 용역</span>
+        </div>
+      </div>
+      <div>
+        <h3>일정</h3>
+        <p><b>9월 2일</b> 9모 당일 접수 오픈<br><b>9월 9일</b>까지 전건 회신 완료</p>
+      </div>
+      <div>
+        <h3>학생이 내는 개인정보</h3>
+        <p>이메일 하나. 이름도 학교도 전화번호도 받지 않습니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="links">
+    <a class="go" href="https://ksat-feedback.vercel.app" target="_blank" rel="noopener">접수 화면 보기</a>
+    <a href="https://claude.ai/code/artifact/41cbbe29-f101-42a2-a45c-1959034ac109" target="_blank" rel="noopener">수학 피드백 예시</a>
+  </div>
+
+  <footer>팀과외팀 · Uni-T · 9모 시험지 피드백 서비스 정의</footer>
+</div>
