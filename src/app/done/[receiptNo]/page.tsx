@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { FEATURES, POLICY } from '@/config/app';
+import { BRANDING, FEATURES, POLICY } from '@/config/app';
 import { findExam } from '@/config/exams';
 import { subjectLabel } from '@/config/subjects';
 import { useApply, useHydrated } from '@/lib/store';
@@ -43,8 +43,14 @@ export default function DonePage() {
         <p className="text-[13px] text-muted">접수번호</p>
         <p className="mt-1 text-[24px] font-bold tracking-tight">{receiptNo}</p>
         <p className="mt-2 text-[13px] leading-[1.6] text-muted">
-          혹시 문의할 일이 생기면 이 번호를 알려주세요.
+          혹시 문의할 일이 생기면 아래 이메일로 접수번호와 함께 알려주세요.
         </p>
+        <a
+          href={`mailto:${BRANDING.contactEmail}?subject=${encodeURIComponent(`[문의] ${receiptNo}`)}`}
+          className="mt-2 inline-block text-[14px] font-semibold text-brand underline underline-offset-2"
+        >
+          {BRANDING.contactEmail}
+        </a>
       </div>
 
       {mine ? (
@@ -85,8 +91,6 @@ export default function DonePage() {
       ) : null}
 
       <p className="mt-auto pt-10 text-center text-[12px] leading-relaxed text-muted">
-        보내주신 시험지 사진은 분석이 끝나고 {POLICY.retentionDays}일 뒤에 지워요.
-        <br />
         <Link href="/" className="underline underline-offset-2">
           처음 화면으로
         </Link>

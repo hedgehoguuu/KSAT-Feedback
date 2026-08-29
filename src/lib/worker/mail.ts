@@ -1,6 +1,6 @@
 import 'server-only';
 import nodemailer from 'nodemailer';
-import { BRANDING, POLICY } from '@/config/app';
+import { BRANDING } from '@/config/app';
 import type { Exam } from '@/config/exams';
 import { subjectLabel, type SubjectCode } from '@/config/subjects';
 
@@ -63,10 +63,9 @@ function textBody(input: MailInput, summary: string): string {
     `회신 예정일  ${input.dueDate}`,
     '',
     `${input.dueDate}까지 이 메일 주소로 분석 결과를 보내드릴게요.`,
-    '형·누나들이 시험지를 직접 넘겨보면서 씁니다. 조금만 기다려주세요.',
+    '형·누나가 시험지를 직접 넘겨보면서 씁니다. 조금만 기다려주세요.',
     '',
-    `보내주신 시험지 사진은 분석이 끝나고 ${POLICY.retentionDays}일 뒤에 지워요.`,
-    '문의할 일이 생기면 이 메일에 그대로 답장하면서 접수번호를 알려주세요.',
+    `문의할 일이 생기면 이 메일에 그대로 답장하거나 ${BRANDING.contactEmail} 로 접수번호와 함께 알려주세요.`,
   ].join('\n');
 }
 
@@ -82,7 +81,7 @@ function htmlBody(input: MailInput, summary: string): string {
     <h1 style="margin:0;font-size:22px;line-height:1.4;color:#191f28">시험지 잘 받았어요</h1>
     <p style="margin:12px 0 0;font-size:15px;line-height:1.65;color:#4e5968">
       <strong style="color:#191f28">${input.dueDate}</strong>까지 이 주소로 분석 결과를 보내드릴게요.
-      형·누나들이 시험지를 직접 넘겨보면서 씁니다.
+      형·누나가 시험지를 직접 넘겨보면서 씁니다.
     </p>
 
     <table style="margin:22px 0 0;border-collapse:collapse">
@@ -93,8 +92,9 @@ function htmlBody(input: MailInput, summary: string): string {
     </table>
 
     <p style="margin:22px 0 0;font-size:13px;line-height:1.7;color:#8b95a1">
-      보내주신 시험지 사진은 분석이 끝나고 ${POLICY.retentionDays}일 뒤에 지워요.<br>
-      문의할 일이 생기면 이 메일에 그대로 답장하면서 접수번호를 알려주세요.
+      문의할 일이 생기면 이 메일에 그대로 답장하거나
+      <a href="mailto:${BRANDING.contactEmail}" style="color:#3182f6">${BRANDING.contactEmail}</a> 로
+      접수번호와 함께 알려주세요.
     </p>
   </div>
 </div>`;

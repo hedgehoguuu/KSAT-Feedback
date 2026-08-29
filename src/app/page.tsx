@@ -2,13 +2,12 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { POLICY } from '@/config/app';
 import { useIntake } from '@/lib/useIntake';
 import { clearDraftId } from '@/lib/draft';
 import { STEPS } from '@/config/steps';
 import { hasProgress, useApply, useHydrated } from '@/lib/store';
 
-const BADGES = ['무료', '이름 안 물어봐요', '1주일 안에 이메일로'];
+const BADGES = ['무료', '재종에서의 경험을 살렸어요', '이메일만 물어봐요', '1주일 안에 보내드려요'];
 
 export default function Landing() {
   const router = useRouter();
@@ -42,7 +41,7 @@ export default function Landing() {
         시험지만 보내주세요
       </h1>
       <p className="mt-4 text-[16px] leading-[1.6] text-muted">
-        어디서 시간이 샜는지, 왜 그 문제에서 막혔는지. 시대인재 TA 형·누나들이 직접 보고 알려드릴게요.
+        시험지에서 보이는 문제점은 무엇인지, 어떻게 해결할 수 있을지. 튜터 형·누나가 직접 보고 알려드릴게요.
       </p>
 
       <ul className="mt-6 flex flex-wrap gap-2">
@@ -83,9 +82,6 @@ export default function Landing() {
           시험지 보내기
         </Link>
         <p className="mt-2 text-center text-[13px] text-muted">2분이면 끝나요</p>
-        <p className="mt-6 text-center text-[12px] leading-relaxed text-muted">
-          이메일 말고는 아무것도 안 물어봐요. 보내주신 사진은 분석이 끝나고 {POLICY.retentionDays}일 뒤에 지워요.
-        </p>
       </div>
     </main>
   );

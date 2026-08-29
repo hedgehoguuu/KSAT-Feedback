@@ -136,8 +136,7 @@ export default function EmailStep() {
           <Check checked={consent} onChange={setConsent}>
             <span className="font-semibold">개인정보 수집·이용에 동의합니다</span>
             <span className="mt-1 block text-[13px] leading-[1.6] text-muted">
-              이메일·시험지 사진·고민 내용을 피드백 회신 목적으로만 쓰고, {POLICY.retentionDays}일 뒤에 지워요.
-              이름·학교·전화번호는 받지 않아요.
+              이메일·시험지 사진·고민 내용을 피드백 회신 목적으로만 써요. 이름·학교·전화번호는 받지 않아요.
             </span>
           </Check>
           <Check checked={ageOk} onChange={setAgeOk}>

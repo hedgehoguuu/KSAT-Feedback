@@ -120,12 +120,12 @@ function concernSummary(subject: SubjectCode, answers: Record<string, string>): 
 
   const parts = [`답변 ${answered.length}/${questions.length}`];
 
-  const hard = questions.find((q) => q.type === 'short' && (answers[q.id] ?? '').trim());
+  const hard = questions.find((q) => q.summary === 'hard' && (answers[q.id] ?? '').trim());
   if (hard) parts.push(`어려운 문항 ${answers[hard.id].trim()}`);
 
-  const want = questions[questions.length - 1];
-  const wantValue = answerText(want, answers[want.id] ?? '');
-  if (want.type === 'choice' && wantValue) parts.push(`원하는 것: ${wantValue}`);
+  const want = questions.find((q) => q.summary === 'want');
+  const wantValue = want ? answerText(want, answers[want.id] ?? '') : '';
+  if (wantValue) parts.push(`원하는 것: ${wantValue}`);
 
   const first = answered.find((q) => q.type === 'long');
   if (first) {

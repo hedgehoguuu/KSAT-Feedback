@@ -13,7 +13,10 @@ export const LIMITS = {
 } as const;
 
 export const POLICY = {
-  /** 확정 30일 — §9 Q4. 동의 문구와 자동 삭제에 함께 쓰인다. */
+  /**
+   * 확정 30일 — §9 Q4. 사진·PDF 자동 삭제와 서명 URL 유효기간에 쓴다.
+   * 2026-08-29 결정으로 학생 화면에는 이 기간을 따로 고지하지 않는다. 삭제는 그대로 돈다.
+   */
   retentionDays: 30,
   /** 확정 7일 — §9 Q5. 완료 화면 회신 예정일 계산에 쓰인다. */
   replySlaDays: 7,
@@ -24,6 +27,8 @@ export const BRANDING = {
   /** §9 Q6 — 커스텀 도메인 없이 vercel.app 기본 주소로 간다. 이름은 페이지 제목에만 쓰인다. */
   serviceName: '시험지 피드백',
   receiptPrefix: 'F',
+  /** 학생이 문의할 곳. 완료 화면과 접수 확인 메일에 함께 나간다. */
+  contactEmail: 'juhhyun10031@gmail.com',
 } as const;
 
 /** 화면에 넣고 뺄 수 있는 것들. */

@@ -1,6 +1,10 @@
 // ③단계 고민 문항. 문구·개수·타입을 코드 수정 없이 바꾸기 위한 설정 파일. (PRD FE-5)
 //
 // §9 Q2 확정본 — 2026-08-29 서현 작성. 열 문항 모두 선택 입력이며, 하나도 안 적어도 넘어간다.
+//
+// 순서는 서현의 원래 목록과 다르다. 서술형이 앞에 몰려 있으면 첫 화면이 글쓰기 일곱 개로 보여
+// 그 자리에서 나가버린다. 탭으로 끝나는 것 → 짧게 적는 것 → 길게 적는 것 순으로 놓았다.
+// id 는 저장 키라 순서를 바꿔도 그대로 둔다.
 
 import type { SubjectCode } from './subjects';
 
@@ -17,54 +21,18 @@ export type Question = {
   placeholder?: string;
   /** type === 'choice' 일 때만 사용 */
   options?: readonly { value: string; label: string }[];
+  /**
+   * Notion 속성 「고민」 한 줄 요약에 쓸 문항 표시.
+   * 순서를 바꿔도 요약이 깨지지 않도록 위치가 아니라 이 표시로 찾는다.
+   */
+  summary?: 'hard' | 'want';
 };
 
 /** 설정 실수로 화면이 끝없이 길어지지 않게 두는 상한. 실제 개수는 아래 배열이 정한다. */
 export const QUESTION_SLOTS = 12;
 
 export const CONCERN_QUESTIONS: readonly Question[] = [
-  {
-    id: 'q1',
-    type: 'long',
-    label: '시험 전반에 대한 느낌을 알려주세요.',
-    placeholder: '예) 6모에 비해 쉬운 난이도, 대체로 쉽지만 한두 문제만 어려움',
-  },
-  {
-    id: 'q2',
-    type: 'long',
-    label: '전반적인 시험 운영을 어떻게 했는지 알려주세요.',
-    placeholder: '예) 문제 풀이 순서, 시간 분배',
-  },
-  {
-    id: 'q3',
-    type: 'short',
-    label: '어려움을 느낀 문항 번호를 적어주세요.',
-    helper: '여러 개라면 모두 적어주세요.',
-    placeholder: '예) 14번, 22번, 30번',
-  },
-  {
-    id: 'q4',
-    type: 'long',
-    label: '평소 해당 과목을 어떻게 공부하는지 알려주세요.',
-    placeholder: '예) 인강 듣고 복습, 기출 위주로 반복',
-  },
-  {
-    id: 'q5',
-    type: 'long',
-    label: '평소 해당 과목에 대해 어느 부분이 가장 개선이 필요하다고 느꼈는지 알려주세요.',
-  },
-  {
-    id: 'q6',
-    type: 'long',
-    label: '이외에 튜터에게 제공하고 싶은 정보가 있다면 알려주세요.',
-    placeholder: '예) 6모 점수, 평균 성적대, 원하는 성적',
-  },
-  {
-    id: 'q7',
-    type: 'long',
-    label: '튜터에게 묻고 싶은 점이 있다면 알려주세요.',
-    placeholder: '예) 튜터의 공부법, 자투리 시간 활용법',
-  },
+  // 탭 세 번이면 끝나는 것부터. 첫 화면이 글쓰기로 시작하면 그 자리에서 나간다.
   {
     id: 'q8',
     type: 'choice',
@@ -88,6 +56,7 @@ export const CONCERN_QUESTIONS: readonly Question[] = [
   {
     id: 'q10',
     type: 'choice',
+    summary: 'want',
     label: '피드백으로 가장 받아보고 싶은 점이 무엇인가요?',
     options: [
       { value: 'diagnose', label: '문제점 파악' },
@@ -95,6 +64,53 @@ export const CONCERN_QUESTIONS: readonly Question[] = [
       { value: 'routine', label: '공부 루틴 점검' },
       { value: 'etc', label: '기타' },
     ],
+  },
+
+  // 짧게 적는 것
+  {
+    id: 'q3',
+    type: 'short',
+    summary: 'hard',
+    label: '어려움을 느낀 문항 번호를 적어주세요.',
+    helper: '여러 개라면 모두 적어주세요.',
+    placeholder: '예) 14번, 22번, 30번',
+  },
+
+  // 길게 적는 것 — 떠올리기 쉬운 것부터
+  {
+    id: 'q1',
+    type: 'long',
+    label: '시험 전반에 대한 느낌을 알려주세요.',
+    placeholder: '예) 6모에 비해 쉬운 난이도, 대체로 쉽지만 한두 문제만 어려움',
+  },
+  {
+    id: 'q2',
+    type: 'long',
+    label: '전반적인 시험 운영을 어떻게 했는지 알려주세요.',
+    placeholder: '예) 문제 풀이 순서, 시간 분배',
+  },
+  {
+    id: 'q4',
+    type: 'long',
+    label: '평소 해당 과목을 어떻게 공부하는지 알려주세요.',
+    placeholder: '예) 인강 듣고 복습, 기출 위주로 반복',
+  },
+  {
+    id: 'q5',
+    type: 'long',
+    label: '평소 해당 과목에 대해 어느 부분이 가장 개선이 필요하다고 느꼈는지 알려주세요.',
+  },
+  {
+    id: 'q6',
+    type: 'long',
+    label: '이외에 튜터에게 제공하고 싶은 정보가 있다면 알려주세요.',
+    placeholder: '예) 6모 점수, 평균 성적대, 원하는 성적',
+  },
+  {
+    id: 'q7',
+    type: 'long',
+    label: '튜터에게 묻고 싶은 점이 있다면 알려주세요.',
+    placeholder: '예) 튜터의 공부법, 자투리 시간 활용법',
   },
 ] as const;
 
