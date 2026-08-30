@@ -58,13 +58,13 @@ src/app/                          화면과 API — 폴더 이름이 그대로 �
     upload/page.tsx        83     ② 과목 선택 + 시험지 사진 업로드
     concerns/page.tsx      22        첫 과목으로 넘겨주는 중계
     concerns/[subject]/
-      page.tsx            244  ★  ③ 고민 5문항 (과목마다 반복)
+      page.tsx            352  ★  ③ 원점수 + 고민 문항 (과목마다 반복)
     email/page.tsx        188  ★  ④ 이메일 + 동의 + 제출
 
   done/[receiptNo]/
     page.tsx              109  ★  완료 화면 (접수번호 · 회신 예정일 · 문의 메일)
 
-  setup/page.tsx           77     설치 점검 11항목 ✓/✗ (운영자용, noindex)
+  setup/page.tsx           83     설치 점검 13항목 ✓/✗ (운영자용, noindex)
 
   api/                            브라우저가 부르는 서버 주소
     upload-url/route.ts    57     사진 올릴 일회용 서명 주소 발급
@@ -79,10 +79,10 @@ src/app/                          화면과 API — 폴더 이름이 그대로 �
       status/route.ts     100     무엇이 왜 막혔는지 진단 (?probe=1, ?mail=1)
 
 src/config/                       문구·숫자만 들어 있다. 여기부터 고친다
-  questions.config.ts     113  ★  ③단계 고민 5문항 — 문구 · 순서 · 타입
+  questions.config.ts     196  ★  ③단계 고민 문항 — 공통 5문항 · 국어 8문항
   app.ts                   63  ★  장수 상한 · 회신 SLA · 보관 기간 · 문의 메일 · 기능 플래그
   exams.ts                 63     시험 3종 → 학년과 과목이 여기서 결정된다
-  subjects.ts              30     과목 코드 ↔ 라벨 (math ↔ 수학)
+  subjects.ts              40     과목 코드 ↔ 라벨 (math ↔ 수학) · 원점수 만점
   steps.ts                 20     4단계 이름
 
 src/components/                   여러 화면이 함께 쓰는 조각
@@ -104,7 +104,7 @@ src/lib/                          화면 뒤에서 도는 로직
   draft.ts blobs.ts id.ts         임시 id · 재시도용 사진 보관
   useIntake.ts             55     접수 열림 여부 조회 (브라우저)
   intake.ts                48     접수 스위치 읽기 (서버 전용)
-  health.ts               148     설치 점검 11항목 (서버 전용)
+  health.ts               167     설치 점검 13항목 (서버 전용)
   supabase/admin.ts        18     DB 접속 — 마스터 키는 이 파일에서만 쓴다
 
 src/lib/worker/                   접수 뒤에 자동으로 도는 것들 (전부 서버 전용)
@@ -118,6 +118,8 @@ src/lib/worker/                   접수 뒤에 자동으로 도는 것들 (전�
 supabase/migrations/              데이터베이스 설계도 — SQL Editor 에 붙여넣는 것
   0001_init.sql           211     표 · RLS · 비공개 버킷 · 접수번호 발급 함수
   0002_worker.sql         103     실패 기록표 · 재처리 함수 · 설치 점검 함수
+  0003_daily_cap.sql      148     하루 접수 상한 (한국 날짜 기준, 자정에 초기화)
+  0004_raw_score.sql      139     과목 원점수 칸 · 저장
 
 docs/                             아티팩트로 공유한 문서
   setup-checklist.html            준비 체크리스트
@@ -133,7 +135,8 @@ vercel.json                       매일 03:00(KST) 크론 설정
 
 | 바꾸고 싶은 것 | 파일 |
 |---|---|
-| 고민 문항 문구 · 순서 · 선택지 | `src/config/questions.config.ts` |
+| 고민 문항 문구 · 순서 · 선택지 (국어는 별도 묶음) | `src/config/questions.config.ts` |
+| 원점수 만점 (과목별) | `src/config/subjects.ts` |
 | 회신 기한 · 사진 장수 상한 · 문의 메일 | `src/config/app.ts` |
 | 시험 종류 · 과목 구성 | `src/config/exams.ts` |
 | 랜딩 제목 · 배지 | `src/app/page.tsx` |
@@ -144,6 +147,7 @@ vercel.json                       매일 03:00(KST) 크론 설정
 ## 운영자용 화면
 
 - `/setup` — 무엇이 준비됐고 무엇이 빠졌는지 ✓/✗ 로 보여준다. 배포 후 여기부터 열어볼 것.
+  SQL 을 안 돌렸으면 그 항목이 빨갛게 뜨고 어떤 파일을 실행해야 하는지 알려준다.
 - Supabase Table Editor > `app_settings` 한 줄 — 접수 on/off, 상한, 과목별 off, 마감 문구. **배포 없이 즉시 반영**된다.
 
 ## 정해진 값 / 남은 미결
@@ -153,17 +157,30 @@ vercel.json                       매일 03:00(KST) 크론 설정
 | PRD | 결정 | 어디에 |
 |---|---|---|
 | Q1 | 고1·2 과목 5개 모두 연다 | `subjects.ts` (닫을 땐 `app_settings.disabled_subjects`) |
-| Q3 | 접수 상한 없음 | `app_settings.capacity` 에 숫자를 넣으면 즉시 걸린다 |
+| Q3 | 하루 100건 (2026-08-30 변경) | `app_settings.daily_capacity` — 배포 없이 숫자만 고친다 |
 | Q4 | 사진 보관 30일 | `POLICY.retentionDays` — 동의 문구에 자동 반영 |
 | Q5 | 회신 SLA 7일 | `POLICY.replySlaDays` — 완료 화면 날짜에 자동 반영 |
 | Q6 | 커스텀 도메인 없이 vercel.app 기본 주소 | `BRANDING.serviceName` 은 페이지 제목에만 쓰임 |
 | Q7 | 완료 화면 과외 버튼 끔 | `FEATURES.conversionCta` |
 
-**Q2 확정 (2026-08-29, 서현).** `questions.config.ts` 에 다섯 문항으로 들어갔다 —
+**Q2 확정 (2026-08-29, 서현).** `questions.config.ts` 에 다섯 문항으로 들어갔다 (국어는 2026-08-30 자로 8문항 별도) —
 서술형 4 · 문항 목록 1. 전부 선택 입력이고, 하나도 안 적어도 넘어간다. §9 미결은 모두 닫혔다.
 
 문항 번호는 번호만 받지 않고 **번호와 그 이유를 한 쌍으로**, 줄을 추가해 여러 개 받는다(`items` 타입).
 답변 값이 문자열만이 아니라 `{ no, why }` 목록도 될 수 있는 이유다.
+
+**국어만 문항이 다르다 (2026-08-30).** 국어는 영역·지문별로 물어볼 것이 달라 공통 문항으로는
+필요한 정보가 안 나온다. `CONCERN_QUESTIONS_BY_SUBJECT.korean` 에 여덟 문항이 따로 있고,
+나머지 과목은 공통 다섯 문항 그대로다. 보기에서 고르는 `choice` 타입은 여기서 처음 쓰는데,
+**같은 보기를 다시 누르면 선택이 풀린다** — 전부 선택 입력인데 한번 누르면 못 되돌리면 곤란해서다.
+
+국어의 문항 번호 예시는 "3페이지 독서지문, 7번" 이라 번호 칸이 숫자만 받으면 안 된다.
+숫자 자판 강제를 풀고 칸도 내용에 맞게 늘어나게 두었다.
+
+**원점수는 전 과목 공통**이고 고민 문항이 아니라 별도 칸이다(`submission_subjects.raw_score`).
+등급이 아니라 원점수인 이유는 튜터가 시험지를 볼 때 몇 점짜리를 틀렸는지 맞춰봐야 하기 때문이다.
+선택 입력이라 채점 전에도 접수할 수 있다. 만점은 과목마다 다르므로(국·수·영 100,
+통합과학·통합사회 50) `subjects.ts` 에 두고 화면 안내와 서버 검사가 같은 값을 본다.
 
 운영 쪽 미결: Q8(접수 확인 메일 발송 주체·발신 주소), Q9(Notion DB 를 팀 워크스페이스에 둘지 분리할지).
 
