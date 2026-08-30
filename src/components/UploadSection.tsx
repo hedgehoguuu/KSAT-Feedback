@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LIMITS } from '@/config/app';
+import { LIMITS, maxPhotosFor } from '@/config/app';
 import { subjectLabel, type SubjectCode } from '@/config/subjects';
 import { dropBlob, keepBlob, takeBlob } from '@/lib/blobs';
 import { getDraftId } from '@/lib/draft';
@@ -48,7 +48,8 @@ export function UploadSection({ subject }: { subject: SubjectCode }) {
     setNotice(null);
 
     const picked = Array.from(list).filter((f) => f.type.startsWith('image/'));
-    const perSubjectLeft = LIMITS.maxPhotosPerSubject - mine.length;
+    const subjectMax = maxPhotosFor(subject);
+    const perSubjectLeft = subjectMax - mine.length;
     const totalLeft = LIMITS.maxPhotosTotal - photos.length;
     const allowed = Math.max(0, Math.min(picked.length, perSubjectLeft, totalLeft));
 
@@ -56,7 +57,7 @@ export function UploadSection({ subject }: { subject: SubjectCode }) {
       setNotice(
         totalLeft <= perSubjectLeft
           ? `한 번에 ${LIMITS.maxPhotosTotal}장까지 받을 수 있어요. ${allowed}장만 올렸어요.`
-          : `${subjectLabel(subject)}는 ${LIMITS.maxPhotosPerSubject}장까지예요. ${allowed}장만 올렸어요.`,
+          : `${subjectLabel(subject)}는 ${subjectMax}장까지예요. ${allowed}장만 올렸어요.`,
       );
     }
     if (allowed === 0) return;

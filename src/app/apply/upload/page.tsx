@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { BottomBar } from '@/components/BottomBar';
 import { SubjectChips } from '@/components/SubjectChips';
 import { UploadSection } from '@/components/UploadSection';
-import { LIMITS } from '@/config/app';
+import { LIMITS, photoLimitNote } from '@/config/app';
 import { findExam } from '@/config/exams';
 import { subjectLabel, type SubjectCode } from '@/config/subjects';
 import { photosOf, useApply } from '@/lib/store';
@@ -66,7 +66,9 @@ export default function UploadStep() {
 
         {openSections.length > 0 ? (
           <p className="text-[12px] text-muted">
-            과목당 {LIMITS.maxPhotosPerSubject}장, 전체 {LIMITS.maxPhotosTotal}장까지 올릴 수 있어요.
+            과목당 {LIMITS.maxPhotosPerSubject}장
+            {photoLimitNote() ? ` (${photoLimitNote()})` : ''}, 전체 {LIMITS.maxPhotosTotal}장까지
+            올릴 수 있어요.
             {uploaded > 0 ? ` 지금까지 ${uploaded}장.` : ''}
           </p>
         ) : null}

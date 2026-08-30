@@ -128,17 +128,21 @@ export async function processSubmission(
     let pdfJustMade = false;
     if (!pdfPath && files.length > 0) {
       try {
-        const sources = [];
-        for (const file of files) {
-          const { data: blob, error: dlError } = await db.storage
-            .from(RAW_BUCKET)
-            .download(file.storage_path);
-          if (dlError || !blob) throw new Error(`사진을 못 받았어요: ${dlError?.message}`);
-          sources.push({
-            bytes: new Uint8Array(await blob.arrayBuffer()),
-            name: file.storage_path,
-          });
-        }
+        // 한 장씩 순서대로 받으면 국어 16장은 왕복이 16번이라 그만큼 느려진다.
+        // 페이지 순서는 위에서 order_index 로 이미 정렬해 두었고 Promise.all 이 그 순서를
+        // 그대로 지키므로, 동시에 받아도 시험지 순서가 흔들리지 않는다.
+        const sources = await Promise.all(
+          files.map(async (file) => {
+            const { data: blob, error: dlError } = await db.storage
+              .from(RAW_BUCKET)
+              .download(file.storage_path);
+            if (dlError || !blob) throw new Error(`사진을 못 받았어요: ${dlError?.message}`);
+            return {
+              bytes: new Uint8Array(await blob.arrayBuffer()),
+              name: file.storage_path,
+            };
+          }),
+        );
 
         const merged = await mergeToPdf(sources);
         // 스토리지 키는 영문만 쓴다. 한글 이름은 내려받을 때 붙인다.

@@ -1,5 +1,12 @@
 import { NextResponse, after } from 'next/server';
-import { INTAKE_DEFAULTS, LIMITS, POLICY, formatReceiptNo, replyDueDate } from '@/config/app';
+import {
+  INTAKE_DEFAULTS,
+  LIMITS,
+  POLICY,
+  formatReceiptNo,
+  maxPhotosFor,
+  replyDueDate,
+} from '@/config/app';
 import { findExam, isExamCode } from '@/config/exams';
 import { isSubjectCode } from '@/config/subjects';
 import { isValidEmail } from '@/lib/email';
@@ -72,7 +79,8 @@ export async function POST(req: Request) {
     seen.add(s.subjectCode);
 
     if (!Array.isArray(s.files) || s.files.length === 0) return bad('subject has no files');
-    if (s.files.length > LIMITS.maxPhotosPerSubject) return bad('too many files for subject');
+    // 과목마다 상한이 다르다 (국어 16장). 화면과 같은 함수를 본다.
+    if (s.files.length > maxPhotosFor(s.subjectCode)) return bad('too many files for subject');
     for (const f of s.files) {
       if (!f?.storagePath || typeof f.storagePath !== 'string') return bad('invalid file');
       if (!Number.isInteger(f.orderIndex)) return bad('invalid file order');
