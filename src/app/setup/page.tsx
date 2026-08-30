@@ -18,6 +18,11 @@ const GUIDE: { key: string; label: string; how: string }[] = [
     label: '하루 접수 상한',
     how: 'Supabase > SQL Editor 에서 0003_daily_cap.sql 전체를 붙여넣고 Run',
   },
+  {
+    key: 'rawScore',
+    label: '과목 원점수',
+    how: 'Supabase > SQL Editor 에서 0004_raw_score.sql 전체를 붙여넣고 Run',
+  },
   { key: 'bucket', label: '시험지 저장소', how: 'Storage 에 exam-papers 버킷이 비공개로 있어야 해요' },
   { key: 'workerSchema', label: '워커 표·함수', how: 'Supabase > SQL Editor 에서 0002_worker.sql 전체를 붙여넣고 Run' },
   { key: 'notion', label: 'Notion 자동 등록', how: 'Vercel 환경변수에 NOTION_TOKEN 과 NOTION_DATABASE_ID 넣기' },

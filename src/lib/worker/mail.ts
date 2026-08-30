@@ -9,7 +9,7 @@ export type MailInput = {
   to: string;
   dueDate: string;
   exam: Exam;
-  subjects: { code: SubjectCode; photoCount: number }[];
+  subjects: { code: SubjectCode; photoCount: number; rawScore?: number | null }[];
 };
 
 export function mailConfigured(): boolean {
@@ -40,9 +40,13 @@ export async function sendConfirmationMail(input: MailInput): Promise<void> {
     socketTimeout: 15_000,
   });
 
+  // 원점수를 같이 보여줘서 잘못 적었으면 학생이 바로 알아채게 한다
   const summary = input.subjects
-    .map((s) => `${subjectLabel(s.code)} ${s.photoCount}장`)
-    .join(' · ');
+    .map((s) => {
+      const score = typeof s.rawScore === 'number' ? ` · 원점수 ${s.rawScore}점` : '';
+      return `${subjectLabel(s.code)} ${s.photoCount}장${score}`;
+    })
+    .join(' / ');
 
   await transporter.sendMail({
     from: `${BRANDING.serviceName} <${user}>`,

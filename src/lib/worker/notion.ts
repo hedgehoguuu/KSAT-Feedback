@@ -37,6 +37,8 @@ export type NotionInput = {
   createdAt: string;
   concerns: Record<string, unknown>;
   photoCount: number;
+  /** 과목 원점수. 학생이 안 적었으면 null 이고, 그때는 칸을 비워 둔다. */
+  rawScore: number | null;
   pdfUrl: string | null;
 };
 
@@ -68,6 +70,7 @@ export async function createNotionPage(input: NotionInput): Promise<string> {
     '이메일': { email: input.email },
     '접수일시': { date: { start: input.createdAt } },
     '사진 수': { number: input.photoCount },
+    '원점수': { number: input.rawScore },
     '고민': { rich_text: [{ text: { content: concernSummary(input.subject, input.concerns) } }] },
     '상태': { select: { name: '접수' } },
     '과외 의향': { select: { name: '미확인' } },

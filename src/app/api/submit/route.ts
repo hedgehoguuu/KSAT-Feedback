@@ -8,7 +8,7 @@ import {
   replyDueDate,
 } from '@/config/app';
 import { findExam, isExamCode } from '@/config/exams';
-import { isSubjectCode } from '@/config/subjects';
+import { isSubjectCode, maxScoreOf } from '@/config/subjects';
 import { isValidEmail } from '@/lib/email';
 import { readIntake } from '@/lib/intake';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -21,7 +21,13 @@ export const maxDuration = 60;
 
 type FileIn = { storagePath: string; orderIndex: number; bytes?: number };
 // 고민 답변은 문항 타입에 따라 문자열이거나 {번호, 이유} 목록이다. 그대로 jsonb 에 넣는다.
-type SubjectIn = { subjectCode: string; concerns: Record<string, unknown>; files: FileIn[] };
+type SubjectIn = {
+  subjectCode: string;
+  /** 과목 원점수. 안 적을 수 있다. */
+  rawScore?: number | null;
+  concerns: Record<string, unknown>;
+  files: FileIn[];
+};
 type Body = {
   idempotencyKey?: string;
   draftId?: string;
@@ -81,6 +87,13 @@ export async function POST(req: Request) {
     if (!Array.isArray(s.files) || s.files.length === 0) return bad('subject has no files');
     // 과목마다 상한이 다르다 (국어 16장). 화면과 같은 함수를 본다.
     if (s.files.length > maxPhotosFor(s.subjectCode)) return bad('too many files for subject');
+    // 원점수는 선택 입력이다. 적었다면 그 과목 만점을 넘지 않는 정수여야 한다.
+    if (s.rawScore !== undefined && s.rawScore !== null) {
+      const max = maxScoreOf(s.subjectCode);
+      if (!Number.isInteger(s.rawScore) || s.rawScore < 0 || s.rawScore > max) {
+        return bad(`원점수는 0에서 ${max} 사이로 적어주세요`);
+      }
+    }
     for (const f of s.files) {
       if (!f?.storagePath || typeof f.storagePath !== 'string') return bad('invalid file');
       if (!Number.isInteger(f.orderIndex)) return bad('invalid file order');
@@ -110,6 +123,7 @@ export async function POST(req: Request) {
     purge_after: purgeAfter.toISOString().slice(0, 10),
     subjects: subjects.map((s) => ({
       subject_code: s.subjectCode,
+      raw_score: s.rawScore ?? null,
       concerns: s.concerns ?? {},
       files: s.files.map((f) => ({
         storage_path: f.storagePath,

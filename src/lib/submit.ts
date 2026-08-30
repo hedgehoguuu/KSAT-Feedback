@@ -6,6 +6,14 @@ import { useApply } from './store';
 
 export type SubmitResult = { receiptNo: string; dueDate: string };
 
+/** 학생이 적은 원점수 문자열을 정수로. 비었거나 숫자가 아니면 null. */
+function parseScore(raw: string | undefined): number | null {
+  const text = (raw ?? '').trim();
+  if (!text) return null;
+  const n = Number(text);
+  return Number.isInteger(n) && n >= 0 ? n : null;
+}
+
 /** 지금 스토어에 있는 내용을 그대로 제출한다 (BE-2). 멱등키를 붙여 재시도해도 접수는 1건이다. */
 export async function submitApplication(): Promise<SubmitResult> {
   const s = useApply.getState();
@@ -20,6 +28,8 @@ export async function submitApplication(): Promise<SubmitResult> {
     ageOk: s.ageOk,
     subjects: targets.map((code) => ({
       subjectCode: code,
+      // 안 적었거나 숫자가 아니면 안 보낸다. 서버가 빈 값을 '없음' 으로 저장한다.
+      rawScore: parseScore(s.scores[code]),
       concerns: s.concerns[code] ?? {},
       files: s.photos
         .filter((p) => p.subject === code && p.status === 'done' && p.storagePath)

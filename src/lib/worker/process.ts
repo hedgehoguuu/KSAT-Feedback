@@ -24,6 +24,7 @@ export type ProcessResult = {
 type SubjectRow = {
   id: string;
   subject_code: SubjectCode;
+  raw_score: number | null;
   /** 문항 타입에 따라 문자열이거나 {번호, 이유} 목록이다 */
   concerns: Record<string, unknown>;
   pdf_path: string | null;
@@ -90,7 +91,7 @@ export async function processSubmission(
     .from('submissions')
     .select(
       'id, receipt_no, exam_code, email, created_at, email_ok, ' +
-        'submission_subjects(id, subject_code, concerns, pdf_path, notion_page_id, ' +
+        'submission_subjects(id, subject_code, raw_score, concerns, pdf_path, notion_page_id, ' +
         'submission_files(storage_path, order_index))',
     )
     .eq('receipt_no', receiptNo)
@@ -202,6 +203,7 @@ export async function processSubmission(
               createdAt: data.created_at,
               concerns: subject.concerns ?? {},
               photoCount: files.length,
+              rawScore: subject.raw_score,
               pdfUrl,
             }),
           );
@@ -234,6 +236,7 @@ export async function processSubmission(
           subjects: subjects.map((s) => ({
             code: s.subject_code,
             photoCount: s.submission_files.length,
+            rawScore: s.raw_score,
           })),
         });
         emailOk = true;

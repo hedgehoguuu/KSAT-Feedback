@@ -42,6 +42,7 @@ export async function getHealth(): Promise<Health> {
     functions: { ok: false, detail: '아직 확인 못 했어요' },
     settings: { ok: false, detail: '아직 확인 못 했어요' },
     dailyCap: { ok: false, detail: '아직 확인 못 했어요' },
+    rawScore: { ok: false, detail: '아직 확인 못 했어요' },
     bucket: { ok: false, detail: '아직 확인 못 했어요' },
     workerSchema: { ok: false, detail: '아직 확인 못 했어요' },
     notion: {
@@ -72,7 +73,7 @@ export async function getHealth(): Promise<Health> {
 
   const db = supabaseAdmin();
   if (!db) {
-    for (const key of ['connection', 'tables', 'functions', 'settings', 'dailyCap', 'bucket', 'workerSchema']) {
+    for (const key of ['connection', 'tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'bucket', 'workerSchema']) {
       checks[key] = { ok: false, detail: 'Supabase 연결 전이라 확인할 수 없어요' };
     }
     return {
@@ -91,7 +92,7 @@ export async function getHealth(): Promise<Health> {
     const detail = sqlNotRun
       ? 'SQL 을 아직 실행하지 않았어요. supabase/migrations/0001_init.sql 을 SQL Editor 에서 실행해주세요'
       : '확인하지 못했어요';
-    for (const key of ['tables', 'functions', 'settings', 'dailyCap', 'bucket', 'workerSchema']) {
+    for (const key of ['tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'bucket', 'workerSchema']) {
       checks[key] = { ok: false, detail };
     }
     return {
@@ -111,6 +112,7 @@ export async function getHealth(): Promise<Health> {
     failure_count?: number;
     daily_capacity?: number | null;
     today_count?: number;
+    raw_score?: boolean;
   };
 
   checks.connection = { ok: true, detail: 'Supabase 에 정상적으로 닿았어요' };
@@ -133,6 +135,12 @@ export async function getHealth(): Promise<Health> {
       typeof status.daily_capacity === 'number' && status.daily_capacity > 0
         ? `하루 ${status.daily_capacity}건까지 받아요 (오늘 ${status.today_count ?? 0}건)`
         : '하루 상한이 없어요. 0003_daily_cap.sql 을 실행해주세요',
+  };
+  checks.rawScore = {
+    ok: Boolean(status.raw_score),
+    detail: status.raw_score
+      ? '과목 원점수 칸이 있어요'
+      : '원점수 칸이 없어요. 0004_raw_score.sql 을 실행해주세요',
   };
   checks.workerSchema = {
     ok: Boolean(status.worker_schema),

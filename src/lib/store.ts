@@ -39,6 +39,8 @@ type State = {
   subjects: SubjectCode[];
   photos: Photo[];
   concerns: Partial<Record<SubjectCode, Record<string, ConcernValue>>>;
+  /** 과목별 원점수. 학생이 적는 그대로 문자열로 들고 있다가 제출할 때 숫자로 바꾼다. */
+  scores: Partial<Record<SubjectCode, string>>;
   email: string;
   consent: boolean;
   ageOk: boolean;
@@ -63,6 +65,7 @@ type Actions = {
   removePhoto: (id: string) => void;
   movePhoto: (id: string, dir: -1 | 1) => void;
   setConcern: (subject: SubjectCode, questionId: string, value: ConcernValue) => void;
+  setScore: (subject: SubjectCode, value: string) => void;
   setEmail: (v: string) => void;
   setConsent: (v: boolean) => void;
   setAgeOk: (v: boolean) => void;
@@ -78,6 +81,7 @@ const EMPTY: State = {
   subjects: [],
   photos: [],
   concerns: {},
+  scores: {},
   email: '',
   consent: false,
   ageOk: false,
@@ -105,7 +109,10 @@ export const useApply = create<State & Actions>()(
           const concerns = Object.fromEntries(
             Object.entries(s.concerns).filter(([k]) => allowed.has(k as SubjectCode)),
           );
-          return { ...s, examCode: code, subjects, photos, concerns, ...touch() };
+          const scores = Object.fromEntries(
+            Object.entries(s.scores).filter(([k]) => allowed.has(k as SubjectCode)),
+          );
+          return { ...s, examCode: code, subjects, photos, concerns, scores, ...touch() };
         }),
 
       toggleSubject: (code) =>
@@ -117,6 +124,7 @@ export const useApply = create<State & Actions>()(
               subjects: s.subjects.filter((x) => x !== code),
               photos: s.photos.filter((p) => p.subject !== code),
               concerns: Object.fromEntries(Object.entries(s.concerns).filter(([k]) => k !== code)),
+              scores: Object.fromEntries(Object.entries(s.scores).filter(([k]) => k !== code)),
               ...touch(),
             };
           }
@@ -163,6 +171,9 @@ export const useApply = create<State & Actions>()(
           const photos = s.photos.map((p) => (p.subject === target.subject ? reordered[i++] : p));
           return { ...s, photos, ...touch() };
         }),
+
+      setScore: (subject, value) =>
+        set((s) => ({ ...s, scores: { ...s.scores, [subject]: value }, ...touch() })),
 
       setConcern: (subject, questionId, value) =>
         set((s) => ({
@@ -213,6 +224,7 @@ export const useApply = create<State & Actions>()(
           error: p.error,
         })),
         concerns: s.concerns,
+        scores: s.scores,
         email: s.email,
         consent: s.consent,
         ageOk: s.ageOk,

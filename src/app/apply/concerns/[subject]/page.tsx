@@ -5,14 +5,17 @@ import { useParams, useRouter } from 'next/navigation';
 import { AutoTextarea } from '@/components/AutoTextarea';
 import { BottomBar } from '@/components/BottomBar';
 import {
+  choiceOf,
   isAnswered,
   itemsOf,
   questionsFor,
+  type ChoiceAnswer,
   type ConcernItem,
   type ConcernValue,
   type Question,
 } from '@/config/questions.config';
-import { isSubjectCode, subjectLabel, type SubjectCode } from '@/config/subjects';
+import { findExam } from '@/config/exams';
+import { isSubjectCode, maxScoreOf, subjectLabel, type SubjectCode } from '@/config/subjects';
 import { filledSubjects } from '@/lib/flow';
 import { useApply } from '@/lib/store';
 
@@ -24,6 +27,8 @@ export default function ConcernStep() {
   const photos = useApply((s) => s.photos);
   const concerns = useApply((s) => s.concerns);
   const setConcern = useApply((s) => s.setConcern);
+  const scores = useApply((s) => s.scores);
+  const setScore = useApply((s) => s.setScore);
 
   const [askSkip, setAskSkip] = useState(false);
 
@@ -41,7 +46,9 @@ export default function ConcernStep() {
 
   const questions = questionsFor(subject);
   const answers = concerns[subject] ?? {};
-  const allEmpty = questions.every((q) => !isAnswered(q, answers[q.id]));
+  const score = scores[subject] ?? '';
+  const exam = findExam(examCode);
+  const allEmpty = !score.trim() && questions.every((q) => !isAnswered(q, answers[q.id]));
   const isLast = at === targets.length - 1;
   const goNext = () =>
     router.push(isLast ? '/apply/email' : `/apply/concerns/${targets[at + 1]}`);
@@ -64,10 +71,17 @@ export default function ConcernStep() {
           </h1>
           <p className="mt-2 text-[15px] text-muted">편하게, 생각나는 대로 적어도 돼요. 정답 없어요.</p>
           <p className="mt-3 rounded-xl bg-surface px-4 py-3 text-[14px] leading-[1.6] text-muted">
-            <span className="font-bold text-foreground">{questions.length}개 모두 선택이에요.</span>{' '}
+            <span className="font-bold text-foreground">원점수와 아래 {questions.length}개 모두 선택이에요.</span>{' '}
             답하고 싶은 것만 적어도 되고, 하나도 안 적고 넘어가도 괜찮아요.
           </p>
         </header>
+
+        <ScoreField
+          subject={subject}
+          examTitle={exam ? exam.notionLabel : '이번 모의고사'}
+          value={score}
+          onChange={(v) => setScore(subject, v)}
+        />
 
         <ol className="flex flex-col gap-7">
           {questions.map((q, i) => (
@@ -109,6 +123,54 @@ export default function ConcernStep() {
   );
 }
 
+/**
+ * 과목 원점수. 고민 문항과 달리 전 과목이 똑같이 묻는다.
+ * 등급이 아니라 원점수를 받는 이유는 시험지를 볼 때 몇 점짜리를 틀렸는지 맞춰보기 위해서다.
+ */
+function ScoreField({
+  subject,
+  examTitle,
+  value,
+  onChange,
+}: {
+  subject: SubjectCode;
+  examTitle: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const max = maxScoreOf(subject);
+  const num = Number(value);
+  const over = value.trim() !== '' && Number.isFinite(num) && num > max;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <label htmlFor={`${subject}-score`} className="text-[15px] font-bold leading-[1.5]">
+        {`이번 ${examTitle} ${subjectLabel(subject)} 원점수`}
+      </label>
+      <div className="flex items-center gap-2">
+        <input
+          id={`${subject}-score`}
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={max}
+          value={value}
+          placeholder={`0 ~ ${max}`}
+          onChange={(e) => onChange(e.target.value)}
+          aria-describedby={`${subject}-score-help`}
+          className="min-h-13 w-[140px] rounded-xl border border-line bg-background px-4 text-[16px] font-semibold outline-none placeholder:font-normal placeholder:text-muted focus:border-brand"
+        />
+        <span className="text-[15px] text-muted">{`점 / ${max}점 만점`}</span>
+      </div>
+      <p id={`${subject}-score-help`} className="text-[13px] text-muted">
+        {over
+          ? `${max}점 만점이에요. 다시 확인해주세요.`
+          : '아직 채점 전이면 비워두셔도 괜찮아요.'}
+      </p>
+    </div>
+  );
+}
+
 function Field({
   question,
   id,
@@ -121,7 +183,18 @@ function Field({
   onChange: (v: ConcernValue) => void;
 }) {
   if (question.type === 'items') {
-    return <ItemsField id={id} value={itemsOf(value)} onChange={onChange} />;
+    return (
+      <ItemsField
+        id={id}
+        value={itemsOf(value)}
+        placeholder={question.placeholder}
+        onChange={onChange}
+      />
+    );
+  }
+
+  if (question.type === 'choice') {
+    return <ChoiceField question={question} id={id} value={choiceOf(value)} onChange={onChange} />;
   }
 
   const text = typeof value === 'string' ? value : '';
@@ -143,16 +216,68 @@ function Field({
 }
 
 /**
+ * 보기에서 하나를 고르는 입력. 같은 걸 다시 누르면 선택이 풀린다 —
+ * 전부 선택 입력인데 한번 누르면 못 되돌리면 곤란하기 때문이다.
+ */
+function ChoiceField({
+  question,
+  id,
+  value,
+  onChange,
+}: {
+  question: Question;
+  id: string;
+  value: ChoiceAnswer;
+  onChange: (v: ChoiceAnswer) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div role="group" aria-labelledby={id} className="flex flex-wrap gap-2">
+        {(question.options ?? []).map((option) => {
+          const on = value.choice === option;
+          return (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onChange({ ...value, choice: on ? '' : option })}
+              className={[
+                'min-h-12 rounded-xl border px-4 text-[15px] font-semibold transition-colors',
+                on
+                  ? 'border-brand bg-brand text-white'
+                  : 'border-line bg-background text-muted active:bg-surface',
+              ].join(' ')}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+      {question.note ? (
+        <AutoTextarea
+          id={`${id}-note`}
+          value={value.note ?? ''}
+          onChange={(note) => onChange({ ...value, note })}
+          placeholder={question.note}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/**
  * 문항 번호와 어려웠던 이유를 한 줄씩 쌓는 입력.
  * 폭이 좁아 번호와 이유를 나란히 두면 둘 다 못 쓰게 되므로 세로로 쌓는다.
  */
 function ItemsField({
   id,
   value,
+  placeholder,
   onChange,
 }: {
   id: string;
   value: ConcernItem[];
+  placeholder?: string;
   onChange: (v: ConcernItem[]) => void;
 }) {
   // 처음 들어오면 빈 줄 하나를 보여준다. 버튼을 먼저 찾게 하지 않기 위해서.
@@ -171,15 +296,16 @@ function ItemsField({
       {rows.map((row, i) => (
         <div key={i} className="rounded-xl border border-line bg-background p-3">
           <div className="flex items-center gap-2">
+            {/* 국어는 "3페이지 독서지문, 7번" 처럼 번호만 오지 않는다. 숫자 자판을 강제하지 않고
+                칸도 내용에 맞게 늘어나도록 둔다. */}
             <input
               id={i === 0 ? id : undefined}
               type="text"
-              inputMode="numeric"
               value={row.no}
-              placeholder="예) 14번"
+              placeholder={placeholder ?? '예) 14번'}
               aria-label={`${i + 1}번째 문항 번호`}
               onChange={(e) => patch(i, { no: e.target.value })}
-              className="min-h-12 w-[124px] shrink-0 rounded-lg border border-line bg-background px-3 text-[16px] font-semibold outline-none placeholder:font-normal placeholder:text-muted focus:border-brand"
+              className="min-h-12 min-w-0 flex-1 rounded-lg border border-line bg-background px-3 text-[16px] font-semibold outline-none placeholder:font-normal placeholder:text-muted focus:border-brand"
             />
             {rows.length > 1 || row.no.trim() || row.why.trim() ? (
               <button

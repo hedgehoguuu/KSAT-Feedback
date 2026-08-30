@@ -1,17 +1,21 @@
 // ③단계 고민 문항. 문구·개수·타입을 코드 수정 없이 바꾸기 위한 설정 파일. (PRD FE-5)
 //
-// §9 Q2 — 2026-08-29 서현 작성, 같은 날 정리. 다섯 문항 모두 선택 입력이며 하나도 안 적어도 넘어간다.
-// 선택형(탭)은 전부 뺐다. 시험지를 보면 알 수 있는 것을 학생에게 다시 묻지 않기로 했다.
+// §9 Q2 — 2026-08-29 서현 작성, 같은 날 정리. 모든 문항이 선택 입력이며 하나도 안 적어도 넘어간다.
+// 2026-08-30 — 국어만 문항을 따로 받는다. 국어는 지문·영역별로 물어볼 것이 달라서
+// 공통 문항으로는 필요한 정보가 안 나온다. 나머지 과목은 공통 문항 그대로 간다.
 
 import type { SubjectCode } from './subjects';
 
-export type QuestionType = 'short' | 'long' | 'items';
+export type QuestionType = 'short' | 'long' | 'items' | 'choice';
 
 /** 'items' 문항의 한 줄. 문항 번호와 그 문항이 어려웠던 이유를 함께 받는다. */
 export type ConcernItem = { no: string; why: string };
 
-/** 답변 하나가 가질 수 있는 모양. 'items' 문항만 배열이고 나머지는 문자열이다. */
-export type ConcernValue = string | ConcernItem[];
+/** 'choice' 문항의 답. 보기 하나를 고르고, 문항에 따라 이유를 덧붙인다. */
+export type ChoiceAnswer = { choice: string; note?: string };
+
+/** 답변 하나가 가질 수 있는 모양. 문항 타입에 따라 셋 중 하나다. */
+export type ConcernValue = string | ConcernItem[] | ChoiceAnswer;
 
 export type Question = {
   /** 저장 키. submission_subjects.concerns 의 JSON 키가 된다. 한번 정하면 바꾸지 않는다. */
@@ -22,6 +26,10 @@ export type Question = {
   /** 질문 아래 작은 안내 문구 */
   helper?: string;
   placeholder?: string;
+  /** 'choice' 문항의 보기 */
+  options?: readonly string[];
+  /** 'choice' 문항에서 보기 아래 자유 서술 칸을 열 때. 문구가 placeholder 가 된다. */
+  note?: string;
   /**
    * Notion 속성 「고민」 한 줄 요약에 쓸 문항 표시.
    * 순서를 바꿔도 요약이 깨지지 않도록 위치가 아니라 이 표시로 찾는다.
@@ -32,6 +40,7 @@ export type Question = {
 /** 설정 실수로 화면이 끝없이 길어지지 않게 두는 상한. 실제 개수는 아래 배열이 정한다. */
 export const QUESTION_SLOTS = 12;
 
+/** 국어를 제외한 모든 과목이 쓰는 문항 */
 export const CONCERN_QUESTIONS: readonly Question[] = [
   {
     id: 'q3',
@@ -39,6 +48,7 @@ export const CONCERN_QUESTIONS: readonly Question[] = [
     summary: 'hard',
     label: '시간을 너무 오래 쓰거나, 풀이 방향이 보이지 않아 현장에서 당황하게 만든 문항 번호를 적어주세요.',
     helper: '왜 어려웠는지도 함께 적어주면 훨씬 정확하게 볼 수 있어요. 여러 개면 하나씩 추가해주세요.',
+    placeholder: '예) 14번',
   },
   {
     id: 'q1',
@@ -65,8 +75,72 @@ export const CONCERN_QUESTIONS: readonly Question[] = [
   },
 ] as const;
 
+/**
+ * 국어 전용 문항 (2026-08-30).
+ * id 는 국어끼리만 쓰므로 공통 문항의 q1·q2 와 겹치지 않게 k 로 시작한다.
+ */
+const KOREAN_QUESTIONS: readonly Question[] = [
+  {
+    id: 'k1',
+    type: 'short',
+    label: '평소 국어 성적은 어느 정도였는지 적어주세요.',
+    placeholder: '예) 2-3등급 왔다갔다해요',
+  },
+  {
+    id: 'k2',
+    type: 'choice',
+    label: '시험 중 시간이 부족했나요?',
+    options: [
+      '시간이 남았다',
+      '거의 딱 맞게 끝냈다',
+      '조금 부족했다',
+      '많이 부족했다',
+      '아예 풀지 못한 문제나 지문이 있었다',
+    ],
+  },
+  {
+    id: 'k3',
+    type: 'items',
+    summary: 'hard',
+    label: '시간을 너무 오래 쓰거나, 풀이 방향이 보이지 않아 현장에서 당황하게 만든 문항 번호를 적어주세요.',
+    helper: '왜 어려웠는지도 함께 적어주면 훨씬 정확하게 볼 수 있어요. 여러 개면 하나씩 추가해주세요.',
+    placeholder: '예) 3페이지 독서지문, 7번',
+  },
+  {
+    id: 'k4',
+    type: 'choice',
+    label: '평소 가장 어려움을 느낀 영역은 무엇이고 어떤 어려움을 느끼나요?',
+    options: ['독서', '문학', '선택'],
+    note: '어떤 어려움을 느끼는지도 적어주세요',
+  },
+  {
+    id: 'k5',
+    type: 'long',
+    label: '현재 국어를 어떠한 방식으로 공부하고 있나요?',
+  },
+  {
+    id: 'k6',
+    type: 'long',
+    label: '평소 국어 공부에서 가장 고민되는 점은 무엇인가요?',
+  },
+  {
+    id: 'k7',
+    type: 'long',
+    label: '이번 피드백을 통해 가장 알고 싶은 것은 무엇인가요?',
+    placeholder: '예) 시험 운영 방법, EBS 회독 횟수',
+  },
+  {
+    id: 'k8',
+    type: 'long',
+    label: '위 질문에 상세한 답을 위해, 튜터에게 제공하고 싶은 정보가 있다면 알려주세요.',
+    placeholder: '예) 평소 문제풀이 방식이나 습관, 하루 공부시간, 목표 등급',
+  },
+] as const;
+
 /** 과목별로 다르게 묻고 싶을 때만 채운다. 비어 있으면 위 기본 문항을 쓴다. */
-export const CONCERN_QUESTIONS_BY_SUBJECT: Partial<Record<SubjectCode, readonly Question[]>> = {};
+export const CONCERN_QUESTIONS_BY_SUBJECT: Partial<Record<SubjectCode, readonly Question[]>> = {
+  korean: KOREAN_QUESTIONS,
+};
 
 export function questionsFor(subject: SubjectCode): readonly Question[] {
   const list = CONCERN_QUESTIONS_BY_SUBJECT[subject] ?? CONCERN_QUESTIONS;
@@ -79,6 +153,12 @@ export function itemsOf(value: ConcernValue | undefined): ConcernItem[] {
   return value.filter((v) => v && typeof v === 'object');
 }
 
+/** 'choice' 값을 안전하게 꺼낸다. */
+export function choiceOf(value: ConcernValue | undefined): ChoiceAnswer {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { choice: '' };
+  return { choice: value.choice ?? '', note: value.note };
+}
+
 /** 번호도 이유도 비어 있는 줄은 답한 것으로 치지 않는다. */
 function filledItems(value: ConcernValue | undefined): ConcernItem[] {
   return itemsOf(value).filter((it) => (it.no ?? '').trim() || (it.why ?? '').trim());
@@ -86,6 +166,10 @@ function filledItems(value: ConcernValue | undefined): ConcernItem[] {
 
 export function isAnswered(question: Question, value: ConcernValue | undefined): boolean {
   if (question.type === 'items') return filledItems(value).length > 0;
+  if (question.type === 'choice') {
+    const { choice, note } = choiceOf(value);
+    return choice.trim().length > 0 || (note ?? '').trim().length > 0;
+  }
   return typeof value === 'string' && value.trim().length > 0;
 }
 
@@ -101,6 +185,15 @@ export function answerText(question: Question, value: ConcernValue | undefined):
       })
       .join('\n');
   }
+
+  if (question.type === 'choice') {
+    const { choice, note } = choiceOf(value);
+    const picked = choice.trim();
+    const extra = (note ?? '').trim();
+    if (picked && extra) return `${picked} — ${extra}`;
+    return picked || extra;
+  }
+
   return typeof value === 'string' ? value.trim() : '';
 }
 
