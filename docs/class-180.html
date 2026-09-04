@@ -1,0 +1,634 @@
+<title>행동을 보는 180분</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;500;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --ground:    #ffffff;
+    --paper:     #f7f4f0;
+    --surface:   #f2f2f3;
+    --line:      #e4e2df;
+    --line-2:    #cbc9c5;
+    --ink:       #17181b;
+    --ink-2:     #54565c;
+    --ink-3:     #8a8c93;
+    --red:       #cf3a2c;
+    --red-soft:  #fbeceb;
+    --graphite:  #7a7d84;
+    --deep:      #16171a;
+    --deep-ink:  #f2f1ef;
+    --deep-dim:  #9b9da3;
+    --deep-red:  #ff7f6d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:    #0d0e10;
+      --paper:     #1a1b1e;
+      --surface:   #161719;
+      --line:      #26282c;
+      --line-2:    #3a3c42;
+      --ink:       #ececed;
+      --ink-2:     #a4a7ad;
+      --ink-3:     #74777e;
+      --red:       #ff6d5a;
+      --red-soft:  #2b1613;
+      --graphite:  #8e9198;
+      --deep:      #1b1d21;
+      --deep-ink:  #f0f0f1;
+      --deep-dim:  #a6a9b0;
+      --deep-red:  #ff8b7a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:    #0d0e10;
+    --paper:     #1a1b1e;
+    --surface:   #161719;
+    --line:      #26282c;
+    --line-2:    #3a3c42;
+    --ink:       #ececed;
+    --ink-2:     #a4a7ad;
+    --ink-3:     #74777e;
+    --red:       #ff6d5a;
+    --red-soft:  #2b1613;
+    --graphite:  #8e9198;
+    --deep:      #1b1d21;
+    --deep-ink:  #f0f0f1;
+    --deep-dim:  #a6a9b0;
+    --deep-red:  #ff8b7a;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Gothic A1", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+    font-size: 16px;
+    line-height: 1.78;
+    word-break: keep-all;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--red); }
+  :focus-visible { outline: 2px solid var(--red); outline-offset: 3px; border-radius: 2px; }
+
+  .wrap { max-width: 920px; margin: 0 auto; padding: 0 26px 110px; }
+
+  .mono {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+    font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── 히어로 ───────────────────────────────── */
+  header.hero { padding: 74px 0 0; }
+  .hero .kicker { color: var(--red); display: block; margin-bottom: 20px; }
+  h1 {
+    margin: 0; font-size: 50px; font-weight: 800; line-height: 1.22;
+    letter-spacing: -.04em; text-wrap: balance;
+  }
+  .thesis {
+    margin: 22px 0 0; font-size: 18.5px; line-height: 1.72;
+    color: var(--ink-2); max-width: 46ch;
+  }
+  .thesis b { color: var(--ink); font-weight: 700; }
+
+  .meta {
+    margin-top: 38px; display: grid; gap: 1px; background: var(--line);
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    border: 1px solid var(--line);
+  }
+  .meta > div { background: var(--ground); padding: 15px 18px; }
+  .meta dt { margin: 0 0 5px; color: var(--ink-3); }
+  .meta dd { margin: 0; font-size: 15.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* ── 섹션 공통 ─────────────────────────────── */
+  section { margin-top: 74px; }
+  .head { margin-bottom: 26px; }
+  .head .mono { display: block; margin-bottom: 9px; color: var(--ink-3); }
+  .head .mono.clock { color: var(--red); text-transform: none; letter-spacing: .1em; font-size: 12.5px; }
+  h2 { margin: 0; font-size: 27px; font-weight: 800; letter-spacing: -.028em; text-wrap: balance; }
+  .head p { margin: 12px 0 0; max-width: 58ch; color: var(--ink-2); font-size: 16.5px; }
+  p { max-width: 62ch; }
+  h3 { font-size: 16.5px; font-weight: 700; margin: 0; letter-spacing: -.012em; }
+
+  /* ── 180분 자 ─────────────────────────────── */
+  .ruler-scroll { overflow-x: auto; padding-bottom: 6px; }
+  .ruler { min-width: 660px; }
+  .bars { display: grid; grid-template-columns: 80fr 10fr 90fr; gap: 3px; }
+  .bar { padding: 20px 18px; border: 1px solid var(--line-2); }
+  .bar.solve { background: var(--paper); }
+  .bar.rest  { background: var(--surface); padding-left: 12px; padding-right: 12px; }
+  .bar.talk  { background: var(--red-soft); border-color: var(--red); }
+  .bar .len { display: block; font-weight: 700; font-size: 19px; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .bar .what { display: block; margin-top: 4px; font-size: 14.5px; color: var(--ink-2); line-height: 1.6; }
+  .bar.rest .what { font-size: 13px; }
+  .ticks {
+    margin-top: 8px; display: grid; grid-template-columns: 80fr 10fr 90fr; gap: 3px;
+    border-top: 1px solid var(--line); padding-top: 7px;
+  }
+  .ticks span { color: var(--ink-3); }
+  .ticks span:last-child { text-align: right; }
+  .scroll-hint { margin-top: 10px; color: var(--ink-3); font-size: 13px; }
+
+  /* ── 대비 목록 (아닌 것 / 인 것) ──────────── */
+  .pair { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); grid-template-columns: 1fr 1fr; }
+  .pair > div { background: var(--ground); padding: 22px 20px; }
+  .pair .mono { display: block; margin-bottom: 12px; }
+  .pair .no .mono  { color: var(--ink-3); }
+  .pair .yes .mono { color: var(--red); }
+  .pair ul { margin: 0; padding-left: 17px; }
+  .pair li { margin: 0 0 9px; font-size: 15.5px; line-height: 1.68; color: var(--ink-2); }
+  .pair li:last-child { margin-bottom: 0; }
+  .pair li b { color: var(--ink); font-weight: 700; }
+
+  /* ── 행 목록 ──────────────────────────────── */
+  .rows { margin: 0; padding: 0; list-style: none; }
+  .rows li {
+    padding: 19px 0; border-top: 1px solid var(--line);
+    display: grid; grid-template-columns: 190px 1fr; gap: 26px; align-items: baseline;
+  }
+  .rows li:last-child { border-bottom: 1px solid var(--line); }
+  .rows p { margin: 0; color: var(--ink-2); font-size: 15.5px; line-height: 1.72; }
+  .rows .tag { color: var(--red); }
+
+  /* ── 시각표 (90분 배분) ───────────────────── */
+  .agenda { margin: 0; padding: 0; list-style: none; }
+  .agenda li {
+    padding: 18px 0; border-top: 1px solid var(--line);
+    display: grid; grid-template-columns: 96px 46px 1fr; gap: 20px; align-items: baseline;
+  }
+  .agenda li:last-child { border-bottom: 1px solid var(--line); }
+  .agenda .at  { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .agenda .dur { color: var(--red); font-weight: 700; font-variant-numeric: tabular-nums;
+                 font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+  .agenda p { margin: 5px 0 0; color: var(--ink-2); font-size: 15.5px; line-height: 1.7; }
+  .agenda .core { color: var(--red); }
+
+  /* ── 기록지 ───────────────────────────────── */
+  .sheet-scroll { overflow-x: auto; border: 1px solid var(--line-2); background: var(--paper); }
+  table.sheet { min-width: 620px; width: 100%; border-collapse: collapse;
+                font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.5px; line-height: 1.62; }
+  table.sheet caption {
+    text-align: left; padding: 15px 18px 0; color: var(--ink-3);
+    font-family: "Gothic A1", sans-serif; font-size: 13px; line-height: 1.6;
+  }
+  table.sheet th {
+    text-align: left; padding: 14px 18px 9px; color: var(--ink-3);
+    font-weight: 500; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+    border-bottom: 1px solid var(--line-2); white-space: nowrap;
+  }
+  table.sheet td { padding: 9px 18px; border-bottom: 1px solid var(--line); color: var(--ink-2); vertical-align: top; }
+  table.sheet tr:last-child td { border-bottom: 0; }
+  table.sheet td:first-child { color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.sheet td.mark { color: var(--red); }
+
+  /* ── 좌석 그림 ────────────────────────────── */
+  figure.seats { margin: 0; }
+  figure.seats svg { display: block; width: 100%; height: auto; }
+  figure.seats figcaption { margin-top: 12px; color: var(--ink-3); font-size: 13.5px; max-width: 60ch; }
+
+  /* ── 큰 인용 ──────────────────────────────── */
+  .pull { margin-top: 74px; padding: 52px 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
+  .pull blockquote { margin: 0; font-size: 36px; font-weight: 800; line-height: 1.38; letter-spacing: -.038em; text-wrap: balance; }
+  .pull cite { display: block; margin-top: 18px; font-style: normal; color: var(--ink-3); }
+
+  /* ── 어두운 판 ────────────────────────────── */
+  .slab { margin-top: 74px; background: var(--deep); color: var(--deep-ink); padding: 52px 40px; }
+  .slab .mono { color: var(--deep-red); display: block; margin-bottom: 10px; }
+  .slab h2 { color: var(--deep-ink); }
+  .slab > p { color: var(--deep-dim); margin: 12px 0 0; }
+  .slab ol { counter-reset: r; list-style: none; margin: 32px 0 0; padding: 0; }
+  .slab ol li {
+    counter-increment: r; padding: 18px 0; border-top: 1px solid rgba(255,255,255,.12);
+    display: grid; grid-template-columns: 34px 1fr; gap: 20px; align-items: baseline;
+  }
+  .slab ol li::before {
+    content: counter(r, decimal-leading-zero);
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--deep-red);
+  }
+  .slab ol h3 { color: var(--deep-ink); }
+  .slab ol p { margin: 5px 0 0; color: var(--deep-dim); font-size: 15.5px; }
+
+  /* ── 미결 ─────────────────────────────────── */
+  .open { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line);
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .open > div { background: var(--ground); padding: 20px; }
+  .open .mono { display: block; color: var(--ink-3); margin-bottom: 8px; }
+  .open p { margin: 6px 0 0; color: var(--ink-2); font-size: 14.5px; line-height: 1.68; }
+
+  footer { margin-top: 74px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--ink-3); }
+
+  @media (max-width: 720px) {
+    header.hero { padding-top: 52px; }
+    h1 { font-size: 36px; }
+    .thesis { font-size: 17px; }
+    h2 { font-size: 23px; }
+    .pull blockquote { font-size: 26px; }
+    .pair { grid-template-columns: 1fr; }
+    .rows li { grid-template-columns: 1fr; gap: 7px; }
+    .agenda li { grid-template-columns: 78px 1fr; gap: 14px; }
+    .agenda .dur { grid-column: 1; }
+    .slab { padding: 40px 22px; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <span class="mono kicker">Uni-T · 국어 3인 팀수업 · 서비스 정의서 v0.1</span>
+    <h1>행동을 보는 180분</h1>
+    <p class="thesis">
+      학생이 실전 80분을 푸는 동안 튜터가 옆에서 시간을 재고 지켜봅니다.
+      나머지 시간은 <b>그 관찰을 돌려주는 데</b> 씁니다.
+      9모 피드백에서 사진으로 했던 일을, 현장에서 실시간으로 하는 수업입니다.
+    </p>
+    <dl class="meta">
+      <div><dt class="mono">1회차</dt><dd>180분</dd></div>
+      <div><dt class="mono">정원</dt><dd>3명 · 튜터 1명</dd></div>
+      <div><dt class="mono">과목</dt><dd>국어 (고3)</dd></div>
+      <div><dt class="mono">교재</dt><dd>사설 실전 모의고사</dd></div>
+      <div><dt class="mono">첫 모집</dt><dd>9모 피드백 신청자</dd></div>
+    </dl>
+  </header>
+
+  <section>
+    <div class="head">
+      <span class="mono">정의</span>
+      <h2>한 문장으로</h2>
+    </div>
+    <p style="font-size:19px;line-height:1.7;color:var(--ink);max-width:44ch;font-weight:700;letter-spacing:-.02em;">
+      학생의 시험 중 행동을 관찰해서, 나아지게 만드는 수업.
+    </p>
+    <p style="margin-top:18px;">
+      점수를 올리는 방법을 가르치는 수업이 아니라, <b>시험장에서 이 학생이 실제로 무엇을 했는지</b>를
+      옆에서 보고 그 자리에서 교정하는 수업입니다. 여기서 파는 것은 해설이 아니라 관찰입니다.
+      해설은 인터넷 강의로도 살 수 있지만, 자기가 80분 동안 무엇을 했는지는 누가 봐주지 않으면 알 수 없습니다.
+    </p>
+
+    <div class="pair" style="margin-top:30px;">
+      <div class="no">
+        <span class="mono">이 수업이 아닌 것</span>
+        <ul>
+          <li>모의고사를 풀고 <b>해설 강의를 듣는</b> 수업</li>
+          <li>진도를 나가는 개념 수업</li>
+          <li>학생이 각자 풀고 튜터는 질문만 받는 자습 관리</li>
+          <li>점수가 나쁜 이유를 <b>사후에 추측</b>하는 상담</li>
+        </ul>
+      </div>
+      <div class="yes">
+        <span class="mono">이 수업인 것</span>
+        <ul>
+          <li>푸는 80분 동안 튜터가 <b>시각을 기록하며</b> 지켜본다</li>
+          <li>지문 전환 시각, 체류 시간, 손이 멈춘 지점이 남는다</li>
+          <li>세 명의 시간 운영을 <b>나란히 놓고</b> 함께 본다</li>
+          <li>다음 회차까지 고칠 행동 <b>하나</b>를 들고 나간다</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <span class="mono">근거</span>
+      <h2>왜 사진이 아니라 현장인가</h2>
+      <p>9모 무료 피드백에서 우리가 본 것은 시험지에 남은 흔적뿐이었습니다. 흔적은 많은 것을 알려주지만, 두 가지를 알려주지 않습니다.</p>
+    </div>
+    <ul class="rows">
+      <li>
+        <h3>순서를 모른다</h3>
+        <p>14번에 계산식이 세 줄 있다는 사실은 사진에 남습니다. 그 세 줄을 <b>언제</b> 썼는지 — 처음 만났을 때인지,
+        한 바퀴 돌고 와서인지 — 는 남지 않습니다. 같은 흔적이라도 진단이 정반대가 됩니다.</p>
+      </li>
+      <li>
+        <h3>시간을 모른다</h3>
+        <p>독서 지문 하나에 몇 분을 썼는지는 시험지 어디에도 적혀 있지 않습니다.
+        국어에서 무너지는 학생의 대부분은 실력이 아니라 배분에서 무너지는데, 그 증거가 사진에는 없습니다.</p>
+      </li>
+      <li>
+        <h3 class="tag">그래서 옆에서 본다</h3>
+        <p>튜터가 옆에서 시각을 적으면 순서와 시간이 둘 다 남습니다.
+        9모 때 사진으로 짚었던 문제점을 <b>이번엔 벌어지는 순간에</b> 잡습니다.</p>
+      </li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="head">
+      <span class="mono">구조</span>
+      <h2>180분은 이렇게 쪼갠다</h2>
+      <p>국어 실전 시험 시간이 80분이라 첫 블록을 80분으로 잡았습니다. 실전과 같은 조건이어야 실전의 행동이 나옵니다.</p>
+    </div>
+    <div class="ruler-scroll">
+      <div class="ruler">
+        <div class="bars">
+          <div class="bar solve">
+            <span class="len">80분</span>
+            <span class="what">실전 풀이 — 학생은 시험을 치고, 튜터는 옆에서 기록한다</span>
+          </div>
+          <div class="bar rest">
+            <span class="len">10분</span>
+            <span class="what">휴식</span>
+          </div>
+          <div class="bar talk">
+            <span class="len">90분</span>
+            <span class="what">피드백 — 총평 · 시간과 병목 · 문항 해설 · 실전 개념 · 개인 교정</span>
+          </div>
+        </div>
+        <div class="ticks mono">
+          <span>00:00</span><span>01:20</span><span>01:30 &nbsp;→&nbsp; 03:00</span>
+        </div>
+      </div>
+    </div>
+    <p class="scroll-hint">← 화면이 좁으면 옆으로 밀어서 보세요. 막대 길이는 실제 시간 비율입니다.</p>
+    <p style="margin-top:26px;">
+      쉬는 10분은 학생만의 시간이 아닙니다. <b>튜터가 기록지를 정리하는 시간</b>입니다.
+      80분 동안 적은 사실을 훑고, 90분에 다룰 지점을 학생마다 두세 개로 줄여 둡니다.
+      이 10분을 흘려보내면 피드백이 즉흥 해설로 무너집니다.
+    </p>
+  </section>
+
+  <div class="pull">
+    <blockquote>“학생들의 행동을 관찰해서,<br>나아지게 할 수 있도록 하는 수업.”</blockquote>
+    <cite class="mono">— 수업 목적. 여기에 공감하는 학생만 받는다</cite>
+  </div>
+
+  <section>
+    <div class="head">
+      <span class="mono clock">00:00 — 01:20</span>
+      <h2>실전 80분 · 튜터가 하는 일</h2>
+      <p>이 80분이 수업 구조의 핵심입니다. 학생은 평소처럼 시험을 치고, 튜터는 <b>말하지 않고 적습니다.</b></p>
+    </div>
+
+    <ul class="rows">
+      <li>
+        <h3>시각을 적는다</h3>
+        <p>해석이 아니라 사실만 적습니다. 지문에 들어간 시각, 나온 시각, 손이 멈춘 순간, 앞으로 되돌아간 순간.
+        해석은 쉬는 10분과 뒤 90분에서 합니다.</p>
+      </li>
+      <li>
+        <h3>다섯 걸음 뒤에서 돈다</h3>
+        <p>세 명을 5분에 한 바퀴 돕니다. 80분이면 열여섯 바퀴. 지문이 바뀌는 순간은 놓치면 복구가 안 되므로
+        전환 시각은 세 명 모두 반드시 잡습니다.</p>
+      </li>
+      <li>
+        <h3 class="tag">개입하지 않는다</h3>
+        <p>실전이므로 80분 동안은 말을 걸지 않습니다. 예외는 둘 — 학생이 시험을 포기하고 엎드릴 때,
+        시험지에 결락·인쇄 사고가 있을 때. 나머지 질문은 전부 90분으로 미룹니다.</p>
+      </li>
+      <li>
+        <h3>빨간펜을 든다</h3>
+        <p>관찰 표시는 학생 시험지 위에 빨간펜으로 남깁니다. 학생 연필 필기와 색이 갈려야
+        나중에 학생이 “이건 내가 쓴 것, 이건 튜터가 본 것”을 구분합니다. 이게 그대로 산출물이 됩니다.</p>
+      </li>
+    </ul>
+
+    <figure class="seats" style="margin-top:34px;">
+      <svg viewBox="0 0 560 214" role="img" aria-label="세 명이 앞을 보고 앉고, 튜터가 뒤쪽으로 순회하는 좌석 배치">
+        <text x="280" y="16" text-anchor="middle" fill="var(--ink-3)" font-family="IBM Plex Mono, monospace" font-size="10.5" letter-spacing="1.4">BOARD</text>
+        <rect x="180" y="26" width="200" height="7" fill="var(--line-2)"></rect>
+
+        <rect x="46"  y="78" width="108" height="38" rx="2" fill="var(--paper)" stroke="var(--line-2)" stroke-width="1"></rect>
+        <rect x="226" y="78" width="108" height="38" rx="2" fill="var(--paper)" stroke="var(--line-2)" stroke-width="1"></rect>
+        <rect x="406" y="78" width="108" height="38" rx="2" fill="var(--paper)" stroke="var(--line-2)" stroke-width="1"></rect>
+        <text x="100" y="102" text-anchor="middle" fill="var(--ink-3)" font-family="IBM Plex Mono, monospace" font-size="10">시험지</text>
+        <text x="280" y="102" text-anchor="middle" fill="var(--ink-3)" font-family="IBM Plex Mono, monospace" font-size="10">시험지</text>
+        <text x="460" y="102" text-anchor="middle" fill="var(--ink-3)" font-family="IBM Plex Mono, monospace" font-size="10">시험지</text>
+
+        <circle cx="100" cy="142" r="13" fill="var(--graphite)"></circle>
+        <circle cx="280" cy="142" r="13" fill="var(--graphite)"></circle>
+        <circle cx="460" cy="142" r="13" fill="var(--graphite)"></circle>
+
+        <path d="M18 190 C 90 168, 130 168, 190 190 S 330 168, 380 190 S 500 168, 542 186"
+              fill="none" stroke="var(--red)" stroke-width="1.6" stroke-dasharray="5 5"></path>
+        <circle cx="190" cy="190" r="7" fill="var(--red)"></circle>
+        <text x="190" y="211" text-anchor="middle" fill="var(--red)" font-family="IBM Plex Mono, monospace" font-size="10">TUTOR</text>
+      </svg>
+      <figcaption>
+        튜터는 뒤·측면으로만 움직입니다. 정면에 서거나 시험지 위로 몸을 기울이면 그 순간부터
+        관찰이 아니라 감시가 되고, 학생의 행동이 평소와 달라집니다.
+      </figcaption>
+    </figure>
+
+    <div class="sheet-scroll" style="margin-top:34px;">
+      <table class="sheet">
+        <caption>관찰 기록지 — 국어 80분 1인분 (예시. 실제 회차에서 채워 넣는 형식)</caption>
+        <thead>
+          <tr><th>시각</th><th>지점</th><th>보이는 사실 — 해석 없이</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>00:00</td><td>선택 시작</td><td>언어와 매체 1번부터 순서대로</td></tr>
+          <tr><td>00:18</td><td>선택 종료</td><td>18분 소요. 11번에서 3분 체류, 선지 두 번 왕복</td></tr>
+          <tr><td>00:19</td><td>독서 1지문</td><td>지문 전체 통독 후 문항으로 이동. 밑줄 없음</td></tr>
+          <tr><td>00:31</td><td>독서 1지문 종료</td><td>12분. 선지 소거 표시 없음</td></tr>
+          <tr class="mark"><td>00:34</td><td>독서 2지문 · 8번</td><td class="mark">손 멈춤 40초. 지문 위로 두 번 되올라감</td></tr>
+          <tr><td>00:52</td><td>독서 종료</td><td>33분 (본인 계획 30분 대비 +3분)</td></tr>
+          <tr><td>01:03</td><td>문학 2지문 진입</td><td>남은 17분에 지문 3개</td></tr>
+          <tr class="mark"><td>01:16</td><td>마킹 시작</td><td class="mark">일괄 마킹. 종료 4분 전에 시작</td></tr>
+          <tr><td>01:20</td><td>종료</td><td>문학 마지막 지문 4문항 미해결 · 임의 표기</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="head" style="margin-top:40px;margin-bottom:20px;">
+      <span class="mono">체크리스트</span>
+      <h2 style="font-size:20px;">80분 동안 반드시 잡는 아홉 가지</h2>
+    </div>
+    <ul class="rows">
+      <li><h3>선택과목 시작·종료 시각</h3><p>국어에서 가장 먼저 무너지는 지점. 20분을 넘겼는지가 그날의 나머지를 결정합니다.</p></li>
+      <li><h3>지문별 진입·종료 시각</h3><p>독서 3지문, 문학 3~4지문. 지문 단위 체류 시간이 이 수업의 기본 단위입니다.</p></li>
+      <li><h3>3분 이상 붙잡은 문항</h3><p>번호와 실제 체류 시간. 학생 본인은 대부분 이 시간을 절반으로 기억합니다.</p></li>
+      <li><h3>되돌아간 횟수</h3><p>지문으로 다시 올라간 횟수, 이미 푼 문항으로 돌아온 횟수.</p></li>
+      <li><h3>손이 멈춘 구간</h3><p>펜이 움직이지 않는 시간. 읽는 중인지 막힌 것인지는 90분에 학생에게 확인합니다.</p></li>
+      <li><h3>보류 처리</h3><p>넘긴 문항에 표시를 했는지, 표시했다면 실제로 돌아왔는지.</p></li>
+      <li><h3>마킹 시점과 방식</h3><p>일괄인지 지문 단위인지, 몇 분 남기고 시작했는지.</p></li>
+      <li><h3>남은 시간에 한 일</h3><p>검토인지, 못 푼 문항 재도전인지, 아무것도 안 했는지.</p></li>
+      <li><h3>흔적의 유무</h3><p>지문 근거 밑줄, 선지 소거 표시가 남아 있는지. 9모 피드백에서 쓰던 기준 그대로입니다.</p></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="head">
+      <span class="mono clock">01:20 — 01:30</span>
+      <h2>휴식 10분 · 기록지를 줄인다</h2>
+      <p>학생은 쉬고, 튜터는 정리합니다. 이 10분에 하는 일은 세 가지입니다.</p>
+    </div>
+    <ul class="rows">
+      <li><h3>사실을 해석으로</h3><p>“00:34 손 멈춤 40초” 옆에 “배경지식 없는 지문에서 읽기를 멈추고 버팀” 같은 한 줄을 답니다.</p></li>
+      <li><h3>학생당 세 개로</h3><p>90분에 다룰 지점을 학생마다 최대 세 개로 줄입니다. 다 말하면 하나도 남지 않습니다.</p></li>
+      <li><h3>공통 지점 찾기</h3><p>세 명이 함께 무너진 지문·문항을 표시합니다. 이게 뒤 90분의 해설 순서를 정합니다.</p></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="head">
+      <span class="mono clock">01:30 — 03:00</span>
+      <h2>피드백 90분 · 무엇을 돌려주는가</h2>
+      <p>여섯 가지를 이 순서로 다룹니다. 시간은 기준값이고, 회차마다 앞뒤로 조정합니다.</p>
+    </div>
+    <ol class="agenda">
+      <li>
+        <span class="at mono">01:30</span><span class="dur">10′</span>
+        <div>
+          <h3>문풀 총평</h3>
+          <p>이번 회차의 난이도와 출제 경향, 세 명의 원점수와 시간 운영을 한 장으로 요약합니다.
+          개인별 이야기 전에 오늘 시험이 어떤 시험이었는지 먼저 맞춥니다.</p>
+        </div>
+      </li>
+      <li>
+        <span class="at mono">01:40</span><span class="dur">20′</span>
+        <div>
+          <h3 class="core">시간 파악과 병목 관찰</h3>
+          <p><b>이 수업에만 있는 시간입니다.</b> 세 명의 지문별 체류 시간을 나란히 놓고 봅니다.
+          “너는 독서 2지문에 14분, 옆은 8분” 이 비교가 강의보다 강하게 남습니다.
+          병목 지점을 짚고, 그 지점에서 무엇을 하고 있었는지 학생 본인에게 확인합니다.</p>
+        </div>
+      </li>
+      <li>
+        <span class="at mono">02:00</span><span class="dur">30′</span>
+        <div>
+          <h3>문항 해설</h3>
+          <p>셋 중 둘 이상이 틀린 문항부터. 정답 풀이가 아니라 <b>왜 그 선지로 갔는지</b>를 학생에게 먼저 말하게 하고
+          거기서부터 고칩니다. 혼자 틀린 문항은 개별로 짧게 처리합니다.</p>
+        </div>
+      </li>
+      <li>
+        <span class="at mono">02:30</span><span class="dur">20′</span>
+        <div>
+          <h3>추가 실전 개념</h3>
+          <p>오늘 드러난 공통 약점 하나만 골라 짧게 강의합니다. 진도가 아니라 오늘의 시험에서 출발한 개념입니다.
+          고를 것이 없으면 이 시간을 앞의 두 블록에 돌립니다.</p>
+        </div>
+      </li>
+      <li>
+        <span class="at mono">02:50</span><span class="dur">10′</span>
+        <div>
+          <h3 class="core">개인 교정과 빨간펜 필기본 전달</h3>
+          <p>학생마다 <b>다음 회차까지 고칠 행동 하나</b>를 정해 빨간펜 필기본 위에 적어 줍니다.
+          “집중해라”가 아니라 “선택과목은 20분에 무조건 끊고 넘어간다”처럼 실행할 수 있는 문장 하나.
+          다음 회차 첫 10분에 이걸 지켰는지부터 확인합니다.</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="head">
+      <span class="mono">산출물</span>
+      <h2>학생이 들고 나가는 것</h2>
+      <p>수업이 끝났을 때 손에 남는 물건이 있어야 합니다. 세 가지입니다.</p>
+    </div>
+    <ul class="rows">
+      <li><h3>빨간펜 필기본</h3><p>본인이 푼 시험지 위에 튜터의 관찰과 교정이 빨간펜으로 얹힌 것. 연필은 학생, 빨간펜은 튜터.</p></li>
+      <li><h3>시간 기록표</h3><p>지문별 체류 시간과 세 명 비교. 다음 회차에 같은 표를 만들면 변화가 그대로 보입니다.</p></li>
+      <li><h3 class="tag">다음까지 고칠 행동 하나</h3><p>한 줄. 다음 회차 시작 때 이것부터 확인하므로, 회차가 이어질수록 이 한 줄이 기록이 됩니다.</p></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="head">
+      <span class="mono">대상</span>
+      <h2>누구를 받고, 누구를 받지 않는가</h2>
+      <p>이 수업은 모두에게 맞지 않습니다. 안 맞는 학생을 받으면 수업이 해설 강의로 끌려갑니다.
+      모집할 때 목적을 먼저 설명하고, 공감한 학생만 받습니다.</p>
+    </div>
+    <div class="pair">
+      <div class="yes">
+        <span class="mono">받는다</span>
+        <ul>
+          <li>다른 학생의 이야기를 들으며 <b>동기를 얻는</b> 학생 — 3인 구성의 이유입니다</li>
+          <li>자기 행동을 지적받고 고칠 의사가 있는 학생</li>
+          <li>9모 피드백을 받아본 학생 — 우리가 무엇을 보는지 이미 알고 있습니다</li>
+          <li>점수는 아는데 왜 그 점수인지 모르겠는 학생</li>
+        </ul>
+      </div>
+      <div class="no">
+        <span class="mono">받지 않는다</span>
+        <ul>
+          <li>해설 강의를 원하는 학생 — 이 수업의 해설은 30분뿐입니다</li>
+          <li>개념 진도를 원하는 학생</li>
+          <li>옆에서 지켜보는 것 자체가 불편한 학생 — <b>미리 고지하고 확인합니다</b></li>
+          <li>남 앞에서 자기 시간 기록이 공개되는 것을 거부하는 학생</li>
+        </ul>
+      </div>
+    </div>
+    <p style="margin-top:26px;">
+      첫 모집 모수는 <b>9모 국어 피드백 신청자 약 20명</b>입니다.
+      이들에게는 이미 9모 시험지에서 관찰된 부족한 점이 문서로 남아 있습니다.
+      튜터는 <b>학생마다 지켜볼 것 한두 개를 미리 들고</b> 첫 회차에 들어갑니다 — 첫 80분은
+      그 지점이 실제로 재현되는지 확인하는 시간이기도 합니다.
+    </p>
+  </section>
+
+  <div class="slab">
+    <span class="mono">원칙</span>
+    <h2>튜터가 지키는 다섯 가지</h2>
+    <p>이 다섯 개가 무너지면 남는 것은 비싼 자습 감독이거나 평범한 해설 강의입니다.</p>
+    <ol>
+      <li><div><h3>80분에는 개입하지 않는다</h3><p>실전 조건이 깨지면 관찰한 행동이 실전의 행동이 아니게 됩니다.</p></div></li>
+      <li><div><h3>사실과 해석을 분리해 적는다</h3><p>80분에는 보이는 것만, 해석은 휴식 이후에. 추측을 사실처럼 말하면 신뢰가 한 번에 무너집니다.</p></div></li>
+      <li><div><h3>근거는 시각과 문항 번호로</h3><p>“너 시간 관리가 안 돼”가 아니라 “00:34부터 40초, 8번”. 학생이 자기 시험지에서 확인할 수 있어야 합니다.</p></div></li>
+      <li><div><h3>탓하지 않는다</h3><p>“왜 안 했니”가 아니라 “다음엔 이렇게”. 9모 피드백 검수 기준과 같습니다.</p></div></li>
+      <li><div><h3>강의로 도망가지 않는다</h3><p>가장 자주 일어나는 실패입니다. 말할 거리가 떨어지면 해설로 시간을 채우게 되는데,
+      그 순간 이 수업은 학원이 이미 더 잘하는 것이 됩니다. 90분 중 해설은 30분입니다.</p></div></li>
+    </ol>
+  </div>
+
+  <section>
+    <div class="head">
+      <span class="mono">미결</span>
+      <h2>아직 안 정한 것</h2>
+      <p>튜터 설명용으로는 위까지면 됩니다. 홍보 문구를 만들기 전에 아래가 먼저 닫혀야 합니다.</p>
+    </div>
+    <div class="open">
+      <div>
+        <span class="mono">Q1 · 교재</span>
+        <h3>어떤 사설 실전 모의고사</h3>
+        <p>회차별 난이도가 고르고 해설이 붙는 것. 튜터가 문항 해설 30분을 준비할 수 있는 분량인지도 기준입니다.</p>
+      </div>
+      <div>
+        <span class="mono">Q2 · 회차</span>
+        <h3>몇 회차를 한 묶음으로</h3>
+        <p>행동 교정은 최소 3회차는 있어야 변화가 보입니다. 주 1회 기준의 묶음 단위와 가격을 함께 정합니다.</p>
+      </div>
+      <div>
+        <span class="mono">Q3 · 가격</span>
+        <h3>3시간 1회 단가</h3>
+        <p>화이트보드에 숫자만 남아 있고 확정되지 않았습니다. 튜터 인건비 · 교재비 · 장소비를 얹어 역산합니다.</p>
+      </div>
+      <div>
+        <span class="mono">Q4 · 정원</span>
+        <h3>튜터 1인당 3명이 상한인가</h3>
+        <p>5분 순회 기준으로는 3명이 한계입니다. 4명 이상이면 지문 전환 시각을 놓칩니다. 첫 회차 후 실측합니다.</p>
+      </div>
+      <div>
+        <span class="mono">Q5 · 장소</span>
+        <h3>어디서 여는가</h3>
+        <p>80분 실전 조건(조용함 · 개별 책상 · 시계)이 나오는 공간이어야 합니다.</p>
+      </div>
+      <div>
+        <span class="mono">Q6 · 확장</span>
+        <h3>국어 외 과목</h3>
+        <p>수학은 100분이라 180분 안에 같은 구조가 들어가지 않습니다. 별도 설계가 필요합니다.</p>
+      </div>
+      <div>
+        <span class="mono">Q7 · 부가</span>
+        <h3>주간 학습 피드백을 붙일지</h3>
+        <p>화이트보드의 “일정 · 내용 · 학습 검토 · 진로”는 수업 밖의 관리 영역입니다.
+        기본 상품에 넣을지 상위 등급으로 뺄지 미정입니다.</p>
+      </div>
+      <div>
+        <span class="mono">Q8 · 튜터</span>
+        <h3>누가 들어가는가</h3>
+        <p>회차별 담당과 백업. 관찰 기록은 사람이 바뀌면 기준이 흔들리므로 한 반은 한 튜터가 끝까지 갑니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="mono">
+    팀과외팀 · Uni-T · 국어 3인 팀수업 서비스 정의서 v0.1 · 1차 독자: 튜터
+  </footer>
+
+</div>
