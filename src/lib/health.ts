@@ -45,6 +45,8 @@ export async function getHealth(): Promise<Health> {
     rawScore: { ok: false, detail: '아직 확인 못 했어요' },
     bucket: { ok: false, detail: '아직 확인 못 했어요' },
     workerSchema: { ok: false, detail: '아직 확인 못 했어요' },
+    classSchema: { ok: false, detail: '아직 확인 못 했어요' },
+    proofBucket: { ok: false, detail: '아직 확인 못 했어요' },
     notion: {
       ok: notionConfigured(),
       detail: notionConfigured()
@@ -63,6 +65,12 @@ export async function getHealth(): Promise<Health> {
         ? '재처리 주소가 잠겨 있어요'
         : 'WORKER_SECRET 이 없어요. 재처리 주소를 아무나 부를 수 있어요',
     },
+    adminPassword: {
+      ok: Boolean(process.env.ADMIN_PASSWORD),
+      detail: process.env.ADMIN_PASSWORD
+        ? '/admin 과 이 화면이 잠겨 있어요'
+        : 'ADMIN_PASSWORD 가 없어요. /admin 이 열리지 않고, 이 화면은 아무나 볼 수 있어요',
+    },
     cronSecret: {
       ok: Boolean(process.env.CRON_SECRET),
       detail: process.env.CRON_SECRET
@@ -73,7 +81,7 @@ export async function getHealth(): Promise<Health> {
 
   const db = supabaseAdmin();
   if (!db) {
-    for (const key of ['connection', 'tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'bucket', 'workerSchema']) {
+    for (const key of ['connection', 'tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
       checks[key] = { ok: false, detail: 'Supabase 연결 전이라 확인할 수 없어요' };
     }
     return {
@@ -92,7 +100,7 @@ export async function getHealth(): Promise<Health> {
     const detail = sqlNotRun
       ? 'SQL 을 아직 실행하지 않았어요. supabase/migrations/0001_init.sql 을 SQL Editor 에서 실행해주세요'
       : '확인하지 못했어요';
-    for (const key of ['tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'bucket', 'workerSchema']) {
+    for (const key of ['tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
       checks[key] = { ok: false, detail };
     }
     return {
@@ -106,7 +114,11 @@ export async function getHealth(): Promise<Health> {
     settings_row?: boolean;
     functions?: boolean;
     worker_schema?: boolean;
+    class_schema?: boolean;
+    proof_bucket?: boolean;
     bucket?: boolean;
+    open_class_count?: number;
+    application_count?: number;
     submission_count?: number;
     pending_count?: number;
     failure_count?: number;
@@ -147,6 +159,18 @@ export async function getHealth(): Promise<Health> {
     detail: status.worker_schema
       ? '실패 로그 표와 재처리 함수가 있어요'
       : '0002_worker.sql 을 아직 실행하지 않았어요',
+  };
+  checks.classSchema = {
+    ok: Boolean(status.class_schema),
+    detail: status.class_schema
+      ? `개설 클래스 ${status.open_class_count ?? 0}개 · 신청 ${status.application_count ?? 0}건`
+      : '0005_classes.sql 을 아직 실행하지 않았어요. /class 가 빈 화면이에요',
+  };
+  checks.proofBucket = {
+    ok: Boolean(status.proof_bucket),
+    detail: status.proof_bucket
+      ? '비공개 버킷 tutor-proof 가 있어요'
+      : '버킷 tutor-proof 가 없거나 공개 상태예요. 0005_classes.sql 을 실행해주세요',
   };
   checks.bucket = {
     ok: Boolean(status.bucket),

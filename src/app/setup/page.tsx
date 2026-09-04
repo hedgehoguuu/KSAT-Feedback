@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { adminConfigured, isAdmin } from '@/lib/admin';
 import { getHealth } from '@/lib/health';
 
 export const dynamic = 'force-dynamic';
@@ -25,6 +27,21 @@ const GUIDE: { key: string; label: string; how: string }[] = [
   },
   { key: 'bucket', label: '시험지 저장소', how: 'Storage 에 exam-papers 버킷이 비공개로 있어야 해요' },
   { key: 'workerSchema', label: '워커 표·함수', how: 'Supabase > SQL Editor 에서 0002_worker.sql 전체를 붙여넣고 Run' },
+  {
+    key: 'classSchema',
+    label: '개설 클래스·신청',
+    how: 'Supabase > SQL Editor 에서 0005_classes.sql 전체를 붙여넣고 Run',
+  },
+  {
+    key: 'proofBucket',
+    label: '튜터 증빙 저장소',
+    how: '같은 0005_classes.sql 을 실행하면 만들어져요',
+  },
+  {
+    key: 'adminPassword',
+    label: '관리자 잠금',
+    how: 'Vercel 환경변수에 ADMIN_PASSWORD 를 아무 긴 문자열로 넣고 다시 배포',
+  },
   { key: 'notion', label: 'Notion 자동 등록', how: 'Vercel 환경변수에 NOTION_TOKEN 과 NOTION_DATABASE_ID 넣기' },
   { key: 'mail', label: '접수 확인 메일', how: 'Vercel 환경변수에 GMAIL_USER 와 GMAIL_APP_PASSWORD 넣기 (구글 앱 비밀번호)' },
   { key: 'workerSecret', label: '재처리 주소 잠금', how: 'Vercel 환경변수에 WORKER_SECRET 을 아무 긴 문자열로 넣기' },
@@ -32,7 +49,12 @@ const GUIDE: { key: string; label: string; how: string }[] = [
 ];
 
 export default async function SetupPage() {
+  // 이 화면은 접수 건수와 환경변수 상태를 보여준다. 잠금을 걸어 뒀으면 관리자만 본다.
+  // ADMIN_PASSWORD 를 아직 안 넣은 배포에서는 열어 둔다 — 그 값을 넣는 방법이 이 화면에 적혀 있다.
+  if (adminConfigured() && !(await isAdmin())) redirect('/admin/login');
+
   const health = await getHealth();
+  const locked = adminConfigured();
 
   return (
     <main className="flex flex-1 flex-col gap-5 px-5 pb-12 pt-10">
@@ -41,6 +63,12 @@ export default async function SetupPage() {
         <p className="mt-2 text-[14px] leading-[1.6] text-muted">
           접수를 받을 준비가 됐는지 확인하는 화면이에요. 학생에게 보여주는 화면은 아니에요.
         </p>
+        {!locked ? (
+          <p className="mt-3 rounded-xl bg-danger/10 px-4 py-3 text-[13px] leading-[1.6] text-danger">
+            지금 이 화면은 주소만 알면 누구나 열 수 있어요. Vercel 환경변수에 ADMIN_PASSWORD 를 넣으면
+            관리자만 볼 수 있게 잠겨요.
+          </p>
+        ) : null}
       </header>
 
       <div className={['rounded-2xl p-4', health.ready ? 'bg-brand/5' : 'bg-surface'].join(' ')}>

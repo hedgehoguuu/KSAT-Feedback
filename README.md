@@ -64,7 +64,19 @@ src/app/                          화면과 API — 폴더 이름이 그대로 �
   done/[receiptNo]/
     page.tsx              109  ★  완료 화면 (접수번호 · 회신 예정일 · 문의 메일)
 
-  setup/page.tsx           83     설치 점검 13항목 ✓/✗ (운영자용, noindex)
+  class/                          모집 페이지 — 9모 피드백 받은 학생에게 유료 수업을 알린다
+    page.tsx                    ★  수업 구조 · 대상 학생 · 개설 클래스 (DB 에서 읽어 그린다)
+    [slug]/apply/page.tsx          신청 폼 네 칸
+    [slug]/apply/done/page.tsx     완료 — 계좌 대신 "카카오톡 드릴게요"
+
+  admin/                          관리자 (ADMIN_PASSWORD 로 잠금, noindex)
+    login/page.tsx                 비밀번호 한 칸
+    actions.ts                     쓰기 전부. 맨 앞에서 assertAdmin()
+    (guarded)/page.tsx             클래스 목록
+    (guarded)/class/new           ·[slug]/page.tsx  반 만들기 · 고치기 · 증빙 업로드
+    (guarded)/applications         신청자 목록 · 상태 옮기기
+
+  setup/page.tsx           83     설치 점검 ✓/✗ (운영자용, noindex, 같은 잠금)
 
   api/                            브라우저가 부르는 서버 주소
     upload-url/route.ts    57     사진 올릴 일회용 서명 주소 발급
@@ -115,17 +127,26 @@ src/lib/worker/                   접수 뒤에 자동으로 도는 것들 (전�
   mail.ts                 101     접수 확인 메일 (Gmail SMTP)
   pdf.ts                   57     사진 여러 장을 PDF 한 개로
 
+src/lib/ (모집 페이지)
+  admin.ts                        관리자 잠금 — 비밀번호 → HMAC 서명 쿠키
+  classes.ts                      개설 클래스 · 신청 읽기/쓰기 · 증빙 서명 URL
+  class-mail.ts                   신청 들어오면 팀에게 알림 메일
+src/config/class.ts               수강료 기본값 · 180분 구성 · 접수번호·연락처 형식
+
 supabase/migrations/              데이터베이스 설계도 — SQL Editor 에 붙여넣는 것
   0001_init.sql           211     표 · RLS · 비공개 버킷 · 접수번호 발급 함수
   0002_worker.sql         103     실패 기록표 · 재처리 함수 · 설치 점검 함수
   0003_daily_cap.sql      148     하루 접수 상한 (한국 날짜 기준, 자정에 초기화)
   0004_raw_score.sql      139     과목 원점수 칸 · 저장
+  0005_classes.sql                개설 클래스 · 수업 신청 · 튜터 증빙 버킷
 
 docs/                             아티팩트로 공유한 문서
   setup-checklist.html            준비 체크리스트
   report.html                     개발 완료 보고
   feedback-line.html              피드백 생산 방식 검토
   math-samples.html               수학 피드백 예시 5장
+  class-180.html                  3시간 수업 구조 정의서 (튜터용)
+  class-landing-prd.html          모집 페이지 설계서 (PRD v1.1)
 
 .env.example                      필요한 환경변수 목록 (실제 값은 Vercel 에)
 vercel.json                       매일 03:00(KST) 크론 설정
@@ -143,11 +164,16 @@ vercel.json                       매일 03:00(KST) 크론 설정
 | 완료 화면 문구 | `src/app/done/[receiptNo]/page.tsx` |
 | 접수 확인 메일 내용 | `src/lib/worker/mail.ts` |
 | **접수 열기/닫기 · 상한 · 과목별 차단** | 코드 아님 — Supabase `app_settings` 한 줄 |
+| 모집 페이지 문구 (수업 구조 · 대상 학생) | `src/app/class/page.tsx` |
+| 수강료 기본값 · 보유기간 · 180분 구성 | `src/config/class.ts` |
+| **개설 클래스 (시간 · 튜터 · 학력 · 수강료 · 정원 · 상태)** | 코드 아님 — `/admin` 에서 고친다 |
 
 ## 운영자용 화면
 
 - `/setup` — 무엇이 준비됐고 무엇이 빠졌는지 ✓/✗ 로 보여준다. 배포 후 여기부터 열어볼 것.
   SQL 을 안 돌렸으면 그 항목이 빨갛게 뜨고 어떤 파일을 실행해야 하는지 알려준다.
+- `/admin` — 개설 클래스와 신청자. 반 이름·시간·튜터·학력·증빙·수강료·정원·상태를 여기서 고친다.
+  **배포 없이 즉시 반영**된다. `ADMIN_PASSWORD` 환경변수 하나로 잠기고, 같은 잠금이 `/setup` 에도 걸린다.
 - Supabase Table Editor > `app_settings` 한 줄 — 접수 on/off, 상한, 과목별 off, 마감 문구. **배포 없이 즉시 반영**된다.
 
 ## 정해진 값 / 남은 미결
@@ -183,6 +209,32 @@ vercel.json                       매일 03:00(KST) 크론 설정
 통합과학·통합사회 50) `subjects.ts` 에 두고 화면 안내와 서버 검사가 같은 값을 본다.
 
 운영 쪽 미결: Q8(접수 확인 메일 발송 주체·발신 주소), Q9(Notion DB 를 팀 워크스페이스에 둘지 분리할지).
+
+## 모집 페이지 (/class)
+
+9모 시험지 피드백을 받은 학생에게 유료 수업을 알리는 화면이다. 설계는
+`docs/class-landing-prd.html`, 수업 자체의 정의는 `docs/class-180.html` 에 있다.
+
+페이지는 세 덩어리다. **수업 구조**(180분을 80:10:90 으로 쓰는 자와 실제 관찰 기록 네 줄) →
+**받는 학생 / 받지 않는 학생** → **지금 열려 있는 반**. 앞의 둘은 코드에 박아 두고,
+마지막 하나만 DB 에서 읽는다. 바뀌지 않는 것을 편집 가능하게 만드는 것이 관리 비용이다.
+
+- **읽기** — `/class` 는 서버 컴포넌트가 `supabaseAdmin()` 으로 읽어 그린다(`force-dynamic`).
+  `classes` 에는 익명 정책을 만들지 않았다. 브라우저는 Supabase 에 직접 붙지 않는다.
+- **신청** — 학생이 채우는 칸은 넷뿐이다: 이름 · 9모 접수번호 · 학부모 연락처 · 동의.
+  학년·이메일·그때 적은 고민은 접수번호로 조회한다. 번호가 틀려도 신청은 받고,
+  관리자 목록에 `대조 실패` 로만 표시한다 — 번호 하나 때문에 신청을 놓치는 쪽이 더 나쁘다.
+- **정원** — 화면과 `create_class_application()` 안에서 두 번 막는다. 화면에서만 막으면
+  마지막 자리를 동시에 누른 두 명이 둘 다 통과한다(하루 상한에서 겪은 문제와 같다).
+- **결제** — 페이지에 계좌를 올리지 않는다. 신청이 들어오면 팀에게 알림 메일이 가고,
+  남겨 준 학부모 번호로 사람이 카카오톡을 보낸다.
+- **증빙** — 튜터 성적 증빙은 비공개 버킷 `tutor-proof` 에 넣고 볼 때마다 서명 URL 을 새로 만든다.
+  버킷을 공개로 열지 않는 이유는 주소가 한 번 새면 계속 열려 있기 때문이다.
+  **올리기 전에 이름·수험번호를 가릴 것.**
+- **보관** — 신청 정보는 90일 뒤 크론이 행 자체를 지운다(사진처럼 파일만 지우는 게 아니다).
+
+시험지 사진은 접수일 + 30일에 지워진다. 학생이 적어 준 접수번호로 튜터가 그 시험지를 다시
+펴 보려면 그 전에 신청이 들어와야 한다 — 모집 메일을 미룰수록 연결 고리가 한 명씩 사라진다.
 
 ## 시트를 빼기로 한 이유 (BE-4 제외)
 
