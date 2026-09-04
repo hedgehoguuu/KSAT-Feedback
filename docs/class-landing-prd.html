@@ -227,7 +227,7 @@
 <div class="wrap">
 
   <header class="top">
-    <div class="kicker">PRD · v1.1 확정</div>
+    <div class="kicker">PRD · v1.2 · 구현 완료</div>
     <h1>관찰반 모집 설계서</h1>
     <p class="dek">
       9모 시험지 피드백을 받은 학생에게 유료 수업을 처음 알리는 페이지. 파는 것은 해설이 아니라
@@ -235,7 +235,7 @@
       지금 열려 있는 반으로 데려가는 것이다.
     </p>
     <div class="meta mono">
-      <span class="now">v1.1 · 확정</span>
+      <span class="now">v1.2 · 구현 완료</span>
       <span>대상 화면 /class</span>
       <span>선행 문서 class-180.html</span>
       <span>모수 9모 국어 신청자 20명</span>
@@ -783,16 +783,38 @@ WORKER_SECRET / CRON_SECRET
 
   <!-- ============================================ 9 -->
   <section>
-    <div class="num">09 — 순서</div>
+    <div class="num">09 — 배포</div>
+    <h2>다 만들었다. 켜는 순서만 남았다</h2>
+    <p class="lede">
+      M1~M4 가 저장소에 들어가 있다. 남은 것은 SQL 한 번, 환경변수 하나, 그리고 반 하나 만들기다.
+    </p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>순서</th><th>할 일</th><th>어디서</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><span class="mono">supabase/migrations/0005_classes.sql</span> 전체를 붙여넣고 Run</td><td>Supabase → SQL Editor</td></tr>
+          <tr><td>2</td><td><span class="mono">ADMIN_PASSWORD</span> 를 아무 긴 문자열로 넣고 다시 배포</td><td>Vercel → Environment Variables</td></tr>
+          <tr><td>3</td><td><span class="mono">/setup</span> 을 열어 ✓ 만 남았는지 확인</td><td>배포된 사이트</td></tr>
+          <tr><td>4</td><td><span class="mono">/admin</span> 에서 첫 반을 만들고 상태를 <b>모집중</b> 으로</td><td>배포된 사이트</td></tr>
+          <tr><td>5</td><td><span class="mono">/class</span> 를 폰으로 열어 확인하고, 20명에게 메일 발송</td><td>§07 의 본문 그대로</td></tr>
+        </tbody>
+      </table>
+    </div>
+
     <div class="slab">
-      <h3>만드는 순서</h3>
-      <p>M1 만으로도 20명에게 메일을 보낼 수 있다. 반이 하나뿐이면 표가 없어도 되고, 표가 없으면 하루가 줄어든다.</p>
+      <h3>들어간 것</h3>
       <ul>
-        <li><b>M1 · 반나절</b> — <span class="mono">/class</span> 정적 페이지. 섹션 ①②까지, 클래스는 코드에 박아 둔 한 개. CTA 는 문의 메일. <b>여기까지 하고 메일을 보낸다.</b></li>
-        <li><b>M2 · 하루</b> — <span class="mono">classes</span> 표 + 서버 렌더. 빈 상태 · 마감 상태 포함.</li>
-        <li><b>M3 · 하루</b> — <span class="mono">/admin</span> 잠금과 편집 폼, 증빙 업로드. <span class="mono">/setup</span> 도 같이 잠근다.</li>
-        <li><b>M4 · 하루</b> — 신청 폼 · 알림 메일 · 신청자 목록 · 입금 표시 · 90일 삭제.</li>
+        <li><b>/class</b> — 수업 구조 · 대상 학생 · 개설 클래스. 앞의 둘은 코드, 마지막 하나만 DB.</li>
+        <li><b>/class/[반]/apply</b> — 네 칸짜리 신청 폼과 완료 화면. 계좌 대신 카카오톡 안내.</li>
+        <li><b>/admin</b> — 반 만들기 · 고치기 · 증빙 업로드 · 신청자 상태. <span class="mono">ADMIN_PASSWORD</span> 하나로 잠근다.</li>
+        <li><b>/setup</b> — 같은 잠금 뒤로 옮겼다. 비밀번호를 아직 안 넣었으면 그 사실을 빨갛게 알린다.</li>
+        <li><b>0005_classes.sql</b> — 두 표, 정원 초과를 막는 함수, 비공개 증빙 버킷, 90일 삭제.</li>
       </ul>
+    </div>
+
+    <div class="note">
+      <b>증빙을 올리기 전에.</b> 성적표에는 이름 · 수험번호 · 생년월일이 같이 찍혀 있다.
+      가린 이미지만 올린다. 관리자 화면 업로드 칸 옆에도 같은 문장이 붙어 있다.
     </div>
   </section>
 
@@ -826,7 +848,7 @@ WORKER_SECRET / CRON_SECRET
   </section>
 
   <footer>
-    <p><b>관찰반 모집 설계서 v1.1</b> · 팀과외팀 Uni-T · 국어 3인 · 180분 · 4회 498,000원</p>
+    <p><b>관찰반 모집 설계서 v1.2</b> · 팀과외팀 Uni-T · 국어 3인 · 180분 · 4회 498,000원</p>
     <p>선행 문서 — <span class="mono">docs/class-180.html</span> (수업 구조 정의서) · <span class="mono">README.md</span> (9모 피드백 서비스)</p>
     <p>다음 할 일 — M1 착수. 반 이름과 첫 반 일정이 정해지는 대로 메일 발송.</p>
   </footer>
