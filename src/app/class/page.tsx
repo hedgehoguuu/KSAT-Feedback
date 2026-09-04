@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ClassCard } from '@/components/ClassCard';
 import { Marked } from '@/components/Marked';
 import { Reveal } from '@/components/Reveal';
+import { SelfCheck } from '@/components/SelfCheck';
 import { BRANDING } from '@/config/app';
 import { CLASS } from '@/config/class';
 import { COPY } from '@/config/class-copy';
@@ -10,41 +11,78 @@ import { listClasses, signProofUrls } from '@/lib/classes';
 // 관리자에서 고친 값이 바로 보여야 한다. 캐시하지 않는다.
 export const dynamic = 'force-dynamic';
 
+const H2 = 'text-[22px] font-bold leading-[1.4] tracking-tight';
+
 export default async function ClassLanding() {
   const classes = await listClasses({ onlyOpen: true });
   const proofUrls = await signProofUrls(classes.flatMap((c) => c.proof_paths));
 
   return (
     <main className="flex flex-1 flex-col pb-16">
-      {/* ── 첫 화면 ─────────────────────────────────────────── */}
-      <section className="px-5 pt-16">
+      {/* ── ① 학생이 이미 손에 쥔 것에서 시작한다 ──────────────── */}
+      <section className="px-5 pt-14">
         <Reveal>
           <p className="text-[13px] font-bold tracking-tight text-muted">{COPY.eyebrow}</p>
         </Reveal>
+
         <Reveal delay={90}>
-          <h1 className="mt-4 text-[32px] font-bold leading-[1.3] tracking-tight">
+          <div className="mt-5 rounded-2xl border border-line p-5">
+            <p className="text-[12px] font-bold text-muted">{COPY.docTitle}</p>
+            <ul className="mt-3 flex flex-col gap-2.5">
+              {COPY.docLines.map((line) => (
+                <li key={line} className="flex items-center gap-2.5 text-[14px] font-bold">
+                  <span className="text-[9px] text-mark">■</span>
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Reveal>
+
+        <Reveal delay={180}>
+          <h1 className="mt-8 text-[32px] font-bold leading-[1.3] tracking-tight">
             <Marked text={COPY.hero} />
           </h1>
         </Reveal>
-        <Reveal delay={180}>
+
+        <Reveal delay={250}>
           <p className="mt-5 text-[16px] leading-[1.75] text-muted">
             <Marked text={COPY.heroBody} />
           </p>
         </Reveal>
-        <Reveal delay={270}>
+
+        <Reveal delay={320}>
           <Link
-            href="#classes"
+            href="#check"
             className="mt-8 flex min-h-13 items-center justify-center rounded-2xl bg-brand text-[16px] font-bold text-white active:bg-brand-pressed"
           >
             {COPY.heroCta}
           </Link>
+          <Link
+            href="#classes"
+            className="mt-3 flex min-h-11 items-center justify-center text-[14px] font-semibold text-muted underline underline-offset-4"
+          >
+            {COPY.heroCtaSecond}
+          </Link>
         </Reveal>
       </section>
 
-      {/* ── 180분 구조 ──────────────────────────────────────── */}
-      <section className="mt-20 px-5">
+      {/* ── ② 자가진단 ─────────────────────────────────────────── */}
+      <section id="check" className="mt-20 scroll-mt-4 bg-surface px-5 py-12">
         <Reveal>
-          <h2 className="text-[22px] font-bold leading-[1.4] tracking-tight">{COPY.structureTitle}</h2>
+          <h2 className={H2}>{COPY.checkTitle}</h2>
+          <p className="mt-3 text-[15px] leading-[1.7] text-muted">{COPY.checkLead}</p>
+        </Reveal>
+        <Reveal delay={80}>
+          <SelfCheck />
+        </Reveal>
+      </section>
+
+      {/* ── ③ 180분 ────────────────────────────────────────────── */}
+      <section className="mt-16 px-5">
+        <Reveal>
+          <h2 className={H2}>{COPY.structureTitle}</h2>
+          <p className="mt-3 text-[15px] leading-[1.7] text-muted">{COPY.structureLead}</p>
         </Reveal>
 
         <Reveal delay={80}>
@@ -58,7 +96,6 @@ export default async function ClassLanding() {
               90분
             </div>
           </div>
-
           <ul className="mt-5 flex flex-col gap-2.5">
             {COPY.blocks.map((b) => (
               <li key={b.label} className="flex gap-3 text-[14px] leading-[1.6]">
@@ -71,15 +108,10 @@ export default async function ClassLanding() {
             ))}
           </ul>
         </Reveal>
-      </section>
 
-      {/* ── 무엇을 적나 ─────────────────────────────────────── */}
-      <section className="mt-16 px-5">
-        <Reveal>
-          <h2 className="text-[22px] font-bold leading-[1.4] tracking-tight">{COPY.observeTitle}</h2>
-        </Reveal>
-        <Reveal delay={80}>
-          <ul className="mt-5 flex flex-col gap-px overflow-hidden rounded-2xl bg-line">
+        <Reveal delay={140}>
+          <h3 className="mt-11 text-[16px] font-bold">{COPY.observeTitle}</h3>
+          <ul className="mt-4 flex flex-col gap-px overflow-hidden rounded-2xl bg-line">
             {COPY.observed.map((row) => (
               <li key={row.part} className="bg-background px-4 py-3.5">
                 <div className="flex items-baseline justify-between gap-2">
@@ -95,15 +127,10 @@ export default async function ClassLanding() {
           </ul>
           <p className="mt-3 text-[13px] leading-[1.6] text-muted">{COPY.observeNote}</p>
         </Reveal>
-      </section>
 
-      {/* ── 90분 ────────────────────────────────────────────── */}
-      <section className="mt-16 px-5">
-        <Reveal>
-          <h2 className="text-[22px] font-bold leading-[1.4] tracking-tight">{COPY.agendaTitle}</h2>
-        </Reveal>
-        <Reveal delay={80}>
-          <ul className="mt-5 flex flex-col gap-3">
+        <Reveal delay={200}>
+          <h3 className="mt-11 text-[16px] font-bold">{COPY.agendaTitle}</h3>
+          <ul className="mt-4 flex flex-col gap-3">
             {COPY.agenda.map((row) => (
               <li key={row.at} className="flex items-baseline gap-3">
                 <span className="w-11 shrink-0 text-[12px] font-bold tabular-nums text-muted">{row.at}</span>
@@ -115,29 +142,42 @@ export default async function ClassLanding() {
         </Reveal>
       </section>
 
-      {/* ── 받아가는 것 ─────────────────────────────────────── */}
+      {/* ── ④ 들고 가는 것 ─────────────────────────────────────── */}
       <section className="mt-16 bg-surface px-5 py-12">
         <Reveal>
-          <h2 className="text-[22px] font-bold leading-[1.4] tracking-tight">{COPY.takeawayTitle}</h2>
+          <h2 className={H2}>{COPY.takeawayTitle}</h2>
         </Reveal>
         <Reveal delay={80}>
           <ul className="mt-5 flex flex-col gap-2">
             {COPY.takeaway.map((t) => (
-              <li key={t} className="rounded-xl bg-background px-4 py-4 text-[15px] font-bold">
-                <Marked text={t} />
+              <li key={t.title} className="rounded-xl bg-background px-4 py-4">
+                <p className="text-[15px] font-bold">
+                  <Marked text={t.title} />
+                </p>
+                <p className="mt-1 text-[13px] leading-[1.6] text-muted">{t.detail}</p>
               </li>
             ))}
           </ul>
           <p className="mt-4 text-[13px] leading-[1.7] text-muted">{COPY.takeawayNote}</p>
         </Reveal>
+
+        <Reveal delay={140}>
+          <div className="mt-8 border-t border-line pt-7">
+            <p className="text-[16px] font-bold">{COPY.outcomeTitle}</p>
+            <p className="mt-2.5 text-[15px] leading-[1.75]">
+              <Marked text={COPY.outcomeBody} />
+            </p>
+          </div>
+        </Reveal>
       </section>
 
-      {/* ── 대상 ────────────────────────────────────────────── */}
+      {/* ── ⑤ 대상 ─────────────────────────────────────────────── */}
       <section className="mt-16 px-5">
         <Reveal>
-          <h2 className="text-[22px] font-bold leading-[1.4] tracking-tight">
+          <h2 className={H2}>
             <Marked text={COPY.audienceTitle} />
           </h2>
+          <p className="mt-3 text-[15px] leading-[1.7] text-muted">{COPY.audienceLead}</p>
         </Reveal>
 
         <Reveal delay={80}>
@@ -175,10 +215,33 @@ export default async function ClassLanding() {
         </Reveal>
       </section>
 
-      {/* ── 개설 클래스 ─────────────────────────────────────── */}
+      {/* ── ⑥ 자주 묻는 것 ─────────────────────────────────────── */}
+      <section className="mt-16 px-5">
+        <Reveal>
+          <h2 className={H2}>{COPY.faqTitle}</h2>
+        </Reveal>
+        <Reveal delay={80}>
+          <div className="mt-4 border-t border-line">
+            {COPY.faq.map((item) => (
+              <details key={item.q} className="group border-b border-line py-4">
+                <summary className="flex cursor-pointer list-none items-start justify-between gap-3 text-[15px] font-bold leading-[1.55]">
+                  {item.q}
+                  <span className="mt-0.5 shrink-0 text-[18px] font-normal text-muted transition-transform group-open:rotate-45">
+                    +
+                  </span>
+                </summary>
+                <p className="mt-3 text-[14px] leading-[1.75] text-muted">{item.a}</p>
+              </details>
+            ))}
+          </div>
+        </Reveal>
+      </section>
+
+      {/* ── ⑦ 개설 클래스 ──────────────────────────────────────── */}
       <section id="classes" className="mt-16 scroll-mt-4 px-5">
         <Reveal>
-          <h2 className="text-[22px] font-bold leading-[1.4] tracking-tight">{COPY.classesTitle}</h2>
+          <h2 className={H2}>{COPY.classesTitle}</h2>
+          <p className="mt-3 text-[15px] leading-[1.7] text-muted">{COPY.classesLead}</p>
         </Reveal>
 
         {classes.length === 0 ? (

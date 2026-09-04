@@ -115,7 +115,11 @@ export function ApplyForm({ slug, title, summary, priceLine }: Props) {
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              onBlur={() => setTouched((t) => ({ ...t, phone: true }))}
+              onBlur={() => {
+                setTouched((t) => ({ ...t, phone: true }));
+                // 숫자만 적어도 보기 좋게 맞춰 준다. 서버도 같은 함수로 다시 맞춘다.
+                setPhone((v) => normalizePhone(v));
+              }}
               maxLength={13}
               inputMode="tel"
               autoComplete="tel"

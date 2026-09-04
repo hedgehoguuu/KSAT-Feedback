@@ -43,8 +43,12 @@ export const BRANDING = {
 
 /** 화면에 넣고 뺄 수 있는 것들. */
 export const FEATURES = {
-  /** 완료 화면의 유료 전환 사전 의향 버튼 (PRD §4 완료 · P1-3). §9 Q7 — 끄기로 확정. */
-  conversionCta: false,
+  /**
+   * 완료 화면에서 국어 관찰반(/class)으로 보내는 자리 (PRD §4 완료 · P1-3).
+   * 처음에는 보낼 곳이 없어 꺼 뒀다. 이제 /class 가 있으므로 켠다 —
+   * 시험지를 막 보낸 학생이 우리 이야기를 가장 잘 들어주는 순간이다.
+   */
+  conversionCta: true,
 } as const;
 
 /**

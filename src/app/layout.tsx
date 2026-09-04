@@ -4,6 +4,13 @@ import { Analytics } from '@/components/Analytics';
 import { BRANDING } from '@/config/app';
 
 export const metadata: Metadata = {
+  /**
+   * 링크 미리보기(카카오톡·메일)가 이미지 주소를 절대 주소로 읽어야 해서 기준을 잡아 준다.
+   * Vercel 이 넣어 주는 값이라 로컬에서는 없다.
+   */
+  metadataBase: process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? new URL(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`)
+    : undefined,
   title: `9월 모의고사 ${BRANDING.serviceName}`,
   description: '시험지 사진만 보내주면, 어디서 시간이 샜는지 직접 보고 알려드려요.',
 };

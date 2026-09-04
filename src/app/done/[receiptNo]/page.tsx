@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { BRANDING, FEATURES, POLICY } from '@/config/app';
@@ -12,7 +11,6 @@ export default function DonePage() {
   const params = useParams<{ receiptNo: string }>();
   const hydrated = useHydrated();
   const receipt = useApply((s) => s.receipt);
-  const [interested, setInterested] = useState(false);
 
   const receiptNo = decodeURIComponent(params?.receiptNo ?? '');
   // 새로고침해도 접수번호로 이 화면이 유지된다 (FE-7 AC)
@@ -71,22 +69,16 @@ export default function DonePage() {
 
       {FEATURES.conversionCta ? (
         <div className="mt-7 rounded-2xl border border-line p-4">
-          {interested ? (
-            <p className="text-[14px] leading-[1.6] text-muted">
-              회신 메일에서 안내드릴게요. 추가로 받는 정보는 없어요.
-            </p>
-          ) : (
-            <>
-              <p className="text-[15px] font-bold">시험지 말고, 직접 얘기해볼래요?</p>
-              <button
-                type="button"
-                onClick={() => setInterested(true)}
-                className="mt-3 min-h-12 w-full rounded-xl bg-surface text-[15px] font-semibold active:bg-line"
-              >
-                과외도 궁금해요
-              </button>
-            </>
-          )}
+          <p className="text-[15px] font-bold">시험지 말고, 직접 얘기해볼래요?</p>
+          <p className="mt-1 text-[13px] leading-[1.6] text-muted">
+            시험을 치는 80분 동안 옆에서 지켜보는 국어 3인 수업이 있어요.
+          </p>
+          <Link
+            href="/class"
+            className="mt-3 flex min-h-12 items-center justify-center rounded-xl bg-surface text-[15px] font-bold active:bg-line"
+          >
+            어떤 수업인지 보기
+          </Link>
         </div>
       ) : null}
 

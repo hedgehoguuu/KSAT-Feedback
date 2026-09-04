@@ -65,7 +65,8 @@ src/app/                          화면과 API — 폴더 이름이 그대로 �
     page.tsx              109  ★  완료 화면 (접수번호 · 회신 예정일 · 문의 메일)
 
   class/                          모집 페이지 — 9모 피드백 받은 학생에게 유료 수업을 알린다
-    page.tsx                    ★  수업 구조 · 대상 학생 · 개설 클래스 (DB 에서 읽어 그린다)
+    page.tsx                       화면 배치만. 글자는 config/class-copy.ts 에 있다
+    opengraph-image.png            카톡·메일 링크 미리보기 카드 (1200×630)
     [slug]/apply/page.tsx          신청 폼 네 칸
     [slug]/apply/done/page.tsx     완료 — 계좌 대신 "카카오톡 드릴게요"
 
@@ -131,7 +132,10 @@ src/lib/ (모집 페이지)
   admin.ts                        관리자 잠금 — 비밀번호 → HMAC 서명 쿠키
   classes.ts                      개설 클래스 · 신청 읽기/쓰기 · 증빙 서명 URL
   class-mail.ts                   신청 들어오면 팀에게 알림 메일
-src/config/class.ts               수강료 기본값 · 180분 구성 · 접수번호·연락처 형식
+src/config/class.ts               수강료 기본값 · 보유기간 · 접수번호·연락처 형식
+src/config/class-copy.ts        ★ 모집 페이지에 나오는 글자 전부. *별표* 는 빨간 밑줄, \n 은 줄바꿈
+src/components/SelfCheck.tsx      자가진단 세 문항 — 접수 때 물었던 문항을 그대로 쓴다
+src/components/Reveal.tsx         스크롤하면 한 덩어리씩 떠오른다 (html.js 없으면 그냥 보인다)
 
 supabase/migrations/              데이터베이스 설계도 — SQL Editor 에 붙여넣는 것
   0001_init.sql           211     표 · RLS · 비공개 버킷 · 접수번호 발급 함수
@@ -164,7 +168,7 @@ vercel.json                       매일 03:00(KST) 크론 설정
 | 완료 화면 문구 | `src/app/done/[receiptNo]/page.tsx` |
 | 접수 확인 메일 내용 | `src/lib/worker/mail.ts` |
 | **접수 열기/닫기 · 상한 · 과목별 차단** | 코드 아님 — Supabase `app_settings` 한 줄 |
-| 모집 페이지 문구 (수업 구조 · 대상 학생) | `src/app/class/page.tsx` |
+| **모집 페이지 문구 전부** | `src/config/class-copy.ts` — 이 파일 하나만 열면 된다 |
 | 수강료 기본값 · 보유기간 · 180분 구성 | `src/config/class.ts` |
 | **개설 클래스 (시간 · 튜터 · 학력 · 수강료 · 정원 · 상태)** | 코드 아님 — `/admin` 에서 고친다 |
 
@@ -232,6 +236,12 @@ vercel.json                       매일 03:00(KST) 크론 설정
   버킷을 공개로 열지 않는 이유는 주소가 한 번 새면 계속 열려 있기 때문이다.
   **올리기 전에 이름·수험번호를 가릴 것.**
 - **보관** — 신청 정보는 90일 뒤 크론이 행 자체를 지운다(사진처럼 파일만 지우는 게 아니다).
+
+페이지는 학생이 이미 손에 쥔 것에서 시작한다 — 9월에 보낸 피드백 문서의 다섯 소제목을 그대로
+보여주고, "그 문서에 못 쓴 게 하나 있다"로 넘어간다. 이어지는 자가진단 세 문항은
+접수 화면에서 실제로 물었던 문항(`questions.config.ts` 의 k2·k4)을 그대로 쓴다.
+네 결과 중 하나는 **이 수업을 권하지 않는다**고 답한다 — 무엇을 눌러도 필요하다고 말하는
+진단은 아무도 믿지 않기 때문이다.
 
 시험지 사진은 접수일 + 30일에 지워진다. 학생이 적어 준 접수번호로 튜터가 그 시험지를 다시
 펴 보려면 그 전에 신청이 들어와야 한다 — 모집 메일을 미룰수록 연결 고리가 한 명씩 사라진다.

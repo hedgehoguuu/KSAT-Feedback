@@ -8,7 +8,8 @@ export const CLASS = {
   defaultPrice: 498_000,
   defaultSessions: 4,
   defaultCapacity: 3,
-  defaultPriceNote: '4회 총액 · 모의고사 4회분, 스터디룸, 수업 후 피드백 포함',
+  // 카드가 바로 위에서 '4회 총액' 을 이미 말한다. 여기는 무엇이 들어 있는지만 적는다.
+  defaultPriceNote: '모의고사 4회분 · 스터디룸 대관 · 수업 후 주간 피드백 포함',
   /** 신청 개인정보 보유기간. 지나면 사진과 달리 행 자체를 지운다. */
   retentionDays: 90,
 } as const;
