@@ -81,35 +81,22 @@
   }
   .wrap{max-width:960px;margin:0 auto;padding:0 24px 120px}
   .mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+  a{color:var(--brand-deep)}
+  a:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:3px}
 
-  /* ---------- header ---------- */
   .top{padding:72px 0 0}
-  .kicker{
-    font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600;
-    letter-spacing:.16em;text-transform:uppercase;color:var(--brand);
-  }
-  h1{
-    font-size:clamp(34px,6vw,52px);font-weight:900;line-height:1.18;
-    letter-spacing:-.03em;margin:14px 0 0;text-wrap:balance;
-  }
+  .kicker{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--brand)}
+  h1{font-size:clamp(34px,6vw,52px);font-weight:900;line-height:1.18;letter-spacing:-.03em;margin:14px 0 0;text-wrap:balance}
   .dek{margin:16px 0 0;font-size:17px;line-height:1.75;color:var(--ink-2);max-width:38em}
-  .meta{
-    display:flex;flex-wrap:wrap;gap:8px;margin:26px 0 0;
-    font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.04em;color:var(--ink-3);
-  }
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin:26px 0 0;font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.04em;color:var(--ink-3)}
   .meta span{border:1px solid var(--line);border-radius:999px;padding:4px 11px}
-  .meta span.now{border-color:var(--brand);color:var(--brand)}
+  .meta span.now{border-color:var(--ok);color:var(--ok)}
   .rule{height:1px;background:var(--line);margin:40px 0 0;border:0}
 
-  /* ---------- sections ---------- */
   section{padding:56px 0 0}
-  .num{
-    font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600;
-    letter-spacing:.14em;color:var(--ink-3);text-transform:uppercase;
-  }
+  .num{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600;letter-spacing:.14em;color:var(--ink-3);text-transform:uppercase}
   h2{font-size:27px;font-weight:800;letter-spacing:-.02em;line-height:1.35;margin:8px 0 0;text-wrap:balance}
   h3{font-size:18px;font-weight:800;letter-spacing:-.01em;margin:34px 0 0}
-  h4{font-size:14.5px;font-weight:800;margin:22px 0 0;color:var(--ink-2)}
   p{margin:12px 0 0;max-width:40em}
   .lede{font-size:17px;color:var(--ink-2)}
   small{font-size:13.5px;color:var(--ink-3);line-height:1.65}
@@ -119,16 +106,21 @@
   li::before{content:"";position:absolute;left:2px;top:.72em;width:5px;height:5px;border-radius:50%;background:var(--line-2)}
   ol{counter-reset:o}
   ol li{counter-increment:o;padding-left:26px}
-  ol li::before{
-    content:counter(o);background:none;font-family:"IBM Plex Mono",monospace;
-    font-size:11.5px;font-weight:600;color:var(--brand);width:auto;height:auto;top:.05em;left:2px;
-  }
+  ol li::before{content:counter(o);background:none;font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600;color:var(--brand);width:auto;height:auto;top:.05em;left:2px}
   b,strong{color:var(--ink);font-weight:800}
 
-  /* ---------- 180분 자 ---------- */
+  /* 확정값 */
+  .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:24px 0 0}
+  .facts > div{background:var(--ground);padding:15px 17px 17px}
+  .fl{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .fv{font-size:16px;font-weight:800;letter-spacing:-.01em;margin-top:6px;line-height:1.45;font-variant-numeric:tabular-nums}
+  .fn{font-size:12px;color:var(--ink-3);margin-top:5px;line-height:1.55}
+  .fv .adm-mark{color:var(--edit);font-size:13px;font-weight:700}
+
+  /* 180분 자 */
   .ruler{margin:26px 0 0}
   .bars{display:grid;grid-template-columns:80fr 10fr 90fr;gap:3px}
-  .bar{border-radius:6px;padding:14px 12px;min-height:96px;display:flex;flex-direction:column;justify-content:space-between}
+  .bar{border-radius:6px;padding:14px 12px;min-height:98px;display:flex;flex-direction:column;justify-content:space-between}
   .bar .len{font-family:"IBM Plex Mono",monospace;font-size:15px;font-weight:600;letter-spacing:-.01em}
   .bar .what{font-size:12.5px;line-height:1.5;font-weight:500}
   .solve{background:var(--brand);color:#fff}
@@ -139,67 +131,50 @@
   .talk .what{color:var(--ink-2)}
   .ticks{display:grid;grid-template-columns:80fr 10fr 90fr;gap:3px;margin-top:7px;font-size:10.5px;color:var(--ink-3);letter-spacing:.03em}
 
-  /* ---------- 화면 미리보기 ---------- */
-  .frames{
-    display:grid;grid-auto-flow:column;grid-auto-columns:296px;gap:18px;
-    overflow-x:auto;padding:4px 4px 18px;margin:26px 0 0;
-    scrollbar-width:thin;
-  }
-  .frame{
-    border:1px solid var(--line);border-radius:14px;background:var(--ground);
-    overflow:hidden;display:flex;flex-direction:column;
-  }
-  .frame .cap{
-    font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
-    color:var(--ink-3);padding:9px 14px;border-bottom:1px solid var(--line);background:var(--paper);
-  }
-  .screen{padding:20px 16px;font-size:12px;line-height:1.6;display:flex;flex-direction:column;gap:0;flex:1}
+  /* 화면 미리보기 */
+  .frames{display:grid;grid-auto-flow:column;grid-auto-columns:296px;gap:18px;overflow-x:auto;padding:4px 4px 18px;margin:26px 0 0;scrollbar-width:thin}
+  .frame{border:1px solid var(--line);border-radius:14px;background:var(--ground);overflow:hidden;display:flex;flex-direction:column}
+  .frame .cap{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding:9px 14px;border-bottom:1px solid var(--line);background:var(--paper)}
+  .screen{padding:20px 16px;font-size:12px;line-height:1.6;display:flex;flex-direction:column;flex:1}
   .screen .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.12em;color:var(--brand);text-transform:uppercase}
   .screen .hl{font-size:19px;font-weight:900;line-height:1.32;letter-spacing:-.02em;margin-top:8px}
   .screen .sb{color:var(--ink-2);font-size:11.5px;margin-top:9px;line-height:1.62}
   .screen .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:12px}
   .screen .chips span{background:var(--paper);color:var(--ink-2);border-radius:999px;padding:4px 9px;font-size:10px;font-weight:700}
-  .btn{
-    background:var(--brand);color:#fff;border-radius:11px;text-align:center;
-    padding:12px 0;font-size:12.5px;font-weight:800;margin-top:auto;
-  }
+  .btn{background:var(--brand);color:#fff;border-radius:11px;text-align:center;padding:12px 0;font-size:12.5px;font-weight:800;margin-top:auto}
   .btn.ghost{background:var(--paper);color:var(--ink-2);margin-top:7px}
-  .screen .sechead{font-size:14.5px;font-weight:800;letter-spacing:-.01em;margin-top:2px}
+  .screen .sechead{font-size:14.5px;font-weight:800;letter-spacing:-.01em}
   .minibars{display:grid;grid-template-columns:80fr 10fr 90fr;gap:2px;margin-top:12px}
-  .minibars div{height:44px;border-radius:4px;font-family:"IBM Plex Mono",monospace;font-size:9px;display:flex;align-items:flex-end;padding:0 5px 4px;font-weight:600}
+  .minibars div{height:42px;border-radius:4px;font-family:"IBM Plex Mono",monospace;font-size:9px;display:flex;align-items:flex-end;padding:0 5px 4px;font-weight:600}
   .log{margin-top:12px;border-top:1px solid var(--line)}
-  .log div{display:grid;grid-template-columns:38px 1fr;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:10px;line-height:1.45}
-  .log time{font-family:"IBM Plex Mono",monospace;color:var(--ink-3);font-size:9.5px}
+  .log div{display:grid;grid-template-columns:62px 30px 1fr;gap:6px;padding:6px 0;border-bottom:1px solid var(--line);font-size:10px;line-height:1.45;align-items:baseline}
+  .log b{font-size:10px}
+  .log time{font-family:"IBM Plex Mono",monospace;color:var(--ink-3);font-size:9.5px;font-variant-numeric:tabular-nums}
   .log .hit{color:var(--brand-deep);font-weight:700}
   .ccard{border:1px solid var(--line);border-radius:12px;padding:13px;margin-top:11px;background:var(--ground)}
   .ccard .ct{font-size:13px;font-weight:800;letter-spacing:-.01em}
   .ccard .cs{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--ink-3);margin-top:4px}
   .ccard .cw{font-size:10.5px;color:var(--ink-2);margin-top:8px;line-height:1.55}
-  .ccard .cf{display:flex;align-items:baseline;justify-content:space-between;margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}
+  .ccard .proof{display:inline-block;margin-top:7px;font-size:10px;font-weight:700;color:var(--brand-deep);border-bottom:1px solid var(--line-2)}
+  .ccard .cf{display:flex;align-items:baseline;justify-content:space-between;margin-top:10px;padding-top:9px;border-top:1px solid var(--line);gap:8px}
   .ccard .price{font-size:14px;font-weight:900;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-  .ccard .seats{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--ok);font-weight:600}
+  .ccard .price small{display:block;font-size:9.5px;font-weight:600;color:var(--ink-3)}
+  .ccard .seats{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--ok);font-weight:600;white-space:nowrap}
   .ccard .seats.few{color:var(--edit)}
 
-  /* ---------- 표 ---------- */
   .tbl{width:100%;overflow-x:auto;margin:18px 0 0}
   table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:520px}
-  th{
-    text-align:left;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;
-    text-transform:uppercase;color:var(--ink-3);font-weight:600;padding:0 12px 9px 0;border-bottom:1px solid var(--line-2);
-  }
+  th{text-align:left;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600;padding:0 12px 9px 0;border-bottom:1px solid var(--line-2)}
   td{padding:11px 12px 11px 0;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink-2);line-height:1.6}
   td:first-child{color:var(--ink);font-weight:700;white-space:nowrap}
+  td.n{font-variant-numeric:tabular-nums;font-family:"IBM Plex Mono",monospace;font-size:12.5px;white-space:nowrap}
   td.code,th.code{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:-.01em}
   tr:last-child td{border-bottom:0}
-  .tag{
-    display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:9.5px;font-weight:600;
-    letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:4px;white-space:nowrap;
-  }
+  .tag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:4px;white-space:nowrap}
   .tag.adm{background:var(--edit-soft);color:var(--edit);border:1px solid var(--edit-line)}
   .tag.fix{background:var(--paper);color:var(--ink-3);border:1px solid var(--line)}
   .tag.req{background:var(--brand-soft);color:var(--brand-deep);border:1px solid transparent}
 
-  /* ---------- 두 칸 ---------- */
   .two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:22px 0 0}
   .col{border:1px solid var(--line);border-radius:12px;padding:18px 18px 20px;background:var(--ground)}
   .col.yes{border-color:var(--brand);background:var(--brand-soft)}
@@ -208,31 +183,26 @@
   .col li{font-size:13.5px;margin-top:9px}
   .col.yes li::before{background:var(--brand)}
 
-  /* ---------- 강조 블록 ---------- */
   .slab{background:var(--slab);color:var(--slab-ink);border-radius:14px;padding:28px 26px 30px;margin:26px 0 0}
-  .slab .num{color:var(--slab-dim)}
   .slab h3{color:var(--slab-ink);margin-top:0}
   .slab p{color:var(--slab-dim)}
   .slab li{color:var(--slab-dim);border-bottom:1px solid var(--slab-line);padding-bottom:10px}
   .slab li:last-child{border-bottom:0}
   .slab li::before{background:var(--brand)}
   .slab b{color:var(--slab-ink)}
-  .quote{
-    border-left:3px solid var(--brand);padding:4px 0 4px 20px;margin:30px 0 0;
-    font-size:20px;font-weight:800;letter-spacing:-.02em;line-height:1.5;color:var(--ink);max-width:32em;
-  }
-  .note{
-    background:var(--edit-soft);border:1px solid var(--edit-line);border-radius:10px;
-    padding:14px 16px;margin:20px 0 0;font-size:13.5px;line-height:1.65;color:var(--ink-2);
-  }
+  .quote{border-left:3px solid var(--brand);padding:4px 0 4px 20px;margin:30px 0 0;font-size:20px;font-weight:800;letter-spacing:-.02em;line-height:1.5;color:var(--ink);max-width:32em}
+  .note{background:var(--edit-soft);border:1px solid var(--edit-line);border-radius:10px;padding:14px 16px;margin:20px 0 0;font-size:13.5px;line-height:1.65;color:var(--ink-2)}
   .note b{color:var(--edit)}
-  .codeblock{
-    background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:18px 0 0;
-    font-family:"IBM Plex Mono",monospace;font-size:12px;line-height:1.75;color:var(--ink-2);
-    overflow-x:auto;white-space:pre;
-  }
+  .codeblock{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:18px 0 0;font-family:"IBM Plex Mono",monospace;font-size:12px;line-height:1.75;color:var(--ink-2);overflow-x:auto;white-space:pre}
   .codeblock .c{color:var(--ink-3)}
   .codeblock .k{color:var(--brand-deep);font-weight:600}
+
+  /* 메일 */
+  .mail{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:22px 0 0}
+  .mail .mh{background:var(--paper);padding:11px 18px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--ink-2)}
+  .mail .mh b{display:inline-block;min-width:44px;color:var(--ink-3);font-weight:600;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
+  .mail .mb{padding:22px;font-size:14.5px;line-height:1.9;color:var(--ink-2);white-space:pre-wrap}
+  .var{background:var(--edit-soft);color:var(--edit);border:1px solid var(--edit-line);border-radius:4px;padding:1px 6px;font-family:"IBM Plex Mono",monospace;font-size:12px;white-space:nowrap}
 
   footer{margin-top:64px;padding-top:26px;border-top:1px solid var(--line);color:var(--ink-3);font-size:13px}
   footer b{color:var(--ink-2)}
@@ -240,7 +210,7 @@
   @media (max-width:680px){
     .wrap{padding:0 18px 90px}
     .two{grid-template-columns:1fr}
-    .bars,.ticks{grid-template-columns:1fr;}
+    .bars{grid-template-columns:1fr}
     .bar{min-height:auto}
     .ticks{display:none}
   }
@@ -250,7 +220,7 @@
 <div class="wrap">
 
   <header class="top">
-    <div class="kicker">PRD · Draft 0.1</div>
+    <div class="kicker">PRD · v1.0 확정</div>
     <h1>관찰반 모집 설계서</h1>
     <p class="dek">
       9모 시험지 피드백을 받은 학생에게 유료 수업을 처음 알리는 페이지. 파는 것은 해설이 아니라
@@ -258,19 +228,68 @@
       지금 열려 있는 반으로 데려가는 것이다.
     </p>
     <div class="meta mono">
-      <span class="now">초안 · 검토 대기</span>
+      <span class="now">v1.0 · 확정</span>
       <span>대상 화면 /class</span>
       <span>선행 문서 class-180.html</span>
       <span>모수 9모 국어 신청자 20명</span>
+      <span>발송 Gmail 수동</span>
     </div>
     <hr class="rule">
   </header>
 
   <!-- ============================================ 0 -->
   <section>
-    <div class="num">00 — 한 장 요약</div>
-    <h2>세 가지를 순서대로 말하는 한 페이지</h2>
+    <div class="num">00 — 확정</div>
+    <h2>정해진 값</h2>
     <p class="lede">
+      아래가 이 문서를 v1.0 으로 만든 답이다. 노란색 표시는 코드에 박지 않고
+      <span class="mono">/admin</span> 에서 넣는 값이다.
+    </p>
+    <div class="facts">
+      <div>
+        <div class="fl">수강료</div>
+        <div class="fv">498,000원</div>
+        <div class="fn">4회차 총액 · 1회 124,500원<br>모의고사 4회분 · 스터디룸 대관 · 수업 후 피드백 포함</div>
+      </div>
+      <div>
+        <div class="fl">한 회차</div>
+        <div class="fv">180분 · 3인</div>
+        <div class="fn">주 1회 · 국어</div>
+      </div>
+      <div>
+        <div class="fl">장소</div>
+        <div class="fv">대치역 · 한티역 인근</div>
+        <div class="fn">스터디룸. 정확한 위치는 신청 후 안내</div>
+      </div>
+      <div>
+        <div class="fl">시작일 · 회차</div>
+        <div class="fv"><span class="adm-mark">관리자 기입</span></div>
+        <div class="fn">반마다 다르다</div>
+      </div>
+      <div>
+        <div class="fl">반 이름</div>
+        <div class="fv"><span class="adm-mark">관리자 기입</span></div>
+        <div class="fn">‘관찰반’ 은 이 문서 안에서만 쓰는 가제</div>
+      </div>
+      <div>
+        <div class="fl">튜터 정보</div>
+        <div class="fv"><span class="adm-mark">학교 · 평균 백분위 · 증빙</span></div>
+        <div class="fn">증빙 이미지를 관리자가 올린다</div>
+      </div>
+      <div>
+        <div class="fl">주간 학습 피드백</div>
+        <div class="fv">포함</div>
+        <div class="fn">수강료 안에 들어간다. 별도 판매하지 않는다</div>
+      </div>
+      <div>
+        <div class="fl">모집 방법</div>
+        <div class="fv">Gmail 수동 발송</div>
+        <div class="fn">20명에게 개별 발송 · 링크 하나</div>
+      </div>
+    </div>
+
+    <h3>이 페이지가 하는 일</h3>
+    <p>
       학생이 스크롤하는 순서가 곧 설득의 순서다. 무엇을 하는 수업인지 → 누구와 하는 수업인지 →
       지금 어느 반이 열려 있는지. 이 셋 말고는 넣지 않는다.
     </p>
@@ -278,30 +297,26 @@
       <table>
         <thead><tr><th>순서</th><th>학생이 갖는 질문</th><th>페이지가 답하는 방식</th><th>출처</th></tr></thead>
         <tbody>
-          <tr><td>①</td><td>이거 무슨 수업인데?</td><td>180분 자 + 실제 관찰 기록지 4줄</td><td><span class="tag fix">고정</span></td></tr>
+          <tr><td>①</td><td>이거 무슨 수업인데?</td><td>180분 자 + 지문별 시간 기록 네 줄</td><td><span class="tag fix">고정</span></td></tr>
           <tr><td>②</td><td>나한테 맞나?</td><td>받는 학생 / 받지 않는 학생 대조</td><td><span class="tag fix">고정</span></td></tr>
           <tr><td>③</td><td>언제, 얼마, 누구한테?</td><td>개설 클래스 카드</td><td><span class="tag adm">관리자</span></td></tr>
         </tbody>
       </table>
     </div>
-    <p><small>
-      <span class="tag fix">고정</span> 은 배포로만 바뀌는 내용, <span class="tag adm">관리자</span> 는
-      배포 없이 <span class="mono">/admin</span> 에서 바꾸는 값이다. 이 구분이 이 문서 전체에서 같은 색으로 따라다닌다.
-    </small></p>
 
     <h3>성공 기준</h3>
     <ul>
-      <li><b>2주 안에 3인 반 두 개(6명)</b>를 채운다. 20명 중 6명이면 30%다.</li>
-      <li>페이지 도달 → 신청 폼 제출 <b>15% 이상</b>. 도달이 20명뿐이라 비율보다 절대수를 본다.</li>
+      <li><b>2주 안에 3인 반 두 개(6명)</b>. 20명 중 6명이면 30%, 매출 2,988,000원.</li>
+      <li>메일 → 페이지 → 신청 폼 제출 <b>15% 이상</b>. 모수가 20명뿐이라 비율보다 절대수를 본다.</li>
       <li>신청자 중 <b>“관찰이 불편하다”는 이유의 이탈 0명</b>. 걸러내는 것도 이 페이지의 일이다.</li>
     </ul>
 
     <h3>하지 않는 것</h3>
     <ul>
-      <li>온라인 결제 — 계좌이체 안내로 대신한다. 6명 받자고 PG를 붙이지 않는다.</li>
+      <li>온라인 결제 — 계좌이체 안내로 대신한다. 6명 받자고 PG 를 붙이지 않는다.</li>
       <li>학생 로그인·마이페이지 — 신청은 폼 한 번으로 끝난다.</li>
       <li>출결·성적 관리 — 수업 운영 도구는 이 페이지의 범위가 아니다.</li>
-      <li>국어 외 과목 — 수학은 100분이라 180분 구조에 들어가지 않는다(class-180 §Q6).</li>
+      <li>국어 외 과목 — 수학은 100분이라 180분 구조에 들어가지 않는다.</li>
     </ul>
   </section>
 
@@ -310,7 +325,7 @@
     <div class="num">01 — 화면</div>
     <h2>세 개의 화면으로 끝난다</h2>
     <p class="lede">
-      모바일 360px 기준으로 스크롤 다섯 번 안. 카드·그림자·아이콘을 쌓지 않고, 지금 앱이 쓰는 토큰
+      모바일 360px 기준 스크롤 다섯 번 안. 카드·그림자·아이콘을 쌓지 않고, 지금 앱이 쓰는 토큰
       (<span class="mono">--brand #3182f6</span>, Pretendard, <span class="mono">rounded-2xl</span>, 48px 터치 영역)을 그대로 쓴다.
       새 디자인 시스템을 만들지 않는 것이 이 페이지의 디자인 방침이다.
     </p>
@@ -321,7 +336,7 @@
         <div class="screen">
           <div class="eyebrow">국어 · 3인 팀수업 · 180분</div>
           <div class="hl">시험지에는<br>결과만 남습니다</div>
-          <div class="sb">우리는 그 80분을 봅니다. 튜터가 옆에서 시간을 재고, 손이 멈춘 지점을 적고, 그 기록으로 남은 90분을 이야기합니다.</div>
+          <div class="sb">우리는 그 80분을 봅니다. 튜터가 옆에서 지문별 시간을 재고, 오래 걸린 문항을 적고, 그 기록으로 남은 90분을 이야기합니다.</div>
           <div class="chips"><span>정원 3명</span><span>주 1회 180분</span><span>9모 시험지 연계</span></div>
           <div class="btn">열려 있는 반 보기</div>
           <div class="btn ghost">수업이 어떻게 굴러가는지</div>
@@ -337,12 +352,12 @@
             <div style="background:var(--paper-2);color:var(--ink-3)"></div>
             <div style="background:var(--paper);color:var(--ink-2);border:1px solid var(--line)">90′</div>
           </div>
-          <div class="sb" style="margin-top:9px">실전 80분 · 휴식 10분 · 피드백 90분</div>
+          <div class="sb" style="margin-top:9px">실전 모의고사 80분 · 휴식 10분 · 피드백 90분</div>
           <div class="log">
-            <div><time>00:34</time><span class="hit">독서 2지문 8번 — 손 멈춤 40초</span></div>
-            <div><time>00:52</time><span>독서 종료 33분 (계획 30분 대비 +3분)</span></div>
-            <div><time>01:16</time><span class="hit">종료 4분 전 일괄 마킹 시작</span></div>
-            <div><time>01:20</time><span>문학 마지막 4문항 임의 표기</span></div>
+            <div><time>선택(언매)</time><b>18분</b><span>11번에서 3분 체류</span></div>
+            <div><time>독서 1지문</time><b>12분</b><span>밑줄·소거 표시 없음</span></div>
+            <div><time>독서 2지문</time><b class="hit">21분</b><span class="hit">8번 손 멈춤 40초 · 지문 2회 복귀</span></div>
+            <div><time>문학 3지문</time><b>17분</b><span>마지막 4문항 임의 표기</span></div>
           </div>
           <div class="sb" style="margin-top:11px">실제 기록지에서 그대로 가져온 네 줄입니다.</div>
         </div>
@@ -354,22 +369,30 @@
           <div class="sechead">지금 열려 있는 반</div>
           <div class="ccard">
             <div class="ct">국어 실전 관찰반 · 목요일</div>
-            <div class="cs">19:00–22:00 · 10/16 시작 · 4회</div>
-            <div class="cw">2·3등급에서 시간이 모자라 뒷 지문을 버리는 학생. 튜터 — 서현 · 국어 9모 1등급</div>
-            <div class="cf"><span class="price">280,000원</span><span class="seats">3자리 중 2자리</span></div>
+            <div class="cs">19:00–22:00 · 대치역 5분 · 4회</div>
+            <div class="cw">2·3등급에서 시간이 모자라 뒷 지문을 버리는 학생<br>튜터 — 서현 · ○○대 24 · 국어 평균 백분위 97</div>
+            <span class="proof">성적 증빙 보기</span>
+            <div class="cf">
+              <span class="price">498,000원<small>4회 · 1회당 124,500원</small></span>
+              <span class="seats">3자리 중 2자리</span>
+            </div>
           </div>
           <div class="ccard">
             <div class="ct">국어 실전 관찰반 · 일요일</div>
-            <div class="cs">14:00–17:00 · 10/19 시작 · 4회</div>
-            <div class="cw">문학에서 시간이 무너지는 학생. 튜터 — 주현</div>
-            <div class="cf"><span class="price">280,000원</span><span class="seats few">1자리 남음</span></div>
+            <div class="cs">14:00–17:00 · 한티역 3분 · 4회</div>
+            <div class="cw">문학에서 시간이 무너지는 학생<br>튜터 — 주현</div>
+            <div class="cf">
+              <span class="price">498,000원<small>4회 · 1회당 124,500원</small></span>
+              <span class="seats few">1자리 남음</span>
+            </div>
           </div>
           <div class="btn">신청하기</div>
         </div>
       </div>
     </div>
     <p><small>
-      가로로 넘겨 보세요. 숫자·이름·금액은 관리자에서 넣는 값이라 여기 것은 예시입니다.
+      가로로 넘겨 보세요. 반 이름·요일·튜터·학력은 관리자에서 넣는 값이라 여기 것은 <b>예시</b>입니다.
+      수강료 498,000원과 장소만 실제 확정값입니다.
     </small></p>
   </section>
 
@@ -386,22 +409,49 @@
       <div class="bars">
         <div class="bar solve">
           <span class="len">80분</span>
-          <span class="what">실전 풀이 — 학생은 시험을 치고, 튜터는 개입 없이 기록한다</span>
+          <span class="what">실전 모의고사 응시 — 학생은 시험을 치고, 튜터는 개입 없이 기록한다</span>
         </div>
         <div class="bar rest"><span class="len">10분</span><span class="what">휴식</span></div>
         <div class="bar talk">
           <span class="len">90분</span>
-          <span class="what">피드백 — 총평 10 · 시간과 병목 20 · 문항 해설 30 · 실전 개념 20 · 개인 교정 10</span>
+          <span class="what">피드백 — 시험 총평 · 주요 문항 해설 · 학생별 교정 · 전반적 교정</span>
         </div>
       </div>
       <div class="ticks mono"><span>00:00</span><span>01:20</span><span>01:30 → 03:00</span></div>
     </div>
 
-    <h3>이 구간에 들어가는 것</h3>
+    <h3>80분 — 튜터가 하는 일</h3>
+    <p>기록하는 것은 두 가지다. <b>학생별 지문별 풀이 시간</b>과 <b>오래 걸린 문항</b>. 나머지는 이 둘의 부연이다.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>구간</th><th>소요</th><th>계획 대비</th><th>눈에 띈 것</th></tr></thead>
+        <tbody>
+          <tr><td>선택 (언어와 매체)</td><td class="n">18분</td><td class="n">+3</td><td>11번에서 3분 체류, 선지 두 번 왕복</td></tr>
+          <tr><td>독서 1지문</td><td class="n">12분</td><td class="n">—</td><td>지문 통독 후 문항. 밑줄·소거 표시 없음</td></tr>
+          <tr><td>독서 2지문</td><td class="n">21분</td><td class="n">+9</td><td>8번에서 손 멈춤 40초, 지문 위로 두 번 복귀</td></tr>
+          <tr><td>문학 3지문</td><td class="n">17분</td><td class="n">−8</td><td>종료 4분 전 일괄 마킹. 마지막 4문항 임의 표기</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><small>이 표가 페이지에서 가장 설득력 있는 자산이다. 가공하지 않고 실제 기록지에서 그대로 가져온다.</small></p>
+
+    <h3>90분 — 네 덩어리</h3>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>시각</th><th>길이</th><th>무엇을</th></tr></thead>
+        <tbody>
+          <tr><td class="n">01:30</td><td class="n">10분</td><td>시험 총평 — 세 명의 점수와 시간 배분을 한 화면에 올려놓고 시작한다</td></tr>
+          <tr><td class="n">01:40</td><td class="n">30분</td><td>주요 문항 해설 — 세 명 중 둘 이상이 틀린 문항만. 전 문항 해설은 하지 않는다</td></tr>
+          <tr><td class="n">02:10</td><td class="n">30분</td><td>학생별 교정 — 한 명당 10분. 위 기록 표를 펴 놓고 자기 것만 본다</td></tr>
+          <tr><td class="n">02:40</td><td class="n">20분</td><td>전반적 교정 — 세 명의 공통 병목과, 그것을 넘는 데 필요한 실전 개념</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>이 구간에 더 들어가는 것</h3>
     <ol>
-      <li><b>180분 자</b> — 위 그림 그대로. 80:10:90 비율을 눈금으로 지킨다.</li>
-      <li><b>관찰 기록지 네 줄</b> — 실제 수업에서 나온 문장. 이 페이지에서 가장 설득력 있는 자산이므로 가공하지 않는다.</li>
-      <li><b>받아가는 것 세 가지</b> — 빨간펜 필기본 · 시간 기록표 · 다음 회차까지 고칠 행동 한 줄.</li>
+      <li><b>받아가는 것 세 가지</b> — 빨간펜 필기본 · 지문별 시간 기록표 · 다음 회차까지 고칠 행동 한 줄.</li>
+      <li><b>주간 학습 피드백</b> — 수업이 끝난 뒤에도 한 주 동안 이어진다는 것. 수강료에 포함이라고 명시한다.</li>
       <li><b>9모 연결 한 줄</b> — “보내주신 9월 시험지에서 본 것을, 이번엔 시험 중에 봅니다.”
         이 페이지를 받는 20명은 이미 우리 피드백을 읽은 사람들이다.</li>
     </ol>
@@ -435,7 +485,7 @@
         <div class="ch">이런 학생은 다른 곳이 낫습니다</div>
         <ul>
           <li>개념이 아직 안 잡힌 학생 — 80분을 채우지 못하면 관찰할 것이 없습니다</li>
-          <li>해설만 빠르게 듣고 싶은 학생 — 해설은 90분 중 30분뿐입니다</li>
+          <li>전 문항 해설을 원하는 학생 — 해설은 90분 중 30분뿐입니다</li>
           <li>옆에서 지켜보는 것이 불편한 학생</li>
         </ul>
       </div>
@@ -450,59 +500,77 @@
     <div class="num">04 — 섹션 ③ · 데이터</div>
     <h2>현재 개설되어 있는 클래스</h2>
     <p class="lede">
-      가격·정원·요일·튜터는 아직 정해지지 않았고, 정해진 뒤에도 계속 바뀐다. 그래서 이 구간만
-      DB에서 읽고 <span class="mono">/admin</span> 에서 고친다. 나머지 페이지는 코드에 박아 둔다 —
+      반 이름·요일·시작일·회차·튜터는 반마다 다르고 계속 바뀐다. 그래서 이 구간만 DB 에서 읽고
+      <span class="mono">/admin</span> 에서 고친다. 나머지 페이지는 코드에 박아 둔다 —
       바뀌지 않는 것을 편집 가능하게 만드는 것이 관리 비용이다.
     </p>
 
     <h3>클래스 카드 한 장이 담는 것</h3>
     <div class="tbl">
       <table>
-        <thead><tr><th>보이는 이름</th><th class="code">컬럼</th><th>예시</th><th>출처</th></tr></thead>
+        <thead><tr><th>보이는 이름</th><th class="code">컬럼</th><th>값</th><th>출처</th></tr></thead>
         <tbody>
-          <tr><td>반 이름</td><td class="code">title</td><td>국어 실전 관찰반 · 목요일</td><td><span class="tag adm">관리자</span></td></tr>
-          <tr><td>시간</td><td class="code">schedule_text</td><td>매주 목요일 19:00–22:00</td><td><span class="tag adm">관리자</span></td></tr>
-          <tr><td>시작일 · 회차</td><td class="code">starts_on, sessions</td><td>10월 16일 시작 · 4회</td><td><span class="tag adm">관리자</span></td></tr>
-          <tr><td>튜터</td><td class="code">tutor_name</td><td>서현</td><td><span class="tag adm">관리자</span></td></tr>
-          <tr><td>튜터 학력</td><td class="code">tutor_credential</td><td>연세대 24학번 · 국어 9모 1등급</td><td><span class="tag adm">관리자</span></td></tr>
-          <tr><td>권장 수강 대상</td><td class="code">recommend</td><td>2·3등급에서 시간이 모자라 뒷 지문을 버리는 학생</td><td><span class="tag adm">관리자</span></td></tr>
-          <tr><td>수업 상세 설명</td><td class="code">detail</td><td>줄바꿈 있는 짧은 글 (카드 펼침에서 보임)</td><td><span class="tag adm">관리자</span></td></tr>
-          <tr><td>수강료</td><td class="code">price, price_note</td><td>280,000원 · 4회 총액, 교재비 포함</td><td><span class="tag adm">관리자</span></td></tr>
+          <tr><td>반 이름</td><td class="code">title</td><td>예) 국어 실전 관찰반 · 목요일</td><td><span class="tag adm">관리자</span></td></tr>
+          <tr><td>시간</td><td class="code">schedule_text</td><td>예) 매주 목요일 19:00–22:00</td><td><span class="tag adm">관리자</span></td></tr>
+          <tr><td>시작일 · 회차</td><td class="code">starts_on, sessions</td><td>예) 10월 16일 시작 · 4회</td><td><span class="tag adm">관리자</span></td></tr>
+          <tr><td>튜터 이름</td><td class="code">tutor_name</td><td>예) 서현</td><td><span class="tag adm">관리자</span></td></tr>
+          <tr><td>튜터 학교</td><td class="code">tutor_school</td><td>학교 · 학번</td><td><span class="tag adm">관리자</span></td></tr>
+          <tr><td>평균 백분위</td><td class="code">tutor_percentile</td><td>국어 기준 숫자 한 개</td><td><span class="tag adm">관리자</span></td></tr>
+          <tr><td>증빙 자료</td><td class="code">proof_paths[]</td><td>성적표 이미지. 카드에서 펼쳐 본다</td><td><span class="tag adm">관리자 업로드</span></td></tr>
+          <tr><td>권장 수강 대상</td><td class="code">recommend</td><td>한 줄. 예) 시간이 모자라 뒷 지문을 버리는 학생</td><td><span class="tag adm">관리자</span></td></tr>
+          <tr><td>수업 상세 설명</td><td class="code">detail</td><td>줄바꿈 있는 짧은 글. 카드 펼침에서 보인다</td><td><span class="tag adm">관리자</span></td></tr>
+          <tr><td>수강료</td><td class="code">price</td><td>498,000 <span class="tag fix">기본값</span></td><td><span class="tag adm">관리자</span></td></tr>
+          <tr><td>수강료 설명</td><td class="code">price_note</td><td>4회 총액 · 모의고사 4회분, 스터디룸, 수업 후 피드백 포함</td><td><span class="tag fix">고정</span></td></tr>
           <tr><td>모집 인원</td><td class="code">capacity</td><td>3</td><td><span class="tag adm">관리자</span></td></tr>
           <tr><td>남은 자리</td><td class="code">capacity − 신청 수</td><td>3자리 중 2자리</td><td><span class="tag req">자동</span></td></tr>
-          <tr><td>장소</td><td class="code">location</td><td>강남 스터디룸 (신청 후 안내)</td><td><span class="tag adm">관리자</span></td></tr>
+          <tr><td>장소</td><td class="code">location</td><td>대치역·한티역 중 어디인지 + 도보 분</td><td><span class="tag adm">관리자</span></td></tr>
           <tr><td>노출 상태</td><td class="code">status</td><td>초안 / 모집중 / 마감</td><td><span class="tag adm">관리자</span></td></tr>
           <tr><td>정렬</td><td class="code">sort_order</td><td>작은 값이 위로</td><td><span class="tag adm">관리자</span></td></tr>
         </tbody>
       </table>
     </div>
+    <p><small>
+      수강료는 지금 모든 반이 498,000원이지만 컬럼으로 둔다. 반마다 회차가 다르게 열릴 수 있고,
+      그때 코드를 고치러 오는 것이 관리자 페이지를 만드는 이유를 무너뜨린다.
+      1회당 금액(<span class="mono">price ÷ sessions</span>)은 화면에서 계산해 같이 보여준다.
+    </small></p>
 
     <h3>표 하나를 더한다</h3>
     <div class="codeblock"><span class="c">-- supabase/migrations/0005_classes.sql</span>
 create table if not exists <span class="k">classes</span> (
   id               uuid primary key default gen_random_uuid(),
-  slug             text unique not null,        <span class="c">-- korean-thu-19</span>
+  slug             text unique not null,          <span class="c">-- korean-thu-19</span>
   subject_code     text not null default 'korean',
   title            text not null,
-  tutor_name       text not null,
-  tutor_credential text,
   schedule_text    text not null,
   starts_on        date,
-  sessions         int,
-  location         text,
-  capacity         int  not null default 3,
-  price            int  not null,               <span class="c">-- 원, 총액</span>
-  price_note       text,
+  sessions         int  not null default 4,
+  location         text not null,
+  tutor_name       text not null,
+  tutor_school     text,
+  tutor_percentile numeric(4,1),
+  proof_paths      text[] not null default '{}',  <span class="c">-- tutor-proof 버킷 경로</span>
   recommend        text,
   detail           text,
-  status           text not null default 'draft',   <span class="c">-- draft|open|closed</span>
+  capacity         int  not null default 3,
+  price            int  not null default 498000,
+  price_note       text not null default '4회 총액 · 모의고사 4회분, 스터디룸, 수업 후 피드백 포함',
+  status           text not null default 'draft', <span class="c">-- draft|open|closed</span>
   sort_order       int  not null default 0,
   updated_at       timestamptz not null default now()
 );
 
 <span class="c">-- 익명 정책을 만들지 않는다 = 브라우저에서 직접 못 읽는다.
--- 페이지는 서버 컴포넌트가 service_role 로 읽어서 그린다 (app_settings·exam-papers 와 같은 방침).</span>
+-- 페이지는 서버 컴포넌트가 service_role 로 읽어서 그린다
+-- (app_settings · exam-papers 와 같은 방침).</span>
 alter table classes enable row level security;</div>
+
+    <h3>증빙 자료</h3>
+    <ul>
+      <li>새 비공개 버킷 <span class="mono">tutor-proof</span>. 기존 <span class="mono">exam-papers</span> 와 섞지 않는다 — 보관 규칙이 다르다(학생 사진은 30일 뒤 삭제, 증빙은 남는다).</li>
+      <li>페이지는 서버에서 <b>짧은 유효기간의 서명 URL</b> 을 만들어 <span class="mono">&lt;img&gt;</span> 에 넣는다. 공개 버킷으로 열지 않는다 — 주소가 한 번 새면 계속 열려 있다.</li>
+      <li><b>올리기 전에 가린다.</b> 성적표에는 이름·수험번호·생년월일이 같이 찍혀 있다. 관리자 화면 업로드 칸 옆에 이 문장을 띄우고, 가린 이미지만 올린다.</li>
+    </ul>
 
     <div class="note">
       <b>기존 규칙 그대로.</b> <span class="mono">SUPABASE_SERVICE_ROLE_KEY</span> 는 서버에서만 쓰고
@@ -524,17 +592,16 @@ alter table classes enable row level security;</div>
     <div class="num">05 — 관리자</div>
     <h2>배포 없이 고치는 화면</h2>
     <p class="lede">
-      지금 <span class="mono">/setup</span> 이 하는 일(설치 점검)에 <b>편집</b>이 더해진다.
-      화면 두 개면 충분하다.
+      지금 <span class="mono">/setup</span> 이 하는 일(설치 점검)에 <b>편집</b>이 더해진다. 화면 네 개면 충분하다.
     </p>
 
     <div class="tbl">
       <table>
         <thead><tr><th class="code">경로</th><th>하는 일</th><th>비고</th></tr></thead>
         <tbody>
-          <tr><td class="code">/admin</td><td>클래스 목록 — 상태·정렬·신청 수를 한 줄씩</td><td>새 반 만들기, 복제</td></tr>
-          <tr><td class="code">/admin/class/[slug]</td><td>위 표의 필드를 그대로 담은 편집 폼</td><td>저장 즉시 /class 반영</td></tr>
-          <tr><td class="code">/admin/applications</td><td>신청자 목록 — 이름·연락처·희망 반·신청 시각</td><td>표 복사(CSV)</td></tr>
+          <tr><td class="code">/admin</td><td>클래스 목록 — 상태 · 정렬 · 신청 수를 한 줄씩</td><td>새 반 만들기, 복제</td></tr>
+          <tr><td class="code">/admin/class/[slug]</td><td>위 표의 필드를 담은 편집 폼 + 증빙 업로드</td><td>저장 즉시 /class 반영</td></tr>
+          <tr><td class="code">/admin/applications</td><td>신청자 목록 — 이름 · 연락처 · 희망 반 · 입금 여부</td><td>표 복사(CSV)</td></tr>
           <tr><td class="code">/admin/login</td><td>비밀번호 한 칸</td><td>아래 참조</td></tr>
         </tbody>
       </table>
@@ -543,89 +610,158 @@ alter table classes enable row level security;</div>
     <h3>잠금</h3>
     <ul>
       <li>환경변수 <span class="mono">ADMIN_PASSWORD</span> 하나. 맞으면 httpOnly · Secure · SameSite=Lax 쿠키를 굽고, 만료는 7일.</li>
-      <li><span class="mono">/admin</span> 아래 <b>모든 경로와 쓰기 API</b>를 같은 검사로 막는다. 화면만 막고 API가 열려 있으면 잠근 것이 아니다.</li>
+      <li><span class="mono">/admin</span> 아래 <b>모든 경로와 쓰기 API</b> 를 같은 검사로 막는다. 화면만 막고 API 가 열려 있으면 잠근 것이 아니다.</li>
       <li>쓰기는 전부 서버에서 <span class="mono">supabaseAdmin()</span> 으로. 브라우저는 Supabase 를 직접 만지지 않는다.</li>
-      <li><b>같이 처리한다</b> — 지금 <span class="mono">/setup</span> 은 아무나 열 수 있고 접수 건수·환경변수 상태가 보인다. 같은 잠금 뒤로 옮긴다.</li>
+      <li><b>같이 처리한다</b> — 지금 <span class="mono">/setup</span> 은 아무나 열 수 있고 접수 건수와 환경변수 상태가 보인다. 같은 잠금 뒤로 옮긴다.</li>
     </ul>
 
     <div class="note">
       <b>구현 전에 확인.</b> 이 저장소는 Next 16 이고 훈련 데이터의 Next 와 다르다(AGENTS.md).
-      미들웨어·쿠키·서버 액션 API 는 <span class="mono">node_modules/next/dist/docs/</span> 를 읽고 쓴다.
-      이 문서는 “무엇을 막는가”까지만 정하고 호출 형태는 정하지 않는다.
+      미들웨어 · 쿠키 · 서버 액션의 호출 형태는 <span class="mono">node_modules/next/dist/docs/</span> 를 읽고 쓴다.
+      이 문서는 “무엇을 막는가”까지만 정한다.
     </div>
   </section>
 
   <!-- ============================================ 6 -->
   <section>
     <div class="num">06 — 신청</div>
-    <h2>신청은 한 화면에서 끝난다</h2>
+    <h2>신청은 한 화면, 결제는 사람이</h2>
     <p class="lede">
-      카드의 신청 버튼 → 그 반이 선택된 채로 열리는 폼 → 완료 화면. 9모 접수와 같은 리듬(2분)으로 만든다.
+      카드의 신청 버튼 → 그 반이 선택된 채로 열리는 폼 → 완료 화면에서 계좌 안내. 9모 접수와 같은 리듬(2분)으로 만든다.
     </p>
     <div class="tbl">
       <table>
         <thead><tr><th>칸</th><th>필수</th><th>이유</th></tr></thead>
         <tbody>
           <tr><td>희망 반</td><td><span class="tag req">필수</span></td><td>카드에서 눌러 온 값이 채워져 있다</td></tr>
-          <tr><td>학생 이름</td><td><span class="tag req">필수</span></td><td>반 편성</td></tr>
-          <tr><td>학년</td><td><span class="tag req">필수</span></td><td>고1·2·3 · N수</td></tr>
+          <tr><td>학생 이름</td><td><span class="tag req">필수</span></td><td>반 편성 · 입금자명 대조</td></tr>
+          <tr><td>학년</td><td><span class="tag req">필수</span></td><td>고1 · 2 · 3 · N수</td></tr>
           <tr><td>연락처</td><td><span class="tag req">필수</span></td><td>자리 확정 연락. 카카오톡 되는 번호</td></tr>
-          <tr><td>9모 피드백 받았나요</td><td>선택</td><td>받았다면 그 시험지를 튜터가 미리 본다</td></tr>
-          <tr><td>지금 국어에서 제일 답답한 것</td><td>선택</td><td>한 줄. 첫 수업 관찰 지점이 된다</td></tr>
-          <tr><td>개인정보 동의</td><td><span class="tag req">필수</span></td><td>수집 항목·보유기간을 그 자리에서 보여준다</td></tr>
+          <tr><td>이메일</td><td><span class="tag req">필수</span></td><td>9모 접수와 대조해 그 학생 시험지를 튜터가 미리 본다</td></tr>
+          <tr><td>지금 국어에서 제일 답답한 것</td><td>선택</td><td>한 줄. 첫 회차 관찰 지점이 된다</td></tr>
+          <tr><td>개인정보 동의</td><td><span class="tag req">필수</span></td><td>수집 항목 · 보유기간을 그 자리에서 보여준다</td></tr>
         </tbody>
       </table>
     </div>
     <ul>
       <li>저장은 <span class="mono">class_applications</span> 표에. 신청 즉시 팀 메일로 알림 — 기존 <span class="mono">src/lib/email.ts</span> 를 그대로 쓴다.</li>
-      <li>보유기간 <b>90일</b>, 이후 자동 삭제. 9모 접수의 30일 자동 삭제(<span class="mono">purge</span> 크론)와 같은 방식에 얹는다.</li>
+      <li>보유기간 <b>90일</b>, 이후 자동 삭제. 9모 접수의 30일 자동 삭제(<span class="mono">purge</span> 크론)에 얹는다.</li>
       <li>정원 초과는 서버에서 한 번 더 막는다. 화면에서만 막으면 동시에 눌린 두 명이 다 통과한다 — <span class="mono">create_submission</span> 에서 이미 겪은 문제다.</li>
-      <li>완료 화면에서 계좌번호와 입금 기한을 안내한다. 입금 확인은 사람이 한다.</li>
+      <li>완료 화면에 <b>계좌번호 · 입금자명 안내 · 입금 기한 · 환불 기준</b>. 입금 확인과 <span class="mono">paid</span> 표시는 관리자 화면에서 사람이 한다.</li>
     </ul>
+    <div class="note">
+      <b>498,000원을 먼저 받는다면 환불 기준이 페이지에 있어야 한다.</b> 선불 4회 수업은
+      중도 해지 시 남은 회차를 돌려주는 것이 기본이고, 기준이 없으면 분쟁이 났을 때 근거가 우리 쪽에 없다.
+      “1회차 시작 전 전액 / 이후 남은 회차분 환불” 정도로 한 줄만 정하면 된다. 아래 §09 에 남겨 둔다.
+    </div>
   </section>
 
   <!-- ============================================ 7 -->
   <section>
-    <div class="num">07 — 순서</div>
-    <div class="slab">
-      <h3>만드는 순서</h3>
-      <p>M1 만으로도 20명에게 보낼 수 있다. 값이 안 정해졌다고 페이지를 미루지 않는다.</p>
-      <ul>
-        <li><b>M1 · 반나절</b> — <span class="mono">/class</span> 정적 페이지. 섹션 ①②까지, 클래스는 코드에 박아 둔 한 개. CTA 는 문의 메일.</li>
-        <li><b>M2 · 하루</b> — <span class="mono">classes</span> 표 + 서버 렌더. 빈 상태·마감 상태 포함.</li>
-        <li><b>M3 · 하루</b> — <span class="mono">/admin</span> 잠금과 편집 폼. <span class="mono">/setup</span> 도 같이 잠근다.</li>
-        <li><b>M4 · 하루</b> — 신청 폼 · 알림 메일 · 신청자 목록 · 90일 삭제.</li>
-      </ul>
+    <div class="num">07 — 발송</div>
+    <h2>20명에게 Gmail 로 직접 보낸다</h2>
+    <p class="lede">
+      자동 발송을 붙이지 않는다. 20명이면 손으로 보내는 편이 빠르고, 무엇보다 한 사람마다
+      <b>그 학생 피드백에서 나온 문장 한 줄</b>을 넣을 수 있다. 그 한 줄이 이 메일의 전부다.
+    </p>
+
+    <div class="mail">
+      <div class="mh"><b>받는이</b> 학생 1명 (개별 발송)</div>
+      <div class="mh"><b>제목</b> 9월 시험지 피드백, 그 다음 이야기 — 국어 3인 관찰반을 엽니다</div>
+      <div class="mb"><span class="var">{이름}</span> 학생, 지난달에 9월 모의고사 시험지 보내주셨던 팀과외팀입니다.
+
+그때 <span class="var">{이름}</span> 학생 시험지에서 <span class="var">{그 학생 피드백의 한 문장}</span> 이라고 적어 보냈었죠.
+그런데 시험지 사진으로는 거기까지가 한계였습니다. 어떤 순서로 풀었는지, 어디서 몇 분을 썼는지는 사진에 남지 않으니까요.
+
+그래서 시험을 치는 중에 옆에 앉아 보기로 했습니다.
+180분 동안 실전 모의고사 80분을 그대로 치고, 튜터가 옆에서 지문별 시간과 오래 걸린 문항을 기록합니다.
+쉬고 나서 남은 90분에 그 기록을 놓고 이야기합니다. 3명 정원입니다.
+
+수업이 어떻게 굴러가는지, 지금 어떤 반이 열려 있는지 여기에 정리해 뒀습니다.
+https://…/class?from=mail
+
+읽어보시고 맞지 않다 싶으면 답장 안 주셔도 괜찮습니다.
+궁금한 건 이 메일에 그대로 답장 주세요.
+
+팀과외팀 드림</div>
     </div>
+
+    <ul>
+      <li><b>참조·숨은참조로 묶어 보내지 않는다.</b> 20명을 한 통에 넣으면 서로의 메일 주소가 보인다. 개별 발송이거나, 최소한 BCC 다.</li>
+      <li>링크는 <span class="mono">?from=mail</span> 을 달아 보낸다. 이미 붙어 있는 Vercel Web Analytics 로 도달 수를 센다 — 메일 열람은 추적하지 않는다.</li>
+      <li>보내는 시각은 <b>평일 저녁</b>. 학생이 직접 읽는 계정이다.</li>
+      <li>답장이 오면 사람이 답한다. 이 메일은 자동화 대상이 아니다.</li>
+    </ul>
   </section>
 
   <!-- ============================================ 8 -->
   <section>
-    <div class="num">08 — 미결</div>
-    <h2>이 문서를 확정하려면 답이 필요한 것</h2>
+    <div class="num">08 — 스택</div>
+    <h2>무엇 위에서 도는가</h2>
+    <p class="lede">지금 9모 서비스가 도는 그대로다. 새로 들어오는 것은 환경변수 하나와 버킷 하나뿐이다.</p>
     <div class="tbl">
       <table>
-        <thead><tr><th>#</th><th>물음</th><th>막고 있는 것</th></tr></thead>
+        <thead><tr><th>층</th><th>맡는 것</th><th>이번에 더해지는 것</th></tr></thead>
         <tbody>
-          <tr><td>A</td><td>수강료. 화이트보드의 30·50 이 이 숫자인가</td><td>M2 의 첫 데이터. 페이지 구조는 안 막는다</td></tr>
-          <tr><td>B</td><td>회차와 시작일 — 최소 3회차로 가나</td><td>카드 문구 “4회 총액”</td></tr>
-          <tr><td>C</td><td>장소. 공개하나, 신청 후 안내하나</td><td><span class="mono">location</span> 노출 여부</td></tr>
-          <tr><td>D</td><td>반 이름. ‘관찰반’ 은 이 문서의 가제다</td><td>페이지 제목과 카드 제목</td></tr>
-          <tr><td>E</td><td>튜터 학력을 실명·학교까지 쓰나</td><td>신뢰의 근거 중 가장 센 칸</td></tr>
-          <tr><td>F</td><td>20명에게 무엇으로 보내나 — 메일인가, 개별 연락인가</td><td>도달 수 측정 방법</td></tr>
-          <tr><td>G</td><td>주간 학습 피드백을 기본에 넣나</td><td>가격 구성과 카드 설명</td></tr>
+          <tr><td>Vercel</td><td>배포 · 환경변수 · 크론 · Web Analytics</td><td><span class="mono">ADMIN_PASSWORD</span> 추가, 신청 90일 삭제를 기존 크론에</td></tr>
+          <tr><td>Supabase</td><td>DB · 스토리지 · RLS</td><td><span class="mono">classes</span> · <span class="mono">class_applications</span> 표, <span class="mono">tutor-proof</span> 비공개 버킷</td></tr>
+          <tr><td>Gmail</td><td>신청 알림(자동) · 모집 메일(수동)</td><td>기존 <span class="mono">nodemailer</span> 그대로</td></tr>
+          <tr><td>Claude Code</td><td>이 저장소에서의 작업</td><td>브랜치 작업 · <span class="mono">docs/*.html</span> 문서 규약 · AGENTS.md 준수</td></tr>
         </tbody>
       </table>
     </div>
-    <p><small>
-      A~C 와 E 는 관리자에서 넣는 값이라 <b>페이지를 만드는 일을 막지 않는다</b>. D·F 만 먼저 답하면 M1 을 시작할 수 있다.
-    </small></p>
+    <h3>환경변수</h3>
+    <div class="codeblock"><span class="c"># 이미 있는 것</span>
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY   <span class="c"># 서버 전용. NEXT_PUBLIC_ 금지</span>
+GMAIL_USER / GMAIL_APP_PASSWORD
+NOTION_TOKEN / NOTION_DATABASE_ID
+WORKER_SECRET / CRON_SECRET
+
+<span class="c"># 이번에 더한다</span>
+<span class="k">ADMIN_PASSWORD</span>              <span class="c"># /admin 과 /setup 을 함께 잠근다</span></div>
+  </section>
+
+  <!-- ============================================ 9 -->
+  <section>
+    <div class="num">09 — 순서</div>
+    <div class="slab">
+      <h3>만드는 순서</h3>
+      <p>M1 만으로도 20명에게 메일을 보낼 수 있다. 반이 하나뿐이면 표가 없어도 되고, 표가 없으면 하루가 줄어든다.</p>
+      <ul>
+        <li><b>M1 · 반나절</b> — <span class="mono">/class</span> 정적 페이지. 섹션 ①②까지, 클래스는 코드에 박아 둔 한 개. CTA 는 문의 메일. <b>여기까지 하고 메일을 보낸다.</b></li>
+        <li><b>M2 · 하루</b> — <span class="mono">classes</span> 표 + 서버 렌더. 빈 상태 · 마감 상태 포함.</li>
+        <li><b>M3 · 하루</b> — <span class="mono">/admin</span> 잠금과 편집 폼, 증빙 업로드. <span class="mono">/setup</span> 도 같이 잠근다.</li>
+        <li><b>M4 · 하루</b> — 신청 폼 · 알림 메일 · 신청자 목록 · 입금 표시 · 90일 삭제.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================================ 10 -->
+  <section>
+    <div class="num">10 — 남은 것</div>
+    <h2>이제 세 개 남았다</h2>
+    <p class="lede">모두 <b>돈을 받기 전</b>에 필요한 것이고, 페이지를 만드는 일은 막지 않는다.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>#</th><th>정해야 하는 것</th><th>언제까지</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>입금 계좌 — 은행 · 번호 · 예금주</td><td>M4 (완료 화면)</td></tr>
+          <tr><td>2</td><td>환불 기준 한 줄 — 1회차 시작 전 / 이후</td><td>M4 (완료 화면 · 신청 폼 동의)</td></tr>
+          <tr><td>3</td><td>튜터 배정 — 한 반은 한 튜터가 끝까지 가는가</td><td>첫 반 개설 전</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      나머지(반 이름 · 시작일 · 회차 · 요일 · 튜터 학력 · 증빙)는 전부
+      <span class="mono">/admin</span> 에서 넣는 값이라 <b>지금 답이 없어도 M1 을 시작할 수 있다.</b>
+    </p>
   </section>
 
   <footer>
-    <p><b>관찰반 모집 설계서 (초안 0.1)</b> · 팀과외팀 Uni-T</p>
+    <p><b>관찰반 모집 설계서 v1.0</b> · 팀과외팀 Uni-T · 국어 3인 · 180분 · 4회 498,000원</p>
     <p>선행 문서 — <span class="mono">docs/class-180.html</span> (수업 구조 정의서) · <span class="mono">README.md</span> (9모 피드백 서비스)</p>
-    <p>다음 할 일 — D·F 확정 후 M1 착수. 나머지 미결은 <span class="mono">/admin</span> 에서 채운다.</p>
+    <p>다음 할 일 — M1 착수. 반 이름과 첫 반 일정이 정해지는 대로 메일 발송.</p>
   </footer>
 
 </div>
