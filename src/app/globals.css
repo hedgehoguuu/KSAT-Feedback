@@ -12,6 +12,9 @@
   --brand-pressed: #1b64da;
   --danger: #f04452;
   --success: #15803d;
+  /* 빨간펜. 강조에만 쓴다 — 파랑은 누르는 것(버튼·링크), 빨강은 '여기를 보라'. */
+  --mark: #e5342b;
+  --mark-soft: #fdeceb;
 }
 
 @theme inline {
@@ -24,6 +27,8 @@
   --color-brand-pressed: var(--brand-pressed);
   --color-danger: var(--danger);
   --color-success: var(--success);
+  --color-mark: var(--mark);
+  --color-mark-soft: var(--mark-soft);
   --font-sans: Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", system-ui, sans-serif;
 }
 
@@ -47,11 +52,45 @@ label[role="button"] {
   touch-action: manipulation;
 }
 
+/* 빨간펜 밑줄 — 문장 안에서 딱 한 군데만 그어야 눈에 띈다 */
+.pen {
+  color: var(--mark);
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-color: var(--mark);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+  text-decoration-skip-ink: none;
+}
+
+/* 스크롤하면 한 덩어리씩 떠오른다.
+   숨기는 규칙은 html.js 아래에만 있다 — 자바스크립트가 죽으면 처음부터 다 보인다. */
+html {
+  scroll-behavior: smooth;
+}
+.reveal {
+  transition:
+    opacity 700ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+html.js .reveal:not(.reveal-in) {
+  opacity: 0;
+  transform: translateY(22px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+  html.js .reveal:not(.reveal-in) {
+    opacity: 1;
+    transform: none;
   }
 }

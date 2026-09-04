@@ -13,20 +13,7 @@ export const CLASS = {
   retentionDays: 90,
 } as const;
 
-/** 180분을 어떻게 쓰는지. 화면의 자(ruler)가 이 비율을 그대로 그린다. */
-export const BLOCKS = [
-  { minutes: 80, label: '실전 모의고사', detail: '학생은 시험을 치고, 튜터는 옆에서 기록해요' },
-  { minutes: 10, label: '휴식', detail: '튜터는 기록지를 정리해요' },
-  { minutes: 90, label: '피드백', detail: '기록을 펴 놓고 이야기해요' },
-] as const;
-
-/** 피드백 90분. 01:30 에 시작해 03:00 에 끝난다. */
-export const AGENDA = [
-  { at: '01:30', minutes: 10, what: '시험 총평', detail: '세 명의 점수와 시간 배분을 한 화면에' },
-  { at: '01:40', minutes: 30, what: '주요 문항 해설', detail: '셋 중 둘 이상이 틀린 문항만' },
-  { at: '02:10', minutes: 30, what: '학생별 교정', detail: '한 명당 10분, 자기 기록만' },
-  { at: '02:40', minutes: 20, what: '전반적 교정', detail: '공통 병목과 그걸 넘는 실전 개념' },
-] as const;
+// 화면에 나오는 문구·목록은 class-copy.ts 에 있다. 여기에는 숫자와 규칙만 둔다.
 
 export const CLASS_STATUS = {
   draft: '초안',
