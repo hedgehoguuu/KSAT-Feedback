@@ -33,6 +33,11 @@ export async function sendApplicationAlert(input: ApplicationAlert): Promise<voi
     socketTimeout: 15_000,
   });
 
+  // Vercel 이 넣어 주는 프로덕션 도메인. 로컬에서는 없어서 상대 경로만 남는다.
+  const site = process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : '';
+
   const lines = [
     `반 — ${input.classTitle}`,
     `학생 — ${input.studentName}`,
@@ -42,7 +47,7 @@ export async function sendApplicationAlert(input: ApplicationAlert): Promise<voi
     '',
     '학부모 연락처로 카카오톡을 보내고, 관리자 화면에서 상태를 옮겨주세요.',
     '',
-    '신청자 목록 — /admin/applications',
+    `신청자 목록 — ${site}/admin/applications`,
   ];
 
   await transporter.sendMail({
