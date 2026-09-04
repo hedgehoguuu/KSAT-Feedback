@@ -16,7 +16,7 @@ export function ClassCard({ data, proofUrls }: Props) {
     .join(' · ');
 
   return (
-    <li className="rounded-2xl border border-line p-5">
+    <article className="rounded-2xl border border-line p-5">
       <p className="text-[17px] font-bold leading-[1.4]">{data.title}</p>
       <p className="mt-1.5 text-[13px] leading-[1.6] text-muted">
         {data.schedule_text}
@@ -55,7 +55,12 @@ export function ClassCard({ data, proofUrls }: Props) {
       ) : null}
 
       {data.detail ? (
-        <p className="mt-3 whitespace-pre-line text-[14px] leading-[1.7] text-muted">{data.detail}</p>
+        <details className="mt-3">
+          <summary className="cursor-pointer list-none text-[13px] font-semibold text-brand underline underline-offset-2">
+            수업 자세히 보기
+          </summary>
+          <p className="mt-2 whitespace-pre-line text-[14px] leading-[1.7] text-muted">{data.detail}</p>
+        </details>
       ) : null}
 
       <div className="mt-4 flex items-end justify-between gap-3 border-t border-line pt-4">
@@ -88,6 +93,6 @@ export function ClassCard({ data, proofUrls }: Props) {
           신청하기
         </Link>
       )}
-    </li>
+    </article>
   );
 }

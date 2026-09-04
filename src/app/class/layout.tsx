@@ -7,5 +7,12 @@ export const metadata: Metadata = {
 };
 
 export default function ClassLayout({ children }: LayoutProps<'/class'>) {
-  return children;
+  return (
+    <>
+      {/* 자바스크립트가 살아 있을 때만 스크롤 등장 효과를 켠다.
+          화면보다 먼저 실행돼야 글이 깜빡이지 않는다. */}
+      <script dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }} />
+      {children}
+    </>
+  );
 }
