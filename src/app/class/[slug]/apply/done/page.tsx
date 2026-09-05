@@ -18,7 +18,7 @@ export default async function ApplyDonePage({ params }: PageProps<'/class/[slug]
       </p>
 
       {target ? (
-        <div className="mt-7 rounded-2xl bg-surface p-5">
+        <div className="glass-solid mt-7 rounded-[22px] p-5">
           <p className="text-[13px] text-muted">신청한 반</p>
           <p className="mt-1 text-[17px] font-bold leading-[1.4]">{target.title}</p>
           <p className="mt-1 text-[13px] leading-[1.6] text-muted">
@@ -40,7 +40,7 @@ export default async function ApplyDonePage({ params }: PageProps<'/class/[slug]
 
       <Link
         href="/class"
-        className="mt-auto flex min-h-13 items-center justify-center rounded-2xl bg-surface text-[15px] font-bold"
+        className="glass mt-auto flex min-h-13 items-center justify-center rounded-2xl text-[15px] font-bold"
       >
         수업 소개 다시 보기
       </Link>

@@ -24,7 +24,7 @@ export function PriceBlock({ price, sessions, note }: Props) {
   const items = includedItems(note);
 
   return (
-    <div className="rounded-xl bg-surface p-4">
+    <div className="glass-inset rounded-2xl p-4">
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-[13px] font-bold text-muted">
           {sessions ? `${sessions}회 총액` : '수강료'}
@@ -33,7 +33,7 @@ export function PriceBlock({ price, sessions, note }: Props) {
       </div>
 
       {items.length > 0 ? (
-        <ul className="mt-3 flex flex-col gap-2 border-t border-line pt-3">
+        <ul className="mt-3 flex flex-col gap-2 border-t border-foreground/10 pt-3">
           {items.map((item, i) => (
             <li key={i} className="flex gap-2 text-[13px] leading-[1.5]">
               <span className="font-bold text-mark">✓</span>

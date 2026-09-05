@@ -58,7 +58,7 @@ export function ClassGallery({ children }: { children: ReactNode }) {
         {children}
       </ul>
 
-      <div className="mt-4 flex items-center justify-center gap-2">
+      <div className="mx-auto mt-4 flex w-fit items-center justify-center gap-1 rounded-full px-1 glass">
         {Array.from({ length: count }, (_, i) => (
           <button
             key={i}
@@ -71,7 +71,7 @@ export function ClassGallery({ children }: { children: ReactNode }) {
             <span
               className={[
                 'block rounded-full transition-all',
-                i === active ? 'h-2 w-5 bg-mark' : 'size-2 bg-line',
+                i === active ? 'h-2 w-5 bg-mark' : 'size-2 bg-foreground/20',
               ].join(' ')}
             />
           </button>

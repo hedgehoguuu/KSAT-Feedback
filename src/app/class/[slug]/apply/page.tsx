@@ -20,7 +20,7 @@ export default async function ApplyPage({ params }: PageProps<'/class/[slug]/app
         </p>
         <Link
           href="/class"
-          className="mt-6 flex min-h-13 items-center justify-center rounded-2xl bg-surface text-[15px] font-bold"
+          className="glass mt-6 flex min-h-13 items-center justify-center rounded-2xl text-[15px] font-bold"
         >
           열려 있는 반 보기
         </Link>

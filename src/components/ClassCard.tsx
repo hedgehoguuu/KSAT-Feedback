@@ -12,14 +12,14 @@ type Props = {
 /** 개설 클래스 한 장. 값은 전부 /admin 에서 넣는다. */
 export function ClassCard({ data, proofUrls }: Props) {
   return (
-    <article className="flex h-full flex-col rounded-2xl border border-line p-5">
+    <article className="glass-solid flex h-full flex-col rounded-[22px] p-5">
       {/* 남은 자리 수는 학생에게 보여주지 않는다. 자리가 다 찼는지는 아래 버튼이 말한다. */}
       <p className="text-[17px] font-bold leading-[1.4]">{data.title}</p>
 
       <ClassMeta data={data} />
 
       {data.recommend ? (
-        <div className="mt-4 rounded-xl bg-surface px-4 py-3.5">
+        <div className="glass-inset mt-4 rounded-2xl px-4 py-3.5">
           <p className="text-[12px] font-bold text-mark">추천 학생</p>
           <p className="mt-1 text-[14px] leading-[1.6]">{data.recommend}</p>
         </div>
@@ -60,13 +60,13 @@ export function ClassCard({ data, proofUrls }: Props) {
       </div>
 
       {data.full ? (
-        <p className="mt-4 flex min-h-13 items-center justify-center rounded-2xl bg-surface text-[15px] font-bold text-muted">
+        <p className="glass-inset mt-4 flex min-h-13 items-center justify-center rounded-2xl text-[15px] font-bold text-muted">
           자리가 다 찼어요
         </p>
       ) : (
         <Link
           href={`/class/${data.slug}/apply`}
-          className="mt-4 flex min-h-13 items-center justify-center rounded-2xl bg-brand text-[16px] font-bold text-white active:bg-brand-pressed"
+          className="mt-4 flex min-h-13 items-center justify-center rounded-2xl bg-brand text-[16px] font-bold text-white shadow-[0_8px_20px_-8px_rgb(49_130_246/0.7)] active:bg-brand-pressed"
         >
           신청하기
         </Link>

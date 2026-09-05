@@ -24,7 +24,7 @@ export default async function ClassLanding() {
         </Reveal>
 
         <Reveal delay={90}>
-          <div className="mt-5 rounded-2xl border border-line p-5">
+          <div className="glass mt-5 rounded-[22px] p-5">
             <p className="text-[12px] font-bold text-muted">{COPY.docTitle}</p>
             <ul className="mt-3 flex flex-col gap-2.5">
               {COPY.docLines.map((line, i) => (
@@ -60,11 +60,11 @@ export default async function ClassLanding() {
         <Reveal delay={80}>
           {/* 80:10:90 을 눈금 그대로 그린다 */}
           <div className="mt-6 grid gap-1" style={{ gridTemplateColumns: '80fr 10fr 90fr' }}>
-            <div className="flex h-16 min-w-0 items-end rounded-lg border border-line px-2.5 pb-2 text-[14px] font-bold">
+            <div className="glass flex h-16 min-w-0 items-end rounded-xl px-2.5 pb-2 text-[14px] font-bold">
               80분
             </div>
-            <div className="h-16 min-w-0 rounded-lg bg-line" aria-hidden />
-            <div className="flex h-16 min-w-0 items-end rounded-lg bg-brand px-2.5 pb-2 text-[14px] font-bold text-white">
+            <div className="h-16 min-w-0 rounded-xl bg-foreground/15" aria-hidden />
+            <div className="flex h-16 min-w-0 items-end rounded-xl bg-brand px-2.5 pb-2 text-[14px] font-bold text-white shadow-[0_10px_24px_-10px_rgb(49_130_246/0.8)]">
               90분
             </div>
           </div>
@@ -83,9 +83,9 @@ export default async function ClassLanding() {
 
         <Reveal delay={140}>
           <h3 className="mt-11 text-[16px] font-bold">{COPY.observeTitle}</h3>
-          <ul className="mt-4 flex flex-col gap-px overflow-hidden rounded-2xl bg-line">
+          <ul className="glass glass-divide mt-4 flex flex-col overflow-hidden rounded-[22px]">
             {COPY.observed.map((row, i) => (
-              <li key={i} className="bg-background px-4 py-3.5">
+              <li key={i} className="px-4 py-3.5">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-[14px] font-bold">{row.part}</span>
                   <span className="shrink-0 text-[14px] font-bold tabular-nums">
@@ -114,14 +114,14 @@ export default async function ClassLanding() {
       </section>
 
       {/* ── ③ 들고 가는 것 ─────────────────────────────────────── */}
-      <section className="mt-16 bg-surface px-5 py-12">
+      <section className="mt-16 bg-foreground/[0.035] px-5 py-12">
         <Reveal>
           <h2 className={H2}>{COPY.takeawayTitle}</h2>
         </Reveal>
         <Reveal delay={80}>
           <ul className="mt-5 flex flex-col gap-2">
             {COPY.takeaway.map((t, i) => (
-              <li key={i} className="rounded-xl bg-background px-4 py-4">
+              <li key={i} className="glass rounded-2xl px-4 py-4">
                 <p className="text-[15px] font-bold">
                   <Marked text={t.title} />
                 </p>
@@ -194,7 +194,7 @@ export default async function ClassLanding() {
 
         {classes.length === 0 ? (
           <Reveal delay={80}>
-            <div className="mt-5 rounded-2xl bg-surface p-6">
+            <div className="glass mt-5 rounded-[22px] p-6">
               <p className="text-[16px] font-bold">{COPY.emptyTitle}</p>
               <p className="mt-2 text-[14px] leading-[1.7] text-muted">{COPY.emptyBody}</p>
               <a

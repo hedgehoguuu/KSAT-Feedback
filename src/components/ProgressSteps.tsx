@@ -15,7 +15,8 @@ export function ProgressSteps({ current, reachable }: Props) {
   return (
     <nav
       aria-label={`전체 ${TOTAL_STEPS}단계 중 ${at + 1}단계`}
-      className="sticky top-0 z-20 border-b border-line bg-background/95 backdrop-blur"
+      // 위에 붙어 따라다니는 머리말 — 아래 내용이 지나가므로 유리로 둔다
+      className="glass-solid sticky top-0 z-20 border-x-0 border-t-0"
     >
       <ol className="flex items-stretch">
         {STEPS.map((step, i) => {

@@ -9,7 +9,9 @@ import { isPhone, isReceiptNo, normalizePhone, normalizeReceiptNo } from '@/conf
 import { APPLY } from '@/config/class-copy';
 import type { ClassSummary } from '@/lib/classes';
 
-const FIELD = 'min-h-13 rounded-xl border border-line px-4 text-[16px] outline-none focus:border-brand';
+// 입력칸도 유리 위에 놓인다. 흐림은 걸지 않고(글자가 흔들린다) 살짝 비치게만 채운다.
+const FIELD =
+  'min-h-13 rounded-2xl border border-line bg-white/70 px-4 text-[16px] outline-none focus:border-brand focus:bg-white';
 const LABEL = 'text-[14px] font-bold';
 const HELP = 'text-[13px] leading-[1.6] text-muted';
 
@@ -73,7 +75,7 @@ export function ApplyForm({ data }: { data: ClassSummary }) {
     <>
       <main className="flex flex-1 flex-col px-5 pb-6 pt-10">
         {/* 무엇을 신청하는지 — 카드에서 보던 것과 같은 모양으로 다시 보여준다 */}
-        <section className="rounded-2xl border border-line p-5">
+        <section className="glass-solid rounded-[22px] p-5">
           <h1 className="text-[19px] font-bold leading-[1.4] tracking-tight">{data.title}</h1>
           <ClassMeta data={data} />
           <div className="mt-5">
@@ -134,7 +136,7 @@ export function ApplyForm({ data }: { data: ClassSummary }) {
             ) : null}
           </label>
 
-          <label className="flex cursor-pointer gap-3 rounded-xl bg-surface p-4">
+          <label className="glass-inset flex cursor-pointer gap-3 rounded-2xl p-4">
             <input
               type="checkbox"
               checked={consent}

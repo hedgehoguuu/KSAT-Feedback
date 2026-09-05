@@ -14,7 +14,9 @@ type Props = {
 
 export function BottomBar({ label, onClick, disabled, reason, pending, secondary }: Props) {
   return (
-    <div className="sticky bottom-0 z-20 mt-auto border-t border-line bg-background/95 px-5 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-3 backdrop-blur">
+    // 내용 위에 떠서 같이 스크롤되는 막대 — 유리가 원래 있어야 할 자리다.
+    // 위쪽만 테두리를 두고 아래·옆은 화면에 붙인다.
+    <div className="glass-solid sticky bottom-0 z-20 mt-auto rounded-t-2xl border-x-0 border-b-0 px-5 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-3.5">
       {secondary}
       <button
         type="button"

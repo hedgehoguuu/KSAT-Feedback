@@ -15,6 +15,22 @@
   /* 빨간펜. 강조에만 쓴다 — 파랑은 누르는 것(버튼·링크), 빨강은 '여기를 보라'. */
   --mark: #e5342b;
   --mark-soft: #fdeceb;
+
+  /* ── 유리 (Liquid Glass) ──────────────────────────────────────────────
+     애플의 그 재질을 웹에서 낼 수 있는 만큼만 낸다. 네 가지가 겹쳐야 유리로 보인다.
+       1) 뒤가 비친다        backdrop-filter: blur + saturate
+       2) 빛이 위에서 걸린다  위쪽이 밝아지는 그라데이션 + 안쪽 흰 테두리
+       3) 떠 있다            멀리 퍼지는 옅은 그림자
+       4) 뒤에 볼 것이 있다   .field (아래) — 이게 없으면 흰 위의 흰이라 아무것도 안 보인다
+
+     빛을 실제로 굴절시키는 것(렌즈 효과)은 CSS 로는 안 된다. 테두리의 밝기로 흉내만 낸다. */
+  --glass-blur: 20px;
+  --glass-sat: 180%;
+  --glass-fill: rgb(255 255 255 / 0.58);
+  /* 글이 여러 줄 올라가는 곳은 더 채운다. 읽히는 게 먼저다. */
+  --glass-fill-solid: rgb(255 255 255 / 0.76);
+  --glass-rim: rgb(17 24 39 / 0.07);
+  --glass-sheen: rgb(255 255 255 / 0.5);
 }
 
 @theme inline {
@@ -46,6 +62,89 @@ body {
   word-break: keep-all;
 }
 
+/* ── 유리 뒤에 비칠 것 ────────────────────────────────────────────────────
+   화면에 고정해 두고 내용만 그 위를 지나간다. 그래서 스크롤을 내리면 카드 안에
+   비치는 색이 조금씩 바뀐다 — 유리가 살아 있는 것처럼 보이는 건 이 움직임이지,
+   흐림 자체가 아니다.
+
+   색은 이미 쓰던 두 가지(브랜드 파랑 · 빨간펜)뿐이고 농도는 10% 안쪽이다.
+   멀리서 보면 그냥 흰 종이여야 한다 — 여기가 진해지면 글이 안 읽힌다. */
+.field {
+  position: fixed;
+  inset: 0;
+  /* 본문 기둥과 같은 폭으로 가운데. 넓은 화면의 회색 여백은 건드리지 않는다. */
+  margin-inline: auto;
+  max-width: 480px;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(58% 42% at 10% 4%, rgb(49 130 246 / 0.14), transparent 70%),
+    radial-gradient(52% 38% at 96% 22%, rgb(229 52 43 / 0.09), transparent 70%),
+    radial-gradient(62% 44% at 46% 60%, rgb(49 130 246 / 0.10), transparent 72%),
+    radial-gradient(54% 40% at 88% 92%, rgb(229 52 43 / 0.07), transparent 70%),
+    var(--background);
+}
+
+/* ── 유리 ─────────────────────────────────────────────────────────────── */
+.glass,
+.glass-solid {
+  background-color: var(--glass-fill);
+  /* 위에서 빛이 걸리는 결. 가짜 요소를 안 쓰고 배경으로 얹어 겹침 순서를 안 건드린다. */
+  background-image: linear-gradient(180deg, var(--glass-sheen), rgb(255 255 255 / 0) 46%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  border: 1px solid var(--glass-rim);
+  box-shadow:
+    /* 유리의 위 모서리에 맺히는 흰 선 */
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    inset 0 -1px 0 rgb(255 255 255 / 0.4),
+    0 1px 2px rgb(17 24 39 / 0.04),
+    0 10px 30px -12px rgb(17 24 39 / 0.16);
+}
+
+/* 글이 많이 올라가는 유리. 더 채워서 읽히게 한다. */
+.glass-solid {
+  background-color: var(--glass-fill-solid);
+}
+
+/* 유리 안에 또 유리를 겹치면 탁해진다. 안쪽 칸은 흐림을 걸지 않는다.
+   그리고 더 밝게가 아니라 살짝 눌러 판다 — 흰 유리 위에 흰 칸을 얹으면 칸이 사라진다.
+   유리에서 한 겹 안쪽은 밝아지는 게 아니라 그늘이 지는 쪽이 자연스럽다. */
+.glass-inset {
+  background-color: rgb(17 24 39 / 0.05);
+  border: 1px solid rgb(255 255 255 / 0.5);
+  box-shadow: inset 0 1px 2px rgb(17 24 39 / 0.05);
+}
+
+/* 유리 위에서 칸을 나누는 선. 흰 선은 안 보이고, 원래 쓰던 --line 은 너무 세다. */
+.glass-divide > * + * {
+  border-top: 1px solid rgb(17 24 39 / 0.08);
+}
+
+/* 흐림을 못 그리는 브라우저에서는 그냥 흰 카드가 된다 — 글이 안 읽히는 것보다 낫다. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass,
+  .glass-solid {
+    background-color: rgb(255 255 255 / 0.94);
+  }
+}
+
+/* 투명 효과를 줄이도록 설정한 사람에게는 불투명하게. 어지럼증·저시력 때문에 켜는 설정이다. */
+@media (prefers-reduced-transparency: reduce) {
+  .field {
+    display: none;
+  }
+  .glass,
+  .glass-solid,
+  .glass-inset {
+    background-color: #fff;
+    background-image: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-color: var(--line);
+  }
+}
+
 /* 터치 영역 48px 이상 (FE-9 AC) */
 button,
 label[role="button"] {
@@ -72,11 +171,14 @@ html {
   transition:
     opacity 700ms cubic-bezier(0.16, 1, 0.3, 1),
     transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: opacity, transform;
 }
+/* will-change 와 transform 은 '떠오르기 전'에만 건다. 둘 중 하나라도 남아 있으면
+   그 안쪽의 유리가 페이지 배경을 못 뚫어 본다(backdrop 경계가 생긴다) — 다 뜨고 나면
+   흰 판때기가 될 뻔했다. 다 뜬 뒤에는 아무 속성도 남기지 않는다. */
 html.js .reveal:not(.reveal-in) {
   opacity: 0;
   transform: translateY(22px);
+  will-change: opacity, transform;
 }
 
 @media (prefers-reduced-motion: reduce) {

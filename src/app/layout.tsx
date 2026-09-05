@@ -33,7 +33,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         />
       </head>
       <body className="min-h-full flex flex-col bg-surface">
-        <div className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col bg-background">
+        {/* 유리 뒤에 비칠 색. 화면에 고정돼 있어서 내용만 그 위를 지나간다 (globals.css) */}
+        <div className="field" aria-hidden />
+        <div className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col">
           {children}
         </div>
         <Analytics />
