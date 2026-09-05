@@ -107,6 +107,15 @@ body {
   background-color: var(--glass-fill-solid);
 }
 
+/* 떠 있는 막대와 머리말. 아래로 글이 통째로 지나가므로 더 세게 흐린다 —
+   약하게 흐리면 지나가는 글자가 유령처럼 반쯤 읽혀서 지저분해진다.
+   많이 흐릴수록 글자는 뭉개져 색의 흐름만 남고, 그게 이 재질이 원래 보여줘야 하는 것이다. */
+.glass-bar {
+  background-color: rgb(255 255 255 / 0.6);
+  -webkit-backdrop-filter: blur(32px) saturate(var(--glass-sat));
+  backdrop-filter: blur(32px) saturate(var(--glass-sat));
+}
+
 /* 유리 안에 또 유리를 겹치면 탁해진다. 안쪽 칸은 흐림을 걸지 않는다.
    그리고 더 밝게가 아니라 살짝 눌러 판다 — 흰 유리 위에 흰 칸을 얹으면 칸이 사라진다.
    유리에서 한 겹 안쪽은 밝아지는 게 아니라 그늘이 지는 쪽이 자연스럽다. */
@@ -124,7 +133,8 @@ body {
 /* 흐림을 못 그리는 브라우저에서는 그냥 흰 카드가 된다 — 글이 안 읽히는 것보다 낫다. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass,
-  .glass-solid {
+  .glass-solid,
+  .glass-bar {
     background-color: rgb(255 255 255 / 0.94);
   }
 }
@@ -136,6 +146,7 @@ body {
   }
   .glass,
   .glass-solid,
+  .glass-bar,
   .glass-inset {
     background-color: #fff;
     background-image: none;
