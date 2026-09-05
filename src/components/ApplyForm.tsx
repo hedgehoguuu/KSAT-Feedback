@@ -3,20 +3,21 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BottomBar } from '@/components/BottomBar';
+import { ClassMeta } from '@/components/ClassMeta';
+import { PriceBlock } from '@/components/PriceBlock';
 import { CLASS, isPhone, isReceiptNo, normalizePhone, normalizeReceiptNo } from '@/config/class';
+import { APPLY } from '@/config/class-copy';
+import type { ClassSummary } from '@/lib/classes';
 
-type Props = {
-  slug: string;
-  title: string;
-  summary: string;
-  priceLine: string;
-};
+const FIELD = 'min-h-13 rounded-xl border border-line px-4 text-[16px] outline-none focus:border-brand';
+const LABEL = 'text-[14px] font-bold';
+const HELP = 'text-[13px] leading-[1.6] text-muted';
 
 /**
  * 신청 폼 (모집 페이지 PRD §06). 학생이 채우는 칸은 넷뿐이다.
  * 학년 · 이메일 · 그때 적은 고민은 묻지 않는다 — 접수번호로 조회한다.
  */
-export function ApplyForm({ slug, title, summary, priceLine }: Props) {
+export function ApplyForm({ data }: { data: ClassSummary }) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [receipt, setReceipt] = useState('');
@@ -43,53 +44,58 @@ export function ApplyForm({ slug, title, summary, priceLine }: Props) {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          slug,
+          slug: data.slug,
           studentName: name.trim(),
           receiptNo: normalizeReceiptNo(receipt),
           parentPhone: normalizePhone(phone),
           consent,
         }),
       });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? '신청이 안 됐어요. 다시 눌러주세요.');
-      router.replace(`/class/${slug}/apply/done`);
+      const body = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(body.error ?? APPLY.failed);
+      router.replace(`/class/${data.slug}/apply/done`);
     } catch (err) {
-      setFailure(err instanceof Error ? err.message : '신청이 안 됐어요. 다시 눌러주세요.');
+      setFailure(err instanceof Error ? err.message : APPLY.failed);
       inFlight.current = false;
       setPending(false);
     }
   }
 
   const reason = !name.trim()
-    ? '학생 이름을 적어주세요'
+    ? APPLY.needName
     : !phoneOk
-      ? '학부모 연락처를 적어주세요'
+      ? APPLY.needPhone
       : !consent
-        ? '개인정보 수집·이용 동의가 필요해요'
+        ? APPLY.needConsent
         : null;
 
   return (
     <>
       <main className="flex flex-1 flex-col px-5 pb-6 pt-10">
-        <h1 className="text-[24px] font-bold leading-[1.35] tracking-tight">{title}</h1>
-        <p className="mt-2 text-[14px] leading-[1.6] text-muted">{summary}</p>
-        <p className="mt-1 text-[14px] font-bold">{priceLine}</p>
+        {/* 무엇을 신청하는지 — 카드에서 보던 것과 같은 모양으로 다시 보여준다 */}
+        <section className="rounded-2xl border border-line p-5">
+          <h1 className="text-[19px] font-bold leading-[1.4] tracking-tight">{data.title}</h1>
+          <ClassMeta data={data} />
+          <div className="mt-5">
+            <PriceBlock price={data.price} sessions={data.sessions} note={data.price_note} />
+          </div>
+        </section>
 
-        <div className="mt-8 flex flex-col gap-4">
+        <div className="mt-9 flex flex-col gap-4">
           <label className="flex flex-col gap-1.5">
-            <span className="text-[14px] font-bold">학생 이름</span>
+            <span className={LABEL}>{APPLY.nameLabel}</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={30}
               autoComplete="name"
               placeholder="김주현"
-              className="min-h-13 rounded-xl border border-line px-4 text-[16px] outline-none focus:border-brand"
+              className={FIELD}
             />
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-[14px] font-bold">9월 모의고사 피드백 접수번호</span>
+            <span className={LABEL}>{APPLY.receiptLabel}</span>
             <input
               value={receipt}
               onChange={(e) => setReceipt(e.target.value)}
@@ -98,20 +104,16 @@ export function ApplyForm({ slug, title, summary, priceLine }: Props) {
               inputMode="text"
               autoCapitalize="characters"
               placeholder="F0902-013"
-              className="min-h-13 rounded-xl border border-line px-4 text-[16px] outline-none focus:border-brand"
+              className={FIELD}
             />
-            <span className="text-[13px] leading-[1.6] text-muted">
-              접수 확인 메일에 있는 F 로 시작하는 번호예요. 못 찾으면 비워두셔도 신청은 됩니다.
-            </span>
+            <span className={HELP}>{APPLY.receiptHelp}</span>
             {touched.receipt && receipt.trim().length > 0 && !receiptOk ? (
-              <span className="text-[13px] text-muted">
-                형식이 조금 달라요. 그대로 두셔도 저희가 확인할게요.
-              </span>
+              <span className="text-[13px] text-muted">{APPLY.receiptShapeHint}</span>
             ) : null}
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-[14px] font-bold">학부모 연락처</span>
+            <span className={LABEL}>{APPLY.phoneLabel}</span>
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -124,13 +126,11 @@ export function ApplyForm({ slug, title, summary, priceLine }: Props) {
               inputMode="tel"
               autoComplete="tel"
               placeholder="010-0000-0000"
-              className="min-h-13 rounded-xl border border-line px-4 text-[16px] outline-none focus:border-brand"
+              className={FIELD}
             />
-            <span className="text-[13px] leading-[1.6] text-muted">
-              이 번호로 카카오톡을 드려요. 자리와 입금은 그때 안내합니다.
-            </span>
+            <span className={HELP}>{APPLY.phoneHelp}</span>
             {touched.phone && phone.trim().length > 0 && !phoneOk ? (
-              <span className="text-[13px] text-danger">번호를 다시 확인해주세요</span>
+              <span className="text-[13px] text-danger">{APPLY.phoneError}</span>
             ) : null}
           </label>
 
@@ -142,10 +142,10 @@ export function ApplyForm({ slug, title, summary, priceLine }: Props) {
               className="mt-0.5 size-5 shrink-0 accent-brand"
             />
             <span className="text-[14px] leading-[1.6]">
-              개인정보 수집·이용에 동의합니다
+              {APPLY.consentLabel}
               <span className="mt-1 block text-[13px] text-muted">
-                학생 이름 · 접수번호 · 학부모 연락처를 반 편성과 수업 안내 연락에만 씁니다.
-                {CLASS.retentionDays}일 뒤 지웁니다.
+                {APPLY.consentDetail}
+                {` ${CLASS.retentionDays}일 뒤 지웁니다.`}
               </span>
             </span>
           </label>
@@ -159,7 +159,7 @@ export function ApplyForm({ slug, title, summary, priceLine }: Props) {
       </main>
 
       <BottomBar
-        label="신청하기"
+        label={APPLY.submit}
         onClick={onSubmit}
         disabled={!canSubmit}
         reason={reason}

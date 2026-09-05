@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { ApplyForm } from '@/components/ApplyForm';
-import { formatStartsOn, perSession, won } from '@/config/class';
 import { getClass } from '@/lib/classes';
 
 export const dynamic = 'force-dynamic';
@@ -29,22 +28,5 @@ export default async function ApplyPage({ params }: PageProps<'/class/[slug]/app
     );
   }
 
-  const startsOn = formatStartsOn(target.starts_on);
-  const each = perSession(target.price, target.sessions);
-
-  return (
-    <ApplyForm
-      slug={target.slug}
-      title={target.title}
-      summary={[
-        target.schedule_text,
-        startsOn ? `${startsOn} 시작` : null,
-        target.sessions ? `${target.sessions}회` : null,
-        target.location || null,
-      ]
-        .filter(Boolean)
-        .join(' · ')}
-      priceLine={`${won(target.price)}${each ? ` · 1회당 ${won(each)}` : ''}`}
-    />
-  );
+  return <ApplyForm data={target} />;
 }

@@ -1,9 +1,7 @@
 import { ClassCard } from '@/components/ClassCard';
 import { Marked } from '@/components/Marked';
 import { Reveal } from '@/components/Reveal';
-import { SelfCheck } from '@/components/SelfCheck';
 import { BRANDING } from '@/config/app';
-import { CLASS } from '@/config/class';
 import { COPY } from '@/config/class-copy';
 import { listClasses, signProofUrls } from '@/lib/classes';
 
@@ -51,17 +49,7 @@ export default async function ClassLanding() {
         </Reveal>
       </section>
 
-      {/* ── ② 자가진단 ─────────────────────────────────────────── */}
-      <section id="check" className="mt-20 scroll-mt-4 bg-surface px-5 py-12">
-        <Reveal>
-          <h2 className={H2}>{COPY.checkTitle}</h2>
-        </Reveal>
-        <Reveal delay={80}>
-          <SelfCheck />
-        </Reveal>
-      </section>
-
-      {/* ── ③ 180분 ────────────────────────────────────────────── */}
+      {/* ── ② 180분 ────────────────────────────────────────────── */}
       <section className="mt-16 px-5">
         <Reveal>
           <h2 className={H2}>{COPY.structureTitle}</h2>
@@ -71,11 +59,11 @@ export default async function ClassLanding() {
         <Reveal delay={80}>
           {/* 80:10:90 을 눈금 그대로 그린다 */}
           <div className="mt-6 grid gap-1" style={{ gridTemplateColumns: '80fr 10fr 90fr' }}>
-            <div className="flex h-16 min-w-0 items-end rounded-lg bg-brand px-2.5 pb-2 text-[14px] font-bold text-white">
+            <div className="flex h-16 min-w-0 items-end rounded-lg border border-line px-2.5 pb-2 text-[14px] font-bold">
               80분
             </div>
             <div className="h-16 min-w-0 rounded-lg bg-line" aria-hidden />
-            <div className="flex h-16 min-w-0 items-end rounded-lg border border-line px-2.5 pb-2 text-[14px] font-bold">
+            <div className="flex h-16 min-w-0 items-end rounded-lg bg-brand px-2.5 pb-2 text-[14px] font-bold text-white">
               90분
             </div>
           </div>
@@ -124,7 +112,7 @@ export default async function ClassLanding() {
         </Reveal>
       </section>
 
-      {/* ── ④ 들고 가는 것 ─────────────────────────────────────── */}
+      {/* ── ③ 들고 가는 것 ─────────────────────────────────────── */}
       <section className="mt-16 bg-surface px-5 py-12">
         <Reveal>
           <h2 className={H2}>{COPY.takeawayTitle}</h2>
@@ -153,7 +141,7 @@ export default async function ClassLanding() {
         </Reveal>
       </section>
 
-      {/* ── ⑤ 대상 ─────────────────────────────────────────────── */}
+      {/* ── ④ 대상 ─────────────────────────────────────────────── */}
       <section className="mt-16 px-5">
         <Reveal>
           <h2 className={H2}>
@@ -196,7 +184,7 @@ export default async function ClassLanding() {
         </Reveal>
       </section>
 
-      {/* ── ⑥ 개설 클래스 ──────────────────────────────────────── */}
+      {/* ── ⑤ 개설 클래스 ──────────────────────────────────────── */}
       <section id="classes" className="mt-16 scroll-mt-4 px-5">
         <Reveal>
           <h2 className={H2}>{COPY.classesTitle}</h2>
@@ -234,16 +222,6 @@ export default async function ClassLanding() {
         )}
       </section>
 
-      <footer className="mt-16 px-5 text-[13px] leading-[1.7] text-muted">
-        <p>{COPY.footer}</p>
-        <a
-          href={`mailto:${BRANDING.contactEmail}`}
-          className="mt-1 inline-block font-semibold text-brand underline underline-offset-2"
-        >
-          {BRANDING.contactEmail}
-        </a>
-        <p className="mt-4 text-[12px]">주 1회 {CLASS.minutes}분 · 정원 3명</p>
-      </footer>
     </main>
   );
 }

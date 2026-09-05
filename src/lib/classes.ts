@@ -42,6 +42,22 @@ export type ClassCard = ClassRow & {
   full: boolean;
 };
 
+/** 화면 부품(ClassMeta·PriceBlock)이 필요로 하는 만큼만. ClassCard 를 그대로 넣어도 맞는다. */
+export type ClassSummary = Pick<
+  ClassRow,
+  | 'slug'
+  | 'title'
+  | 'schedule_text'
+  | 'starts_on'
+  | 'sessions'
+  | 'location'
+  | 'tutor_name'
+  | 'tutor_school'
+  | 'tutor_percentile'
+  | 'price'
+  | 'price_note'
+>;
+
 export type ApplicationRow = {
   id: string;
   class_id: string;
