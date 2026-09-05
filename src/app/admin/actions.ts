@@ -32,8 +32,14 @@ function optional(form: FormData, key: string): string | null {
   return v.length > 0 ? v : null;
 }
 
+/**
+ * 숫자 칸. 빈 칸이면 기본값이다 — Number('') 은 0 이라 그냥 넘기면
+ * 회차와 수강료가 조용히 0 이 된다.
+ */
 function number(form: FormData, key: string, fallback: number): number {
-  const v = Number(text(form, key));
+  const raw = text(form, key);
+  if (!raw) return fallback;
+  const v = Number(raw);
   return Number.isFinite(v) ? v : fallback;
 }
 
@@ -65,7 +71,12 @@ export async function saveClassAction(formData: FormData): Promise<void> {
   const slug = text(formData, 'slug').toLowerCase();
   const status = text(formData, 'status');
 
-  if (!isSlug(slug)) redirect(`/admin/class/new?error=${encodeURIComponent('주소(slug)는 영문 소문자·숫자·하이픈으로 적어주세요')}`);
+  // 되돌아갈 곳. 새 반이면 아직 /admin/class/[slug] 가 없어서 그리로 보내면 404 가 뜨고,
+  // 관리자는 적던 것을 통째로 잃는다. 폼이 숨은 칸으로 어디서 왔는지 알려준다.
+  const form = text(formData, 'mode') === 'new' ? '/admin/class/new' : `/admin/class/${slug}`;
+  const back = (message: string): never => redirect(`${form}?error=${encodeURIComponent(message)}`);
+
+  if (!isSlug(slug)) back('주소(slug)는 영문 소문자·숫자·하이픈으로 적어주세요');
 
   const input: ClassInput = {
     slug,
@@ -95,7 +106,7 @@ export async function saveClassAction(formData: FormData): Promise<void> {
     : input.price < 0 ? '수강료를 다시 확인해주세요'
     : null;
 
-  if (problem) redirect(`/admin/class/${slug}?error=${encodeURIComponent(problem)}`);
+  if (problem) back(problem);
 
   let failure: string | null = null;
   try {
@@ -104,7 +115,7 @@ export async function saveClassAction(formData: FormData): Promise<void> {
     failure = err instanceof Error ? err.message : '저장이 안 됐어요';
   }
 
-  if (failure) redirect(`/admin/class/${slug}?error=${encodeURIComponent(failure)}`);
+  if (failure) back(failure);
   redirect('/admin?saved=1');
 }
 

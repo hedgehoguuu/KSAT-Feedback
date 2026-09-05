@@ -1,15 +1,10 @@
 import { setApplicationStatusAction } from '@/app/admin/actions';
 import { APPLICATION_STATUS, APPLICATION_STATUSES, CLASS } from '@/config/class';
 import { listApplications } from '@/lib/classes';
+// 서버는 UTC 로 돈다. 그냥 찍으면 저녁 7시 신청이 오전 10시로 보인다.
+import { seoulStamp } from '@/lib/kst';
 
 export const dynamic = 'force-dynamic';
-
-function when(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(
-    d.getMinutes(),
-  ).padStart(2, '0')}`;
-}
 
 export default async function AdminApplications() {
   const rows = await listApplications();
@@ -40,7 +35,7 @@ export default async function AdminApplications() {
                   <p className="text-[15px] font-bold">{r.student_name}</p>
                   <p className="mt-0.5 text-[13px] text-muted">{r.classTitle}</p>
                 </div>
-                <span className="shrink-0 text-[12px] text-muted">{when(r.created_at)}</span>
+                <span className="shrink-0 text-[12px] text-muted">{seoulStamp(r.created_at)}</span>
               </div>
 
               <div className="mt-3 flex flex-col gap-1 text-[14px]">

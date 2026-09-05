@@ -23,7 +23,7 @@ type Block =
 const HEADING = /^(#{2,3})\s+(.+)$/;
 const BULLET = /^[-•]\s+(.+)$/;
 
-export function parseRichText(source: string): Block[] {
+function parseRichText(source: string): Block[] {
   const blocks: Block[] = [];
   let list: string[] = [];
   let para: string[] = [];

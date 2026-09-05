@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { workerAuthorized } from '@/lib/worker/auth';
 import { processPending, processSubmission } from '@/lib/worker/process';
 
 export const runtime = 'nodejs';
@@ -12,14 +13,11 @@ export const maxDuration = 60;
  *   POST /api/worker/process                     밀린 것부터 최대 5건
  *   POST /api/worker/process?receipt=F0902-013   특정 접수만
  *
- * WORKER_SECRET 을 넣어두면 그 값을 헤더로 보내야만 실행된다.
- * 비워두면 누구나 호출할 수 있으니, 접수를 열기 전에 반드시 넣을 것.
+ * WORKER_SECRET 이 있어야 한다. 예전에는 열쇠를 안 넣으면 통과시켰는데,
+ * 그건 잠근 게 아니라 안 잠근 것이었다 — 이제 열쇠가 없으면 아무도 못 부른다.
  */
 export async function POST(req: Request) {
-  const secret = process.env.WORKER_SECRET;
-  if (secret && req.headers.get('x-worker-secret') !== secret) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
+  if (!workerAuthorized(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const receipt = new URL(req.url).searchParams.get('receipt');
 

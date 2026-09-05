@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Children, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
 /**
  * 개설 클래스가 둘 이상이면 옆으로 넘겨 보는 갤러리가 된다.
@@ -9,10 +9,15 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
  * 견주지도 못한다. 가로로 두고 다음 카드를 살짝 걸쳐 보여주면 "더 있다"가 바로 읽힌다.
  *
  * 하나뿐이면 그냥 한 장으로 둔다 — 넘길 것이 없는데 넘기는 시늉을 만들지 않는다.
+ *
+ * 카드 폭은 여기서만 정한다(`[&>li]:…`). 부르는 쪽은 li 를 그냥 넘기면 된다 —
+ * 양쪽이 저마다 "둘 이상인가"를 따지면 언젠가 한쪽만 고쳐진다.
  */
-export function ClassGallery({ count, children }: { count: number; children: ReactNode }) {
+export function ClassGallery({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLUListElement>(null);
   const [active, setActive] = useState(0);
+  // 몇 장인지는 넘겨받지 않고 직접 센다 — 따로 받으면 언젠가 실제 개수와 어긋난다.
+  const count = Children.count(children);
   const many = count > 1;
 
   useEffect(() => {
@@ -48,7 +53,7 @@ export function ClassGallery({ count, children }: { count: number; children: Rea
     <div className="mt-5">
       <ul
         ref={ref}
-        className="-mx-5 flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto scroll-pl-5 px-5 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="-mx-5 flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto scroll-pl-5 px-5 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>li]:w-[86%] [&>li]:shrink-0 [&>li]:snap-start"
       >
         {children}
       </ul>
@@ -60,7 +65,7 @@ export function ClassGallery({ count, children }: { count: number; children: Rea
             type="button"
             onClick={() => goTo(i)}
             aria-label={`${i + 1}번째 반 보기`}
-            aria-current={i === active}
+            aria-current={i === active ? 'true' : undefined}
             className="p-1.5"
           >
             <span

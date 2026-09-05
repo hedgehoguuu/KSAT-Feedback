@@ -1,3 +1,5 @@
+import { seoulDate } from '@/lib/kst';
+
 // 모집 페이지(/class)와 관리자 화면이 함께 보는 상수. 모집 페이지 PRD v1.1 §00 확정값.
 // 여기 숫자를 고치면 화면 · 기본값 · 서버 검사가 같이 따라간다.
 
@@ -45,12 +47,6 @@ export function won(amount: number): string {
   return `${amount.toLocaleString('ko-KR')}원`;
 }
 
-/** 1회당 얼마인지. 회차가 없으면 보여주지 않는다. */
-export function perSession(price: number, sessions: number): number | null {
-  if (!sessions || sessions <= 1) return null;
-  return Math.round(price / sessions);
-}
-
 /** 9모 접수번호 — F{MMDD}-{3자리}. formatReceiptNo() 가 만드는 형식과 같다. */
 const RECEIPT_SHAPE = /^F\d{4}-\d{3}$/;
 export function normalizeReceiptNo(value: string): string {
@@ -81,11 +77,12 @@ export function isSlug(value: string): boolean {
   return SLUG_SHAPE.test(value);
 }
 
-/** 신청일 기준 삭제 예정일 (YYYY-MM-DD) */
+/**
+ * 신청일 기준 삭제 예정일 (YYYY-MM-DD).
+ * 지우는 쪽(purge_expired_applications)이 한국 날짜로 비교하므로 여기도 한국 날짜다.
+ */
 export function applicationPurgeDate(from: Date = new Date()): string {
-  const d = new Date(from);
-  d.setDate(d.getDate() + CLASS.retentionDays);
-  return d.toISOString().slice(0, 10);
+  return seoulDate(from, CLASS.retentionDays);
 }
 
 /** 2026-10-16 → "10월 16일" */

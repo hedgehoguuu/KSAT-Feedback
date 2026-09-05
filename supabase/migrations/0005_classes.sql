@@ -26,7 +26,9 @@ create table if not exists classes (
   detail           text,                          -- 수업 상세 설명
   capacity         int  not null default 3 check (capacity between 1 and 20),
   price            int  not null default 498000 check (price >= 0),
-  price_note       text not null default '4회 총액 · 모의고사 4회분, 스터디룸, 수업 후 피드백 포함',
+  -- src/config/class.ts 의 CLASS.defaultPriceNote 와 같은 값이어야 한다.
+  -- 실제로는 앱이 늘 값을 채워 넣어서, 이 기본값은 처음 설치할 때만 쓰인다.
+  price_note       text not null default '모의고사 4회분 · 스터디룸 대관료 · 수업 후 피드백 문서 제공',
   status           text not null default 'draft' check (status in ('draft','open','closed')),
   sort_order       int  not null default 0,
   updated_at       timestamptz not null default now()

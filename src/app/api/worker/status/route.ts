@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { RAW_BUCKET, supabaseAdmin } from '@/lib/supabase/admin';
+import { workerAuthorized } from '@/lib/worker/auth';
 import { sendConfirmationMail } from '@/lib/worker/mail';
 import { findExam } from '@/config/exams';
 
@@ -15,10 +16,7 @@ export const maxDuration = 60;
  *   GET /api/worker/status?mail=1     운영자 주소로 시험 메일을 보내본다
  */
 export async function GET(req: Request) {
-  const secret = process.env.WORKER_SECRET;
-  if (!secret || req.headers.get('x-worker-secret') !== secret) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
+  if (!workerAuthorized(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const db = supabaseAdmin();
   if (!db) return NextResponse.json({ error: 'supabase 연결 없음' }, { status: 500 });

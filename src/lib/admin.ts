@@ -1,7 +1,8 @@
 import 'server-only';
-import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { sameSecret } from './secret';
 
 /**
  * 관리자 잠금 (모집 페이지 PRD §05).
@@ -24,17 +25,8 @@ function sign(expiresAt: number): string {
   return createHmac('sha256', secret).update(`v1.${expiresAt}`).digest('hex');
 }
 
-/** 길이가 달라도 새는 정보가 없도록 해시를 먼저 뜨고 비교한다. */
-function sameString(a: string, b: string): boolean {
-  const ha = createHash('sha256').update(a).digest();
-  const hb = createHash('sha256').update(b).digest();
-  return timingSafeEqual(ha, hb);
-}
-
 export function passwordMatches(input: string): boolean {
-  const secret = process.env.ADMIN_PASSWORD;
-  if (!secret) return false;
-  return sameString(input, secret);
+  return sameSecret(input, process.env.ADMIN_PASSWORD);
 }
 
 export function issueSession(): { value: string; maxAge: number } {
@@ -51,7 +43,7 @@ function validSession(token: string | undefined): boolean {
   const expiresAt = Number(token.slice(0, dot));
   if (!Number.isFinite(expiresAt) || expiresAt * 1000 < Date.now()) return false;
 
-  return sameString(token.slice(dot + 1), sign(expiresAt));
+  return sameSecret(token.slice(dot + 1), sign(expiresAt));
 }
 
 /** 지금 요청이 관리자인가. 비밀번호가 없는 배포에서는 항상 false 다 (열어 두지 않는다). */

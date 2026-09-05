@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { workerAuthorized } from '@/lib/worker/auth';
 import { cleanupOrphans, inventory, wipeStorage } from '@/lib/worker/storage';
 
 export const runtime = 'nodejs';
@@ -14,21 +15,15 @@ export const maxDuration = 60;
  *   POST /api/worker/storage?mode=orphans&dry=1    지우지 않고 몇 개인지만 세기
  *   POST /api/worker/storage?mode=wipe&confirm=WIPE-ALL   버킷 통째로 비우기 (되돌릴 수 없음)
  *
- * WORKER_SECRET 헤더가 있어야 한다.
+ * WORKER_SECRET 헤더가 있어야 한다 (lib/worker/auth.ts).
  */
-function authorized(req: Request): boolean {
-  const worker = process.env.WORKER_SECRET;
-  const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-  return Boolean(worker) && (req.headers.get('x-worker-secret') === worker || bearer === worker);
-}
-
 export async function GET(req: Request) {
-  if (!authorized(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!workerAuthorized(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   return NextResponse.json(await inventory(), { headers: { 'cache-control': 'no-store' } });
 }
 
 export async function POST(req: Request) {
-  if (!authorized(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!workerAuthorized(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const params = new URL(req.url).searchParams;
   const mode = params.get('mode');

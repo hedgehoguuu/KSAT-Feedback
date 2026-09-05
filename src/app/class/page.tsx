@@ -27,8 +27,8 @@ export default async function ClassLanding() {
           <div className="mt-5 rounded-2xl border border-line p-5">
             <p className="text-[12px] font-bold text-muted">{COPY.docTitle}</p>
             <ul className="mt-3 flex flex-col gap-2.5">
-              {COPY.docLines.map((line) => (
-                <li key={line} className="flex items-center gap-2.5 text-[14px] font-bold">
+              {COPY.docLines.map((line, i) => (
+                <li key={i} className="flex items-center gap-2.5 text-[14px] font-bold">
                   <span className="text-[9px] text-mark">■</span>
                   {line}
                 </li>
@@ -69,8 +69,8 @@ export default async function ClassLanding() {
             </div>
           </div>
           <ul className="mt-5 flex flex-col gap-2.5">
-            {COPY.blocks.map((b) => (
-              <li key={b.label} className="flex gap-3 text-[14px] leading-[1.6]">
+            {COPY.blocks.map((b, i) => (
+              <li key={i} className="flex gap-3 text-[14px] leading-[1.6]">
                 <span className="w-9 shrink-0 font-bold tabular-nums text-muted">{b.minutes}′</span>
                 <span>
                   <span className="font-bold">{b.label}</span>
@@ -84,8 +84,8 @@ export default async function ClassLanding() {
         <Reveal delay={140}>
           <h3 className="mt-11 text-[16px] font-bold">{COPY.observeTitle}</h3>
           <ul className="mt-4 flex flex-col gap-px overflow-hidden rounded-2xl bg-line">
-            {COPY.observed.map((row) => (
-              <li key={row.part} className="bg-background px-4 py-3.5">
+            {COPY.observed.map((row, i) => (
+              <li key={i} className="bg-background px-4 py-3.5">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-[14px] font-bold">{row.part}</span>
                   <span className="shrink-0 text-[14px] font-bold tabular-nums">
@@ -102,8 +102,8 @@ export default async function ClassLanding() {
         <Reveal delay={200}>
           <h3 className="mt-11 text-[16px] font-bold">{COPY.agendaTitle}</h3>
           <ul className="mt-4 flex flex-col gap-3">
-            {COPY.agenda.map((row) => (
-              <li key={row.at} className="flex items-baseline gap-3">
+            {COPY.agenda.map((row, i) => (
+              <li key={i} className="flex items-baseline gap-3">
                 <span className="w-11 shrink-0 text-[12px] font-bold tabular-nums text-muted">{row.at}</span>
                 <span className="text-[16px] font-bold">{row.what}</span>
                 <span className="ml-auto text-[13px] tabular-nums text-muted">{row.minutes}분</span>
@@ -120,8 +120,8 @@ export default async function ClassLanding() {
         </Reveal>
         <Reveal delay={80}>
           <ul className="mt-5 flex flex-col gap-2">
-            {COPY.takeaway.map((t) => (
-              <li key={t.title} className="rounded-xl bg-background px-4 py-4">
+            {COPY.takeaway.map((t, i) => (
+              <li key={i} className="rounded-xl bg-background px-4 py-4">
                 <p className="text-[15px] font-bold">
                   <Marked text={t.title} />
                 </p>
@@ -154,8 +154,8 @@ export default async function ClassLanding() {
           <div className="mt-6">
             <p className="text-[15px] font-bold">{COPY.forYouTitle}</p>
             <ul className="mt-3 flex flex-col gap-2">
-              {COPY.forYou.map((line) => (
-                <li key={line} className="flex gap-2.5 text-[15px] leading-[1.6]">
+              {COPY.forYou.map((line, i) => (
+                <li key={i} className="flex gap-2.5 text-[15px] leading-[1.6]">
                   <span className="text-mark">✓</span>
                   <span>{line}</span>
                 </li>
@@ -168,8 +168,8 @@ export default async function ClassLanding() {
           <div className="mt-7 border-t border-line pt-6">
             <p className="text-[15px] font-bold text-muted">{COPY.notForYouTitle}</p>
             <ul className="mt-3 flex flex-col gap-2">
-              {COPY.notForYou.map((line) => (
-                <li key={line} className="flex gap-2.5 text-[15px] leading-[1.6] text-muted">
+              {COPY.notForYou.map((line, i) => (
+                <li key={i} className="flex gap-2.5 text-[15px] leading-[1.6] text-muted">
                   <span>·</span>
                   <span>{line}</span>
                 </li>
@@ -207,12 +207,9 @@ export default async function ClassLanding() {
           </Reveal>
         ) : (
           <Reveal delay={80}>
-            <ClassGallery count={classes.length}>
+            <ClassGallery>
               {classes.map((c) => (
-                <li
-                  key={c.id}
-                  className={classes.length > 1 ? 'w-[86%] shrink-0 snap-start' : undefined}
-                >
+                <li key={c.id}>
                   <ClassCard
                     data={c}
                     proofUrls={c.proof_paths

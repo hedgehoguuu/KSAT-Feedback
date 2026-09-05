@@ -34,6 +34,9 @@ export function ClassForm({ data, proofs, error }: Props) {
       ) : null}
 
       <form action={saveClassAction} className="mt-6 flex flex-col gap-4">
+        {/* 저장이 막혔을 때 어느 화면으로 되돌릴지. 새 반은 아직 주소가 없다 */}
+        <input type="hidden" name="mode" value={isNew ? 'new' : 'edit'} />
+
         <label className={label}>
           <span className={labelText}>주소 (slug)</span>
           <input

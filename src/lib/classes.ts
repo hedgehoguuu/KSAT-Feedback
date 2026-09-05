@@ -1,6 +1,5 @@
 import 'server-only';
 import {
-  CLASS,
   applicationPurgeDate,
   type ApplicationStatus,
   type ClassStatus,
@@ -11,6 +10,13 @@ import { supabaseAdmin } from './supabase/admin';
 export const PROOF_BUCKET = 'tutor-proof';
 /** 증빙 이미지를 보여줄 때 쓰는 서명 URL 유효기간 (초). 짧게 준다. */
 const PROOF_URL_TTL = 60 * 30;
+/** 버킷(0005_classes.sql)에 걸어 둔 것과 같은 값. 두 곳이 어긋나면 안 된다. */
+const PROOF_MAX_BYTES = 5 * 1024 * 1024;
+const PROOF_TYPES: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
 
 export type ClassRow = {
   id: string;
@@ -200,9 +206,18 @@ export async function deleteClass(slug: string): Promise<void> {
 
   const target = await getClass(slug);
   if (!target) return;
+
   // 신청이 들어온 반은 지우지 않는다. 신청 기록이 반을 참조하고 있고,
   // 무엇보다 그 학생에게 연락할 근거가 사라진다.
-  if (target.taken > 0) throw new Error('신청이 들어온 반은 지울 수 없어요. 마감으로 바꿔주세요.');
+  //
+  // 취소된 신청도 센다. 자리는 돌려줬어도 행은 남아 있어서, 빼먹으면 DB 의 외래키
+  // 제약(on delete restrict)에 걸려 알아볼 수 없는 오류 원문이 관리자 화면에 뜬다.
+  const { count } = await db
+    .from('class_applications')
+    .select('id', { count: 'exact', head: true })
+    .eq('class_id', target.id);
+
+  if ((count ?? 0) > 0) throw new Error('신청이 들어온 반은 지울 수 없어요. 마감으로 바꿔주세요.');
 
   const { error } = await db.from('classes').delete().eq('slug', slug);
   if (error) throw new Error(error.message);
@@ -215,7 +230,12 @@ export async function uploadProof(slug: string, file: File): Promise<void> {
   const row = await getClass(slug);
   if (!row) throw new Error('반을 찾을 수 없어요');
 
-  const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+  // 화면의 accept 와 "5MB 까지" 안내는 브라우저에서만 도는 안내다. 여기서 한 번 더 본다 —
+  // 안 보면 버킷이 거절하면서 알아볼 수 없는 오류 원문이 그대로 화면에 뜬다.
+  const ext = PROOF_TYPES[file.type];
+  if (!ext) throw new Error('JPG · PNG · WEBP 이미지만 올릴 수 있어요');
+  if (file.size > PROOF_MAX_BYTES) throw new Error('이미지가 5MB 를 넘어요. 줄여서 올려주세요.');
+
   const path = `${slug}/${crypto.randomUUID()}.${ext}`;
 
   const { error } = await db.storage
@@ -352,5 +372,3 @@ export async function purgeExpiredApplications(): Promise<number> {
   if (error || typeof data !== 'number') return 0;
   return data;
 }
-
-export const RETENTION_DAYS = CLASS.retentionDays;

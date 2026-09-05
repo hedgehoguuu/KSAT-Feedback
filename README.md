@@ -284,7 +284,8 @@ G4(자동 반영 성공률)는 Notion 단독 기준으로 읽는다.
 - **단계마다 따로 실패를 받는다.** PDF 가 실패해도 Notion 등록과 메일은 나간다.
 - **여러 번 돌려도 결과가 같다.** 이미 만든 PDF·Notion 페이지·보낸 메일은 건너뛴다.
 - **막힌 접수 되살리기**: `POST /api/worker/process` 를 부르면 밀린 것부터 최대 5건을 다시 처리한다.
-  특정 건만 하려면 `?receipt=F0902-013`. `WORKER_SECRET` 을 넣어뒀다면 `x-worker-secret` 헤더가 필요하다.
+  특정 건만 하려면 `?receipt=F0902-013`. `WORKER_SECRET` 을 `x-worker-secret` 헤더(또는 `Authorization: Bearer`)로
+  보내야 한다 — 열쇠를 안 넣은 배포에서는 이 주소가 아예 안 열린다.
 - `/setup` 이 밀린 건수와 해결 안 된 오류 건수를 같이 보여준다.
 
 ## 알아 둘 것
