@@ -1,4 +1,5 @@
 import { ClassCard } from '@/components/ClassCard';
+import { ClassGallery } from '@/components/ClassGallery';
 import { Marked } from '@/components/Marked';
 import { Reveal } from '@/components/Reveal';
 import { BRANDING } from '@/config/app';
@@ -205,20 +206,23 @@ export default async function ClassLanding() {
             </div>
           </Reveal>
         ) : (
-          <ul className="mt-5 flex flex-col gap-4">
-            {classes.map((c, i) => (
-              <li key={c.id}>
-                <Reveal delay={i * 90}>
+          <Reveal delay={80}>
+            <ClassGallery count={classes.length}>
+              {classes.map((c) => (
+                <li
+                  key={c.id}
+                  className={classes.length > 1 ? 'w-[86%] shrink-0 snap-start' : undefined}
+                >
                   <ClassCard
                     data={c}
                     proofUrls={c.proof_paths
                       .map((p) => proofUrls.get(p))
                       .filter((u): u is string => Boolean(u))}
                   />
-                </Reveal>
-              </li>
-            ))}
-          </ul>
+                </li>
+              ))}
+            </ClassGallery>
+          </Reveal>
         )}
       </section>
 

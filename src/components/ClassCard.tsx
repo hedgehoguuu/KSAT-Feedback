@@ -12,7 +12,7 @@ type Props = {
 /** 개설 클래스 한 장. 값은 전부 /admin 에서 넣는다. */
 export function ClassCard({ data, proofUrls }: Props) {
   return (
-    <article className="rounded-2xl border border-line p-5">
+    <article className="flex h-full flex-col rounded-2xl border border-line p-5">
       {/* 남은 자리 수는 학생에게 보여주지 않는다. 자리가 다 찼는지는 아래 버튼이 말한다. */}
       <p className="text-[17px] font-bold leading-[1.4]">{data.title}</p>
 
@@ -55,7 +55,7 @@ export function ClassCard({ data, proofUrls }: Props) {
         </div>
       ) : null}
 
-      <div className="mt-5">
+      <div className="mt-auto pt-5">
         <PriceBlock price={data.price} sessions={data.sessions} note={data.price_note} />
       </div>
 
