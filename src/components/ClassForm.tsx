@@ -119,6 +119,7 @@ export function ClassForm({ data, proofs, error }: Props) {
               placeholder="97"
               className={input}
             />
+            <span className={hint}>카드에서 빨간 칩으로 강조돼요.</span>
           </label>
         </div>
 
@@ -127,14 +128,14 @@ export function ClassForm({ data, proofs, error }: Props) {
         </div>
 
         <label className={label}>
-          <span className={labelText}>권장 수강 대상</span>
+          <span className={labelText}>추천 학생</span>
           <input
             name="recommend"
             defaultValue={data?.recommend ?? ''}
             placeholder="시간이 모자라 뒷 지문을 버리는 학생"
             className={input}
           />
-          <span className={hint}>한 줄로. 카드에서 제일 먼저 읽히는 문장이에요.</span>
+          <span className={hint}>한 줄로. 카드에서 「추천 학생」으로 보여요.</span>
         </label>
 
         <label className={label}>
@@ -142,9 +143,26 @@ export function ClassForm({ data, proofs, error }: Props) {
           <textarea
             name="detail"
             defaultValue={data?.detail ?? ''}
-            rows={4}
+            rows={10}
+            placeholder={'## 첫 회차에는\n- 9월 시험지를 함께 봅니다\n- **관찰할 지점**을 정하고 시작해요\n\n2회차부터 사설 실전 모의고사를 씁니다.'}
             className="rounded-xl border border-line px-3.5 py-3 text-[15px] leading-[1.7] outline-none focus:border-brand"
           />
+          <span className={hint}>
+            학생 화면의 「수업 자세히 보기」에 들어가요. 아래처럼 적으면 서식이 붙습니다.
+          </span>
+          <ul className="mt-1 flex flex-col gap-1 rounded-xl bg-surface px-3.5 py-3 text-[12px] leading-[1.7] text-muted">
+            <li>
+              <b className="text-foreground">## 큰 제목</b> · <b className="text-foreground">### 작은 제목</b> — 줄 앞에 붙여요
+            </li>
+            <li>
+              <b className="text-foreground">- 항목</b> — 줄 앞에 붙이면 점 목록이 돼요
+            </li>
+            <li>
+              <b className="text-foreground">**굵게**</b> · <b className="text-foreground">__밑줄__</b> ·{' '}
+              <b className="text-foreground">*빨간 강조*</b>
+            </li>
+            <li>빈 줄을 넣으면 문단이 나뉘어요</li>
+          </ul>
         </label>
 
         <div className="mt-2 border-t border-line pt-4">
@@ -177,12 +195,15 @@ export function ClassForm({ data, proofs, error }: Props) {
         </div>
 
         <label className={label}>
-          <span className={labelText}>수강료 설명</span>
+          <span className={labelText}>수강료에 포함되는 것</span>
           <input
             name="price_note"
             defaultValue={data?.price_note ?? CLASS.defaultPriceNote}
             className={input}
           />
+          <span className={hint}>
+            가운뎃점(·)으로 나눠 적으면 카드에서 「✓ … 포함」 한 줄씩으로 펴져요.
+          </span>
         </label>
 
         <div className="flex gap-3">

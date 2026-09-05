@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { BottomBar } from '@/components/BottomBar';
 import { ClassMeta } from '@/components/ClassMeta';
 import { PriceBlock } from '@/components/PriceBlock';
-import { CLASS, isPhone, isReceiptNo, normalizePhone, normalizeReceiptNo } from '@/config/class';
+import { isPhone, isReceiptNo, normalizePhone, normalizeReceiptNo } from '@/config/class';
 import { APPLY } from '@/config/class-copy';
 import type { ClassSummary } from '@/lib/classes';
 
@@ -143,10 +143,7 @@ export function ApplyForm({ data }: { data: ClassSummary }) {
             />
             <span className="text-[14px] leading-[1.6]">
               {APPLY.consentLabel}
-              <span className="mt-1 block text-[13px] text-muted">
-                {APPLY.consentDetail}
-                {` ${CLASS.retentionDays}일 뒤 지웁니다.`}
-              </span>
+              <span className="mt-1 block text-[13px] text-muted">{APPLY.consentDetail}</span>
             </span>
           </label>
         </div>

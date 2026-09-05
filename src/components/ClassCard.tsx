@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ClassMeta } from '@/components/ClassMeta';
 import { PriceBlock } from '@/components/PriceBlock';
+import { RichText } from '@/components/RichText';
 import type { ClassCard as ClassCardData } from '@/lib/classes';
 
 type Props = {
@@ -59,9 +60,9 @@ export function ClassCard({ data, proofUrls }: Props) {
               <summary className="cursor-pointer list-none text-[13px] font-semibold text-muted underline underline-offset-2">
                 수업 자세히 보기
               </summary>
-              <p className="mt-2 whitespace-pre-line text-[14px] leading-[1.7] text-muted">
-                {data.detail}
-              </p>
+              <div className="mt-3">
+                <RichText text={data.detail} />
+              </div>
             </details>
           ) : null}
         </div>

@@ -135,6 +135,8 @@ src/lib/ (모집 페이지)
 src/config/class.ts               수강료 기본값 · 보유기간 · 접수번호·연락처 형식
 src/config/class-copy.ts        ★ 모집 페이지에 나오는 글자 전부. *별표* 는 빨간 밑줄, \n 은 줄바꿈
 src/components/ClassMeta.tsx      반 정보(일정·기간·장소·튜터)를 이름표 붙여 줄로 나눈다
+src/components/RichText.tsx       관리자가 적은 수업 설명에 서식을 붙인다 (## 제목 · - 목록 · **굵게**)
+src/components/Marked.tsx         한 줄 안의 표시 — **굵게** · __밑줄__ · *빨간 강조*
 src/components/PriceBlock.tsx     총액 + 무엇이 포함되는지 체크 목록. 카드·신청 화면이 함께 쓴다
 src/components/Reveal.tsx         스크롤하면 한 덩어리씩 떠오른다 (html.js 없으면 그냥 보인다)
 
