@@ -13,21 +13,8 @@ type Props = {
 export function ClassCard({ data, proofUrls }: Props) {
   return (
     <article className="rounded-2xl border border-line p-5">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-[17px] font-bold leading-[1.4]">{data.title}</p>
-        <span
-          className={[
-            'mt-0.5 shrink-0 rounded-full px-2.5 py-1 text-[12px] font-bold',
-            data.full
-              ? 'bg-surface text-muted'
-              : data.seatsLeft <= 1
-                ? 'bg-mark-soft text-mark'
-                : 'bg-surface text-foreground',
-          ].join(' ')}
-        >
-          {data.full ? '마감' : `${data.seatsLeft}자리 남음`}
-        </span>
-      </div>
+      {/* 남은 자리 수는 학생에게 보여주지 않는다. 자리가 다 찼는지는 아래 버튼이 말한다. */}
+      <p className="text-[17px] font-bold leading-[1.4]">{data.title}</p>
 
       <ClassMeta data={data} />
 
