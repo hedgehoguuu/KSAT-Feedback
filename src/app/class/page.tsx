@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { ClassCard } from '@/components/ClassCard';
 import { Marked } from '@/components/Marked';
 import { Reveal } from '@/components/Reveal';
@@ -49,21 +48,6 @@ export default async function ClassLanding() {
           <p className="mt-5 text-[16px] leading-[1.75] text-muted">
             <Marked text={COPY.heroBody} />
           </p>
-        </Reveal>
-
-        <Reveal delay={320}>
-          <Link
-            href="#check"
-            className="mt-8 flex min-h-13 items-center justify-center rounded-2xl bg-brand text-[16px] font-bold text-white active:bg-brand-pressed"
-          >
-            {COPY.heroCta}
-          </Link>
-          <Link
-            href="#classes"
-            className="mt-3 flex min-h-11 items-center justify-center text-[14px] font-semibold text-muted underline underline-offset-4"
-          >
-            {COPY.heroCtaSecond}
-          </Link>
         </Reveal>
       </section>
 
