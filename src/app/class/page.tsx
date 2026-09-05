@@ -71,7 +71,6 @@ export default async function ClassLanding() {
       <section id="check" className="mt-20 scroll-mt-4 bg-surface px-5 py-12">
         <Reveal>
           <h2 className={H2}>{COPY.checkTitle}</h2>
-          <p className="mt-3 text-[15px] leading-[1.7] text-muted">{COPY.checkLead}</p>
         </Reveal>
         <Reveal delay={80}>
           <SelfCheck />
@@ -125,7 +124,6 @@ export default async function ClassLanding() {
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-[13px] leading-[1.6] text-muted">{COPY.observeNote}</p>
         </Reveal>
 
         <Reveal delay={200}>
@@ -177,7 +175,6 @@ export default async function ClassLanding() {
           <h2 className={H2}>
             <Marked text={COPY.audienceTitle} />
           </h2>
-          <p className="mt-3 text-[15px] leading-[1.7] text-muted">{COPY.audienceLead}</p>
         </Reveal>
 
         <Reveal delay={80}>
@@ -215,29 +212,7 @@ export default async function ClassLanding() {
         </Reveal>
       </section>
 
-      {/* ── ⑥ 자주 묻는 것 ─────────────────────────────────────── */}
-      <section className="mt-16 px-5">
-        <Reveal>
-          <h2 className={H2}>{COPY.faqTitle}</h2>
-        </Reveal>
-        <Reveal delay={80}>
-          <div className="mt-4 border-t border-line">
-            {COPY.faq.map((item) => (
-              <details key={item.q} className="group border-b border-line py-4">
-                <summary className="flex cursor-pointer list-none items-start justify-between gap-3 text-[15px] font-bold leading-[1.55]">
-                  {item.q}
-                  <span className="mt-0.5 shrink-0 text-[18px] font-normal text-muted transition-transform group-open:rotate-45">
-                    +
-                  </span>
-                </summary>
-                <p className="mt-3 text-[14px] leading-[1.75] text-muted">{item.a}</p>
-              </details>
-            ))}
-          </div>
-        </Reveal>
-      </section>
-
-      {/* ── ⑦ 개설 클래스 ──────────────────────────────────────── */}
+      {/* ── ⑥ 개설 클래스 ──────────────────────────────────────── */}
       <section id="classes" className="mt-16 scroll-mt-4 px-5">
         <Reveal>
           <h2 className={H2}>{COPY.classesTitle}</h2>

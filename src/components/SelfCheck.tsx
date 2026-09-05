@@ -72,9 +72,11 @@ export function SelfCheck() {
           <p className="mt-3 text-[15px] leading-[1.7]">
             <Marked text={result.body} />
           </p>
-          <p className="mt-3 border-t border-mark/20 pt-3 text-[14px] font-bold leading-[1.6]">
-            {result.close}
-          </p>
+          {'close' in result ? (
+            <p className="mt-3 border-t border-mark/20 pt-3 text-[14px] font-bold leading-[1.6]">
+              {result.close}
+            </p>
+          ) : null}
         </div>
       ) : (
         <p className="mt-7 rounded-2xl bg-surface px-5 py-4 text-[14px] leading-[1.7] text-muted">
