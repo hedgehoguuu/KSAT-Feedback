@@ -90,6 +90,7 @@ export async function saveClassAction(formData: FormData): Promise<void> {
     tutor_percentile: optional(formData, 'tutor_percentile')
       ? number(formData, 'tutor_percentile', 0)
       : null,
+    mock_exam: optional(formData, 'mock_exam'),
     recommend: optional(formData, 'recommend'),
     detail: optional(formData, 'detail'),
     capacity: number(formData, 'capacity', CLASS.defaultCapacity),

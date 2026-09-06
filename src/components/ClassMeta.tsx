@@ -22,6 +22,10 @@ function rowsOf(data: ClassSummary): Row[] {
 
   if (data.location) rows.push({ label: '장소', value: data.location });
 
+  // 어떤 시험지로 보느냐는 학생이 실제로 따지는 항목이다. 값에 포함된다는 사실은
+  // 아래 수강료 칸이 따로 말하므로, 여기서는 무엇을 쓰는지만 밝힌다.
+  if (data.mock_exam) rows.push({ label: '모의고사', value: data.mock_exam });
+
   if (data.tutor_name) {
     // 성적은 이 카드에서 가장 센 근거다. 학교·학번과 같은 줄에 묻지 않고 칩으로 세운다.
     rows.push({
@@ -42,8 +46,8 @@ export function ClassMeta({ data }: { data: ClassSummary }) {
   return (
     <dl className="mt-4 flex flex-col gap-2.5">
       {rows.map((row) => (
-        <div key={row.label} className="flex gap-3">
-          <dt className="w-9 shrink-0 pt-px text-[13px] font-bold text-muted">{row.label}</dt>
+        <div key={row.label} className="flex gap-2">
+          <dt className="w-[52px] shrink-0 pt-px text-[13px] font-bold text-muted">{row.label}</dt>
           <dd className="text-[14px] font-semibold leading-[1.5]">
             <span className="flex flex-wrap items-center gap-1.5">
               {row.value}

@@ -192,6 +192,26 @@ export default async function ClassLanding() {
           <p className="mt-3 text-[15px] leading-[1.7] text-muted">{COPY.classesLead}</p>
         </Reveal>
 
+        {/* 프로모션은 반마다 반복하지 않는다 — 카드 안에 넣으면 반의 정보처럼 읽힌다.
+            목록 위에 한 번만 두고, 흰 유리 카드들과 달리 빨간 쪽으로 칠해 구분한다.
+            열린 반이 없으면 내보내지 않는다 — 신청할 수 없는 수업의 혜택은 광고가 아니다. */}
+        {COPY.promo.title && classes.length > 0 ? (
+          <Reveal delay={60}>
+            <div className="glass mt-5 flex items-center gap-3.5 rounded-[22px] bg-mark-soft/70 p-4">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-mark text-[16px] font-bold tabular-nums text-white shadow-[0_8px_18px_-8px_rgb(229_52_43/0.8)]">
+                {COPY.promo.badge}
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold tracking-tight text-mark">{COPY.promo.label}</p>
+                <p className="mt-1 text-[15px] font-bold leading-[1.45]">{COPY.promo.title}</p>
+                <p className="mt-0.5 text-[14px] leading-[1.5] text-muted">
+                  <Marked text={COPY.promo.body} />
+                </p>
+              </div>
+            </div>
+          </Reveal>
+        ) : null}
+
         {classes.length === 0 ? (
           <Reveal delay={80}>
             <div className="glass mt-5 rounded-[22px] p-6">

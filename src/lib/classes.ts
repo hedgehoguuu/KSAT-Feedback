@@ -31,6 +31,8 @@ export type ClassRow = {
   tutor_school: string | null;
   tutor_percentile: number | null;
   proof_paths: string[];
+  /** 이 반이 쓰는 실전 모의고사 (예: 이감 파이널 모의고사) */
+  mock_exam: string | null;
   recommend: string | null;
   detail: string | null;
   capacity: number;
@@ -60,6 +62,7 @@ export type ClassSummary = Pick<
   | 'tutor_name'
   | 'tutor_school'
   | 'tutor_percentile'
+  | 'mock_exam'
   | 'price'
   | 'price_note'
 >;
@@ -83,10 +86,23 @@ export type ApplicationListItem = ApplicationRow & {
   receiptMatched: boolean | null;
 };
 
-const CLASS_COLUMNS =
+/** 0005 까지의 열. 0006 을 아직 안 돌린 데이터베이스에도 있는 것들이다. */
+const CLASS_COLUMNS_BASE =
   'id, slug, subject_code, title, schedule_text, starts_on, sessions, location, ' +
   'tutor_name, tutor_school, tutor_percentile, proof_paths, recommend, detail, ' +
   'capacity, price, price_note, status, sort_order, updated_at';
+const CLASS_COLUMNS = `${CLASS_COLUMNS_BASE}, mock_exam`;
+
+/**
+ * 없는 열을 물었을 때 Postgres 가 주는 코드(42703).
+ *
+ * 배포가 먼저 나가고 SQL 을 나중에 돌리면 잠깐 이 상태가 된다. 그때 그냥 실패시키면
+ * 조회가 통째로 비어서 /class 가 '열린 반이 없어요' 로 바뀐다 — 모집 중인 페이지가
+ * 빈 화면이 되는 셈이다. 그래서 새 열을 빼고 한 번 더 물어본다.
+ */
+function isMissingColumn(error: { code?: string } | null): boolean {
+  return error?.code === '42703';
+}
 
 /** 반마다 몇 자리가 찼는지. 취소한 신청은 자리를 돌려준다. */
 async function seatCounts(classIds: string[]): Promise<Map<string, number>> {
@@ -121,12 +137,16 @@ export async function listClasses({ onlyOpen }: { onlyOpen: boolean }): Promise<
   const db = supabaseAdmin();
   if (!db) return [];
 
-  let query = db.from('classes').select(CLASS_COLUMNS);
-  if (onlyOpen) query = query.eq('status', 'open');
+  const ask = (columns: string) => {
+    let query = db.from('classes').select(columns);
+    if (onlyOpen) query = query.eq('status', 'open');
+    return query
+      .order('sort_order', { ascending: true })
+      .order('starts_on', { ascending: true, nullsFirst: false });
+  };
 
-  const { data, error } = await query
-    .order('sort_order', { ascending: true })
-    .order('starts_on', { ascending: true, nullsFirst: false });
+  let { data, error } = await ask(CLASS_COLUMNS);
+  if (isMissingColumn(error)) ({ data, error } = await ask(CLASS_COLUMNS_BASE));
 
   if (error || !data) return [];
 
@@ -139,11 +159,11 @@ export async function getClass(slug: string): Promise<ClassCard | null> {
   const db = supabaseAdmin();
   if (!db) return null;
 
-  const { data, error } = await db
-    .from('classes')
-    .select(CLASS_COLUMNS)
-    .eq('slug', slug)
-    .maybeSingle();
+  const ask = (columns: string) =>
+    db.from('classes').select(columns).eq('slug', slug).maybeSingle();
+
+  let { data, error } = await ask(CLASS_COLUMNS);
+  if (isMissingColumn(error)) ({ data, error } = await ask(CLASS_COLUMNS_BASE));
 
   if (error || !data) return null;
 
@@ -179,6 +199,7 @@ export type ClassInput = {
   tutor_name: string;
   tutor_school: string | null;
   tutor_percentile: number | null;
+  mock_exam: string | null;
   recommend: string | null;
   detail: string | null;
   capacity: number;
@@ -197,6 +218,9 @@ export async function saveClass(input: ClassInput): Promise<void> {
     .from('classes')
     .upsert({ ...input, updated_at: new Date().toISOString() }, { onConflict: 'slug' });
 
+  if (isMissingColumn(error)) {
+    throw new Error('Supabase 에서 0006_mock_exam.sql 을 한 번 실행해주세요');
+  }
   if (error) throw new Error(error.message);
 }
 

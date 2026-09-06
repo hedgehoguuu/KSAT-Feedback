@@ -131,6 +131,17 @@ export function ClassForm({ data, proofs, error }: Props) {
         </div>
 
         <label className={label}>
+          <span className={labelText}>실전 모의고사</span>
+          <input
+            name="mock_exam"
+            defaultValue={data?.mock_exam ?? (isNew ? CLASS.defaultMockExam : '')}
+            placeholder={CLASS.defaultMockExam}
+            className={input}
+          />
+          <span className={hint}>카드에 「모의고사」 줄로 보여요. 비우면 그 줄이 안 나와요.</span>
+        </label>
+
+        <label className={label}>
           <span className={labelText}>추천 학생</span>
           <input
             name="recommend"
