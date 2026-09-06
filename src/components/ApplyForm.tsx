@@ -150,11 +150,6 @@ export function ApplyForm({ data }: { data: ClassSummary }) {
           </label>
         </div>
 
-        {failure ? (
-          <p className="mt-5 rounded-xl bg-danger/10 px-4 py-3 text-[14px] leading-[1.6] text-danger" role="alert">
-            {failure}
-          </p>
-        ) : null}
       </main>
 
       <BottomBar
@@ -162,6 +157,7 @@ export function ApplyForm({ data }: { data: ClassSummary }) {
         onClick={onSubmit}
         disabled={!canSubmit}
         reason={reason}
+        error={failure}
         pending={pending}
       />
     </>
