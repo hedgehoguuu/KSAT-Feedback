@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminClasses({ searchParams }: PageProps<'/admin'>) {
   const { saved } = await searchParams;
-  const classes = await listClasses({ onlyOpen: false });
+  const { rows: classes, failed } = await listClasses({ onlyOpen: false });
   const connected = Boolean(supabaseAdmin());
 
   return (
@@ -26,6 +26,10 @@ export default async function AdminClasses({ searchParams }: PageProps<'/admin'>
       {!connected ? (
         <p className="rounded-xl bg-surface px-4 py-3 text-[14px] leading-[1.6] text-muted">
           Supabase 연결이 없어요. 환경변수를 넣고 <span className="font-bold">0005_classes.sql</span> 을 실행해주세요.
+        </p>
+      ) : failed ? (
+        <p className="rounded-xl bg-danger/10 px-4 py-3 text-[14px] leading-[1.6] text-danger" role="alert">
+          반 목록을 불러오지 못했어요. 아래 목록이 비어 보여도 지워진 게 아니니 새로고침해보세요.
         </p>
       ) : null}
 

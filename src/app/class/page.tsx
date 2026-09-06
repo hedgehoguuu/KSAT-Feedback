@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 const H2 = 'text-[22px] font-bold leading-[1.4] tracking-tight';
 
 export default async function ClassLanding() {
-  const classes = await listClasses({ onlyOpen: true });
+  const { rows: classes, failed } = await listClasses({ onlyOpen: true });
   const proofUrls = await signProofUrls(classes.flatMap((c) => c.proof_paths));
 
   return (
@@ -195,7 +195,7 @@ export default async function ClassLanding() {
         {/* 프로모션은 반마다 반복하지 않는다 — 카드 안에 넣으면 반의 정보처럼 읽힌다.
             목록 위에 한 번만 두고, 흰 유리 카드들과 달리 빨간 쪽으로 칠해 구분한다.
             열린 반이 없으면 내보내지 않는다 — 신청할 수 없는 수업의 혜택은 광고가 아니다. */}
-        {COPY.promo.title && classes.length > 0 ? (
+        {COPY.promo.title && !failed && classes.length > 0 ? (
           <Reveal delay={60}>
             <div className="glass mt-5 flex items-center gap-3.5 rounded-[22px] bg-mark-soft/70 p-4">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-mark text-[16px] font-bold tabular-nums text-white shadow-[0_8px_18px_-8px_rgb(229_52_43/0.8)]">
@@ -212,7 +212,22 @@ export default async function ClassLanding() {
           </Reveal>
         ) : null}
 
-        {classes.length === 0 ? (
+        {/* 세 가지 상태를 구분한다. '못 불러왔다' 를 '반이 없다' 로 보여주면
+            데이터베이스가 흔들리는 동안 찾아온 사람을 전부 놓친다. */}
+        {failed ? (
+          <Reveal delay={80}>
+            <div className="glass mt-5 rounded-[22px] p-6" role="alert">
+              <p className="text-[16px] font-bold">{COPY.failedTitle}</p>
+              <p className="mt-2 text-[14px] leading-[1.7] text-muted">{COPY.failedBody}</p>
+              <a
+                href={`mailto:${BRANDING.contactEmail}?subject=${encodeURIComponent('[관찰반] 반 정보가 안 보여요')}`}
+                className="mt-3 inline-block text-[14px] font-bold text-brand underline underline-offset-2"
+              >
+                {BRANDING.contactEmail}
+              </a>
+            </div>
+          </Reveal>
+        ) : classes.length === 0 ? (
           <Reveal delay={80}>
             <div className="glass mt-5 rounded-[22px] p-6">
               <p className="text-[16px] font-bold">{COPY.emptyTitle}</p>

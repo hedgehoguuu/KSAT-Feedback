@@ -1,6 +1,7 @@
 import 'server-only';
 import nodemailer from 'nodemailer';
 import { BRANDING } from '@/config/app';
+import { siteUrl } from '@/lib/site';
 
 export type ApplicationAlert = {
   classTitle: string;
@@ -33,10 +34,8 @@ export async function sendApplicationAlert(input: ApplicationAlert): Promise<voi
     socketTimeout: 15_000,
   });
 
-  // Vercel 이 넣어 주는 프로덕션 도메인. 로컬에서는 없어서 상대 경로만 남는다.
-  const site = process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : '';
+  // 로컬에서는 도메인이 없어서 상대 경로만 남는다.
+  const site = siteUrl() ?? '';
 
   const lines = [
     `반 — ${input.classTitle}`,

@@ -130,12 +130,20 @@ function toCard(row: ClassRow, taken: number): ClassCard {
 }
 
 /**
- * 반 목록. `onlyOpen` 이면 모집중인 것만 — 초안은 학생에게 보이지 않는다.
- * Supabase 가 없으면 빈 배열이다. 화면은 빈 상태를 따로 그린다.
+ * 반 목록을 부른 결과.
+ *
+ * '못 불러왔다' 와 '불러왔는데 없다' 를 구분해서 준다. 예전에는 오류일 때도 빈 배열을
+ * 줬는데, 그러면 데이터베이스가 잠깐 흔들리는 동안 모집 페이지가 "지금은 열린 반이
+ * 없어요" 로 바뀐다. 방문자에게 사실이 아닌 말을 하고, 그날 온 사람을 전부 놓친다.
  */
-export async function listClasses({ onlyOpen }: { onlyOpen: boolean }): Promise<ClassCard[]> {
+export type ClassList = { rows: ClassCard[]; failed: boolean };
+
+/**
+ * 반 목록. `onlyOpen` 이면 모집중인 것만 — 초안은 학생에게 보이지 않는다.
+ */
+export async function listClasses({ onlyOpen }: { onlyOpen: boolean }): Promise<ClassList> {
   const db = supabaseAdmin();
-  if (!db) return [];
+  if (!db) return { rows: [], failed: true };
 
   const ask = (columns: string) => {
     let query = db.from('classes').select(columns);
@@ -148,11 +156,14 @@ export async function listClasses({ onlyOpen }: { onlyOpen: boolean }): Promise<
   let { data, error } = await ask(CLASS_COLUMNS);
   if (isMissingColumn(error)) ({ data, error } = await ask(CLASS_COLUMNS_BASE));
 
-  if (error || !data) return [];
+  if (error || !data) {
+    console.error('[classes] 목록 조회 실패', error);
+    return { rows: [], failed: true };
+  }
 
   const rows = data as unknown as ClassRow[];
   const taken = await seatCounts(rows.map((r) => r.id));
-  return rows.map((r) => toCard(r, taken.get(r.id) ?? 0));
+  return { rows: rows.map((r) => toCard(r, taken.get(r.id) ?? 0)), failed: false };
 }
 
 export async function getClass(slug: string): Promise<ClassCard | null> {

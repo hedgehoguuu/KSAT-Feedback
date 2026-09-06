@@ -1,8 +1,33 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ApplyForm } from '@/components/ApplyForm';
+import { formatStartsOn, won } from '@/config/class';
 import { getClass } from '@/lib/classes';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * 카카오톡에 이 주소를 붙였을 때 뜨는 카드.
+ *
+ * 관리자 화면이 안내하는 /class/{반} 이 이리로 오므로, 실제로 공유되는 링크는 이것이다.
+ * 그대로 두면 모든 반이 "국어 3인 관찰반" 하나로 보인다 — 반 이름과 시간을 넣는다.
+ */
+export async function generateMetadata({ params }: PageProps<'/class/[slug]/apply'>): Promise<Metadata> {
+  const { slug } = await params;
+  const target = await getClass(slug);
+  if (!target) return { title: '신청' };
+
+  const starts = formatStartsOn(target.starts_on);
+  const description = [target.schedule_text, starts ? `${starts} 시작` : null, `${target.sessions}회 ${won(target.price)}`]
+    .filter(Boolean)
+    .join(' · ');
+
+  return {
+    title: target.title,
+    description,
+    openGraph: { title: target.title, description },
+  };
+}
 
 export default async function ApplyPage({ params }: PageProps<'/class/[slug]/apply'>) {
   const { slug } = await params;

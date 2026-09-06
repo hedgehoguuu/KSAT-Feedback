@@ -79,6 +79,11 @@ src/app/                          화면과 API — 폴더 이름이 그대로 �
 
   setup/page.tsx           83     설치 점검 ✓/✗ (운영자용, noindex, 같은 잠금)
 
+  error.tsx                       화면이 터졌을 때 대신 나오는 한국어 안내 + 다시 시도
+  global-error.tsx                최상위까지 터졌을 때. CSS 도 못 믿어 인라인 스타일만 쓴다
+  not-found.tsx                   없는 주소
+  robots.ts / sitemap.ts          모집 페이지는 걸리게, 운영·개인 화면은 안 걸리게
+
   api/                            브라우저가 부르는 서버 주소
     upload-url/route.ts    57     사진 올릴 일회용 서명 주소 발급
     submit/route.ts       146  ★  접수 저장 → 접수번호 발급 → 후처리 시작
@@ -146,6 +151,8 @@ supabase/migrations/              데이터베이스 설계도 — SQL Editor �
   0003_daily_cap.sql      148     하루 접수 상한 (한국 날짜 기준, 자정에 초기화)
   0004_raw_score.sql      139     과목 원점수 칸 · 저장
   0005_classes.sql                개설 클래스 · 수업 신청 · 튜터 증빙 버킷
+  0006_mock_exam.sql              반이 쓰는 실전 모의고사 칸
+  0007_no_duplicate_apply.sql     같은 번호로 두 번 신청되지 않게
 
 docs/                             아티팩트로 공유한 문서
   setup-checklist.html            준비 체크리스트
