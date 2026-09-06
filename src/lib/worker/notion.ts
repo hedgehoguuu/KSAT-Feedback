@@ -194,7 +194,7 @@ function chunk(text: string): { text: { content: string } }[] {
 }
 
 /** 접수번호 + 과목으로 이미 만들어진 페이지를 찾는다. 없으면 null. */
-export async function findNotionPageId(
+async function findNotionPageId(
   receiptNo: string,
   subjectLabelText: string,
 ): Promise<string | null> {

@@ -1,8 +1,13 @@
 # KSAT-Feedback
 
-9모 시험지 피드백 접수 사이트. 스펙은 `../PRD_9모_시험지_피드백.md` (v1.0).
+한 사이트에 두 가지가 들어 있다.
 
-시험지 사진 한 장으로 시작하는 무료 피드백 접수 창구. **하드 데드라인 2026-09-02(수) 접수 오픈.**
+1. **무료 시험지 피드백 접수** (`/`) — 9모 시험지 사진을 받아 튜터가 보고 메일로 회신한다.
+   스펙은 `../PRD_9모_시험지_피드백.md` (v1.0).
+2. **유료 관찰반 모집** (`/class`) — 그 피드백을 받은 학생에게 3인 팀수업을 알리고 신청을 받는다.
+   설계는 `docs/class-landing-prd.html` (PRD v1.1).
+
+둘 다 배포되어 돌고 있다. 접수는 2026-09-02 에 열었다.
 
 ## 돌려보기
 
@@ -15,141 +20,162 @@ Supabase 키가 없어도 ②단계까지 전부 동작한다. 환경변수가 �
 서명 URL 발급·업로드를 흉내낸다. 파일 이름에 `fail` 이 들어가면 일부러 실패시켜서 FE-4 실패 UI를 볼 수 있다.
 
 실제 스토리지에 붙이려면 `.env.example` 을 `.env.local` 로 복사하고 값을 채운 뒤,
-`supabase/migrations/0001_init.sql   스키마·RLS·버킷·제출 함수
-supabase/migrations/0002_worker.sql 워커용 컬럼·실패 로그·claim 함수` 을 Supabase SQL Editor 에서 실행한다.
+`supabase/migrations/` 의 SQL 을 **번호 순서대로** Supabase SQL Editor 에 붙여넣고 실행한다.
+전부 여러 번 돌려도 안전하게 적혀 있다. 무엇이 빠졌는지는 `/setup` 이 알려준다.
 
-## 지금까지 된 것 (8/29 기준)
+## 지금 되는 것
+
+**접수 (무료 피드백)**
 
 | 항목 | 상태 |
 |---|---|
-| FE-1 4단계 진행 표시 · 되돌아가기 · 상태 일관성 | 됨 |
-| FE-2 시험 선택 ① (선택 즉시 다음, 상단 요약 유지) | 됨 |
-| FE-3 과목 칩 + 과목별 업로드 섹션 ② (과목당 12장·국어 16장/전체 40장 상한, 삭제·순서 변경) | 됨 |
-| FE-4 업로드 상태 피드백 (장별 진행률, `3장 중 2장`, 장별 재시도) | 됨 |
-| FE-5 과목별 고민 ③ (설정 파일 렌더링, 순차 진행, 건너뛰기 확인) | 됨 |
-| FE-6 이메일 + 동의 ④ (포커스아웃 검사, 오타 도메인 제안, 연타 방지) | 됨 |
-| FE-7 완료 화면 (접수번호·회신 예정일·요약, 새로고침 유지) | 됨 |
-| FE-8 이어하기 (localStorage 자동 저장 + 랜딩 복귀 배너, 제출 후 삭제) | 됨 |
-| FE-9 모바일 우선 (360px 가로 스크롤 없음, 하단 고정 버튼 48px+) | 됨 |
-| BE-1 이미지 정규화 (긴 변 2000px / JPEG q0.82) + 서명 URL 직접 업로드 | 됨 (mock 폴백) |
-| BE-2 제출 (원자적 생성 · 접수번호 발급 · 멱등키) | 됨 |
-| OPS-1 접수 스위치 (전체/과목별 on/off, 상한, 마감 화면) | 됨 (Supabase 한 줄로 조작) |
-| 데이터 모델 · RLS · 비공개 버킷 · 설치 점검 함수 | SQL 작성 완료, **실행은 수동** |
-| BE-3 과목별 PDF 병합 | 됨 (세로·가로 섞여도 잘리지 않음, 파일명은 영문 — 아래 참고) |
-| BE-5 Notion 자동 등록 | 됨 (과목 1건 = 페이지 1개, 재실행해도 중복 안 생김) |
-| P1-1 접수 확인 메일 | 됨 (Gmail SMTP, 발신 juhhyun10031@gmail.com) |
-| SEC-1 보관 기간 지난 사진·PDF 자동 삭제 | 됨 (하루 한 번 크론) |
-| P1-4 퍼널 계측 (Vercel Web Analytics) | 붙임 — 대시보드에서 켜야 집계 시작 |
-| P1 (접수 확인 메일, 품질 힌트, 퍼널 계측, 스팸 방지) | **없음** |
+| 4단계 접수 — 시험 선택 · 사진 업로드 · 과목별 고민 · 이메일 | 됨 |
+| 이미지 정규화(긴 변 2000px · JPEG) + 서명 URL 직접 업로드 | 됨 (Supabase 없으면 mock) |
+| 제출 — 원자적 생성 · 접수번호 발급 · 멱등키 | 됨 |
+| 이어하기 (자동 저장, 저장소가 막힌 브라우저에서는 메모리로) | 됨 |
+| 과목별 PDF 병합 → Notion 자동 등록 → 접수 확인 메일 | 됨 |
+| 보관 기간 지난 사진·PDF 자동 삭제 · 주인 없는 사진 정리 (매일 크론) | 됨 |
+| 접수 스위치 — 전체/과목별 on/off · 하루 상한 | 됨 (Supabase 한 줄, 배포 불필요) |
+| Google Sheets 동기화 (BE-4) | **제외** — 아래 「시트를 빼기로 한 이유」 |
+
+**모집 (유료 관찰반)**
+
+| 항목 | 상태 |
+|---|---|
+| 모집 페이지 `/class` — 수업 구조 · 대상 · 개설 클래스 갤러리 | 됨 |
+| 신청 네 칸 (이름 · 접수번호 · 학부모 연락처 · 동의) | 됨 |
+| 정원 초과 차단 · 같은 번호 중복 신청 차단 | 됨 (DB 트랜잭션 안에서) |
+| 관리자 `/admin` — 반 만들기·고치기, 튜터 증빙, 신청자 관리 | 됨 (배포 없이 즉시 반영) |
+| 신청 알림 메일 · 90일 뒤 신청 정보 자동 삭제 | 됨 |
+| 결제 | **코드에 없음** — 사람이 카카오톡으로 안내한다 |
+| 환불 기준 | **없음** (2026-09-06 사용자 결정) |
+| 신청 API 속도 제한 | **없음** (2026-09-06 사용자 결정) |
+
+**배포 대비**
+
+| 항목 | 상태 |
+|---|---|
+| 오류 화면 · 404 · 최상위 오류 (전부 한국어 + 연락처) | 됨 |
+| robots · sitemap — 모집 페이지는 걸리게, 운영·개인 화면은 안 걸리게 | 됨 |
+| 조회 실패와 "반 없음" 구분 | 됨 |
+| 저장소가 막힌 브라우저(사파리 프라이빗 등)에서도 접수 완료 | 됨 |
 
 ## 구조
 
 파일마다 무슨 일을 하는지 한 줄로 붙여 뒀다. `★` 는 실제로 손대게 되는 곳.
+(줄 수는 적지 않는다 — 고칠 때마다 어긋나서, 맞지 않는 숫자가 오히려 헷갈리게 한다.)
 
 ```
 src/app/                          화면과 API — 폴더 이름이 그대로 주소가 된다
-  layout.tsx               36     모든 화면 공통 껍데기 · 폰트 · 480px 모바일 폭
-  globals.css              57     색·여백 등 전체 스타일 변수
-  page.tsx                 88  ★  랜딩 (제목 · 배지 · 시험지 보내기 버튼)
-
-  apply/                          접수 4단계
-    layout.tsx             48     상단 진행 표시 · 단계 건너뛰기 방지
-    exam/page.tsx          74     ① 시험 선택
-    upload/page.tsx        83     ② 과목 선택 + 시험지 사진 업로드
-    concerns/page.tsx      22        첫 과목으로 넘겨주는 중계
-    concerns/[subject]/
-      page.tsx            352  ★  ③ 원점수 + 고민 문항 (과목마다 반복)
-    email/page.tsx        188  ★  ④ 이메일 + 동의 + 제출
-
-  done/[receiptNo]/
-    page.tsx              109  ★  완료 화면 (접수번호 · 회신 예정일 · 문의 메일)
-
-  class/                          모집 페이지 — 9모 피드백 받은 학생에게 유료 수업을 알린다
-    page.tsx                       화면 배치만. 글자는 config/class-copy.ts 에 있다
-    opengraph-image.png            카톡·메일 링크 미리보기 카드 (1200×630)
-    [slug]/apply/page.tsx          신청 폼 네 칸
-    [slug]/apply/done/page.tsx     완료 — 계좌 대신 "카카오톡 드릴게요"
-
-  admin/                          관리자 (ADMIN_PASSWORD 로 잠금, noindex)
-    login/page.tsx                 비밀번호 한 칸
-    actions.ts                     쓰기 전부. 맨 앞에서 assertAdmin()
-    (guarded)/page.tsx             클래스 목록
-    (guarded)/class/new           ·[slug]/page.tsx  반 만들기 · 고치기 · 증빙 업로드
-    (guarded)/applications         신청자 목록 · 상태 옮기기
-
-  setup/page.tsx           83     설치 점검 ✓/✗ (운영자용, noindex, 같은 잠금)
-
-  error.tsx                       화면이 터졌을 때 대신 나오는 한국어 안내 + 다시 시도
-  global-error.tsx                최상위까지 터졌을 때. CSS 도 못 믿어 인라인 스타일만 쓴다
-  not-found.tsx                   없는 주소
+  layout.tsx                      공통 껍데기 · 글꼴 · 480px 모바일 폭 · 유리 뒤에 깔리는 색
+  globals.css                     색 변수 · 유리(Liquid Glass) · 스크롤 등장
+  page.tsx                     ★  랜딩 (제목 · 배지 · 시험지 보내기)
+  error.tsx                       화면이 터졌을 때 — 한국어 안내 · 다시 시도 · 연락처 · 오류 번호
+  global-error.tsx                최상위까지 터졌을 때. 전역 CSS 도 못 믿어 인라인 스타일만 쓴다
+  not-found.tsx                   없는 주소 — 막다른 길 대신 두 갈래를 준다
   robots.ts / sitemap.ts          모집 페이지는 걸리게, 운영·개인 화면은 안 걸리게
 
+  apply/                          접수 4단계
+    layout.tsx                    상단 진행 표시 · 단계 건너뛰기 방지 · 복원 대기 안전망
+    exam/page.tsx                 ① 시험 선택
+    upload/page.tsx               ② 과목 선택 + 시험지 사진 업로드
+    concerns/page.tsx             첫 과목으로 넘겨주는 중계
+    concerns/[subject]/page.tsx ★ ③ 원점수 + 고민 문항 (과목마다 반복)
+    email/page.tsx             ★  ④ 이메일 + 동의 + 제출
+
+  done/layout.tsx                 접수번호가 주소에 들어가므로 noindex
+  done/[receiptNo]/page.tsx    ★  완료 화면 (접수번호 · 회신 예정일 · 문의 메일)
+
+  class/                          모집 페이지
+    page.tsx                      화면 배치만. 글자는 config/class-copy.ts 에 있다
+    layout.tsx                    링크 미리보기(제목·설명·OG)
+    opengraph-image.png           카톡·메일 링크 미리보기 카드 (1200×630)
+    [slug]/page.tsx               관리자가 안내하는 반 주소 → 신청 화면으로 보낸다
+    [slug]/apply/page.tsx         신청 폼 네 칸 + 반 이름으로 미리보기 카드
+    [slug]/apply/done/page.tsx    완료 — 계좌 대신 "카카오톡 드릴게요"
+
+  admin/                          관리자 (ADMIN_PASSWORD 로 잠금, noindex)
+    login/page.tsx                비밀번호 한 칸 · 세션 끊김 안내
+    actions.ts                 ★  쓰기 전부. 맨 앞에서 assertAdmin()
+    (guarded)/page.tsx            클래스 목록
+    (guarded)/class/new · [slug]  반 만들기 · 고치기 · 증빙 업로드
+    (guarded)/applications        신청자 목록 · 상태 옮기기
+
+  setup/page.tsx                  설치 점검 ✓/✗ (운영자용, noindex, 같은 잠금)
+
   api/                            브라우저가 부르는 서버 주소
-    upload-url/route.ts    57     사진 올릴 일회용 서명 주소 발급
-    submit/route.ts       146  ★  접수 저장 → 접수번호 발급 → 후처리 시작
-    intake/route.ts        11     접수 열림/닫힘 조회
-    health/route.ts         9     설치 점검 결과 (/setup 이 읽는다)
-    worker/                       자물쇠 걸린 운영용 — WORKER_SECRET 헤더 필요
-      cron/route.ts        50     매일 03:00(KST) 자동 정리
-      process/route.ts     39     막힌 접수 다시 처리
-      purge/route.ts       51     보관 기간 지난 파일 삭제 · 접수 통째 삭제
-      storage/route.ts     59     저장소에 쌓인 양 확인 · 주인 없는 사진 삭제
-      status/route.ts     100     무엇이 왜 막혔는지 진단 (?probe=1, ?mail=1)
+    upload-url/route.ts           사진 올릴 일회용 서명 주소 발급
+    submit/route.ts            ★  접수 저장 → 접수번호 발급 → 후처리 시작
+    class/apply/route.ts          수업 신청 접수 → 팀에게 알림 메일
+    intake/route.ts               접수 열림/닫힘 조회
+    health/route.ts               설치 점검 결과 (/setup 이 읽는다)
+    worker/                       자물쇠 걸린 운영용 — WORKER_SECRET 필요
+      cron/route.ts               매일 03:00(KST) 자동 정리
+      process/route.ts            막힌 접수 다시 처리
+      purge/route.ts              보관 기간 지난 파일 삭제 · 접수 통째 삭제
+      storage/route.ts            저장소에 쌓인 양 확인 · 주인 없는 사진 삭제
+      status/route.ts             무엇이 왜 막혔는지 진단 (?probe=1, ?mail=1)
 
 src/config/                       문구·숫자만 들어 있다. 여기부터 고친다
-  questions.config.ts     196  ★  ③단계 고민 문항 — 공통 5문항 · 국어 8문항
-  app.ts                   63  ★  장수 상한 · 회신 SLA · 보관 기간 · 문의 메일 · 기능 플래그
-  exams.ts                 63     시험 3종 → 학년과 과목이 여기서 결정된다
-  subjects.ts              40     과목 코드 ↔ 라벨 (math ↔ 수학) · 원점수 만점
-  steps.ts                 20     4단계 이름
+  class-copy.ts                ★  모집 페이지 글자 전부. *별표* 는 빨간 밑줄, \n 은 줄바꿈
+  questions.config.ts          ★  ③단계 고민 문항 — 공통 5문항 · 국어 8문항
+  app.ts                       ★  장수 상한 · 회신 SLA · 보관 기간 · 문의 메일 · 기능 플래그
+  class.ts                        수강료 기본값 · 보유기간 · 접수번호·연락처 형식
+  exams.ts                        시험 3종 → 학년과 과목이 여기서 결정된다
+  subjects.ts                     과목 코드 ↔ 라벨 · 원점수 만점 · 원점수 검사
+  steps.ts                        4단계 이름
 
 src/components/                   여러 화면이 함께 쓰는 조각
-  UploadSection.tsx       247  ★  사진 업로드 — 장별 진행률 · 재시도 · 순서 변경
-  ProgressSteps.tsx        62     상단 4단계 표시
-  SubjectChips.tsx         40     과목 선택 칩
-  BottomBar.tsx            34     화면 아래 고정 버튼
-  AutoTextarea.tsx         34     글 길이만큼 늘어나는 입력칸
-  ExamSummary.tsx          21     상단 "고3 · 9월 모평 · 바꾸기"
-  Analytics.tsx            23     방문 통계 — 완료 화면 주소의 접수번호는 잘라내고 보낸다
+  UploadSection.tsx            ★  사진 업로드 — 장별 진행률 · 재시도 · 순서 변경
+  ApplyForm.tsx                   수업 신청 네 칸
+  ClassCard.tsx                   개설 클래스 한 장
+  ClassGallery.tsx                반이 둘 이상이면 옆으로 넘겨 보는 갤러리
+  ClassMeta.tsx                   반 정보(일정·기간·장소·모의고사·튜터)를 이름표 붙여 줄로 나눈다
+  PriceBlock.tsx                  총액 + 무엇이 포함되는지 체크 목록
+  ClassForm.tsx                   관리자의 반 만들기·고치기 폼
+  RichText.tsx                    관리자가 적은 수업 설명에 서식 (## 제목 · - 목록 · **굵게**)
+  Marked.tsx                      한 줄 안의 표시 — **굵게** · __밑줄__ · *빨간 강조*
+  Reveal.tsx                      스크롤하면 한 덩어리씩 떠오른다
+  BottomBar.tsx                   화면 아래 떠 있는 버튼 · 이유 · 오류
+  ProgressSteps.tsx               상단 4단계 표시
+  SubjectChips.tsx                과목 선택 칩
+  AutoTextarea.tsx                글 길이만큼 늘어나는 입력칸
+  ExamSummary.tsx                 상단 "고3 · 9월 모평 · 바꾸기"
+  Analytics.tsx                   방문 통계 — 주소의 접수번호는 잘라내고 보낸다
 
 src/lib/                          화면 뒤에서 도는 로직
-  store.ts                245  ★  입력값 보관 · 자동 저장 (이어하기)
-  image.ts                 64     사진을 긴 변 2000px · JPEG 로 줄인다
-  upload.ts                73     서명 주소로 실제 전송
-  submit.ts                42     제출 payload 조립
-  email.ts                 70     이메일 형식 검사 · 오타 도메인 제안
-  flow.ts                  22     사진이 있는 과목만 골라낸다
+  store.ts                     ★  입력값 보관 · 자동 저장 (저장소 막히면 메모리로)
+  classes.ts                   ★  개설 클래스 · 신청 읽기/쓰기 · 증빙 서명 URL
+  admin.ts                        관리자 잠금 — 비밀번호 → HMAC 서명 쿠키
+  secret.ts                       비밀값 비교 (시간차로 새지 않게)
+  kst.ts                          한국 시간 기준 날짜 — DB 함수와 기준을 맞춘다
+  site.ts                         이 배포의 절대 주소 (미리보기 · 메일 · robots · sitemap)
+  image.ts                        사진을 긴 변 2000px · JPEG 로 줄인다
+  upload.ts                       서명 주소로 실제 전송
+  submit.ts                       제출 payload 조립
+  class-mail.ts                   신청 들어오면 팀에게 알림 메일
+  email.ts                        이메일 형식 검사 · 오타 도메인 제안
+  flow.ts                         사진이 있는 과목만 골라낸다
   draft.ts blobs.ts id.ts         임시 id · 재시도용 사진 보관
-  useIntake.ts             55     접수 열림 여부 조회 (브라우저)
-  intake.ts                48     접수 스위치 읽기 (서버 전용)
-  health.ts               167     설치 점검 13항목 (서버 전용)
-  supabase/admin.ts        18     DB 접속 — 마스터 키는 이 파일에서만 쓴다
+  useIntake.ts                    접수 열림 여부 조회 (브라우저)
+  intake.ts                       접수 스위치 읽기 (서버 전용)
+  health.ts                       설치 점검 (서버 전용)
+  supabase/admin.ts               DB 접속 — 마스터 키는 이 파일에서만 쓴다
 
 src/lib/worker/                   접수 뒤에 자동으로 도는 것들 (전부 서버 전용)
-  process.ts              309  ★  전체 지휘 — PDF → Notion → 확인 메일
-  notion.ts               223     Notion 페이지 생성 · 본문에 문답 기록 · 429 대기
-  purge.ts                133     파일 · DB 기록 · Notion 페이지 삭제
-  storage.ts              150     저장소 훑기 · 주인 없는 사진 정리 · 버킷 비우기
-  mail.ts                 101     접수 확인 메일 (Gmail SMTP)
-  pdf.ts                   57     사진 여러 장을 PDF 한 개로
+  process.ts                   ★  전체 지휘 — PDF → Notion → 확인 메일
+  notion.ts                       Notion 페이지 생성 · 본문에 문답 기록 · 429 대기
+  purge.ts                        파일 · DB 기록 · Notion 페이지 삭제
+  storage.ts                      저장소 훑기 · 주인 없는 사진 정리 · 버킷 비우기
+  mail.ts                         접수 확인 메일 (Gmail SMTP)
+  pdf.ts                          사진 여러 장을 PDF 한 개로
+  auth.ts                         운영용 주소의 자물쇠 — 열쇠가 없으면 무조건 막는다
 
-src/lib/ (모집 페이지)
-  admin.ts                        관리자 잠금 — 비밀번호 → HMAC 서명 쿠키
-  classes.ts                      개설 클래스 · 신청 읽기/쓰기 · 증빙 서명 URL
-  class-mail.ts                   신청 들어오면 팀에게 알림 메일
-src/config/class.ts               수강료 기본값 · 보유기간 · 접수번호·연락처 형식
-src/config/class-copy.ts        ★ 모집 페이지에 나오는 글자 전부. *별표* 는 빨간 밑줄, \n 은 줄바꿈
-src/components/ClassMeta.tsx      반 정보(일정·기간·장소·튜터)를 이름표 붙여 줄로 나눈다
-src/components/RichText.tsx       관리자가 적은 수업 설명에 서식을 붙인다 (## 제목 · - 목록 · **굵게**)
-src/components/Marked.tsx         한 줄 안의 표시 — **굵게** · __밑줄__ · *빨간 강조*
-src/components/PriceBlock.tsx     총액 + 무엇이 포함되는지 체크 목록. 카드·신청 화면이 함께 쓴다
-src/components/Reveal.tsx         스크롤하면 한 덩어리씩 떠오른다 (html.js 없으면 그냥 보인다)
-
-supabase/migrations/              데이터베이스 설계도 — SQL Editor 에 붙여넣는 것
-  0001_init.sql           211     표 · RLS · 비공개 버킷 · 접수번호 발급 함수
-  0002_worker.sql         103     실패 기록표 · 재처리 함수 · 설치 점검 함수
-  0003_daily_cap.sql      148     하루 접수 상한 (한국 날짜 기준, 자정에 초기화)
-  0004_raw_score.sql      139     과목 원점수 칸 · 저장
+supabase/migrations/              데이터베이스 설계도 — SQL Editor 에 번호 순서대로 붙여넣는다
+  0001_init.sql                   표 · RLS · 비공개 버킷 · 접수번호 발급 함수
+  0002_worker.sql                 실패 기록표 · 재처리 함수 · 설치 점검 함수
+  0003_daily_cap.sql              하루 접수 상한 (한국 날짜 기준, 자정에 초기화)
+  0004_raw_score.sql              과목 원점수 칸 · 저장
   0005_classes.sql                개설 클래스 · 수업 신청 · 튜터 증빙 버킷
   0006_mock_exam.sql              반이 쓰는 실전 모의고사 칸
   0007_no_duplicate_apply.sql     같은 번호로 두 번 신청되지 않게
@@ -179,8 +205,39 @@ vercel.json                       매일 03:00(KST) 크론 설정
 | 접수 확인 메일 내용 | `src/lib/worker/mail.ts` |
 | **접수 열기/닫기 · 상한 · 과목별 차단** | 코드 아님 — Supabase `app_settings` 한 줄 |
 | **모집 페이지 문구 전부** | `src/config/class-copy.ts` — 이 파일 하나만 열면 된다 |
-| 수강료 기본값 · 보유기간 · 180분 구성 | `src/config/class.ts` |
+| 수강료 기본값 · 보유기간 · 접수번호/연락처 형식 | `src/config/class.ts` |
+| 친구 등록 혜택 배너 (끄려면 `promo.title` 을 빈 칸으로) | `src/config/class-copy.ts` |
+| 유리 재질 · 뒤에 깔리는 색 | `src/app/globals.css` 의 `.field` · `.glass` |
 | **개설 클래스 (시간 · 튜터 · 학력 · 수강료 · 정원 · 상태)** | 코드 아님 — `/admin` 에서 고친다 |
+
+## 배포
+
+Vercel 이 `main` 에 푸시될 때마다 자동 배포한다. 사람이 할 일은 두 가지뿐이다.
+
+**환경변수** (Vercel → Settings → Environment Variables)
+
+| 이름 | 없으면 |
+|---|---|
+| `SUPABASE_URL` · `SUPABASE_SERVICE_ROLE_KEY` | mock 모드로 떨어진다. 접수도 반 목록도 저장이 안 된다 |
+| `ADMIN_PASSWORD` | `/admin` 이 아예 안 열린다 (열어 두지 않는다) |
+| `WORKER_SECRET` | 운영용 주소가 전부 잠긴다 — 막힌 접수를 되살릴 수 없다 |
+| `CRON_SECRET` | 매일 자동 정리가 안 돈다 (`WORKER_SECRET` 과 같은 값을 넣는다) |
+| `GMAIL_USER` · `GMAIL_APP_PASSWORD` | 접수 확인 메일과 신청 알림 메일이 안 나간다 |
+| `NOTION_TOKEN` · `NOTION_DATABASE_ID` | 접수가 Notion 에 안 올라간다 |
+| `SITE_URL` | 선택. 직접 산 도메인을 붙였을 때만 넣는다 (없으면 vercel.app 주소를 쓴다) |
+
+`SUPABASE_SERVICE_ROLE_KEY` 에 **절대 `NEXT_PUBLIC_` 을 붙이지 말 것** — 붙이면 브라우저로
+새어 나가 DB 전체가 열린다.
+
+**SQL** — `supabase/migrations/` 를 번호 순서대로 한 번씩 실행한다. 전부 여러 번 돌려도 안전하다.
+
+### 배포하고 나서 열어볼 것
+
+1. `/setup` — 빨간불이 없는지. 무엇이 빠졌고 어떤 SQL 을 돌려야 하는지 여기가 말해 준다.
+2. `/class` — 반이 보이는지. "불러오지 못했어요" 가 뜨면 DB 쪽 문제고, "열린 반이 없어요" 는
+   정말 `open` 인 반이 없다는 뜻이다. 둘은 다른 말이다.
+3. `/admin` — 로그인되고 반이 보이는지.
+4. `/robots.txt` — `Sitemap:` 줄이 있는지. 없으면 빌드할 때 도메인 환경변수가 없었다는 뜻이다.
 
 ## 운영자용 화면
 
@@ -201,7 +258,7 @@ vercel.json                       매일 03:00(KST) 크론 설정
 | Q4 | 사진 보관 30일 | `POLICY.retentionDays` — 동의 문구에 자동 반영 |
 | Q5 | 회신 SLA 7일 | `POLICY.replySlaDays` — 완료 화면 날짜에 자동 반영 |
 | Q6 | 커스텀 도메인 없이 vercel.app 기본 주소 | `BRANDING.serviceName` 은 페이지 제목에만 쓰임 |
-| Q7 | 완료 화면 과외 버튼 끔 | `FEATURES.conversionCta` |
+| Q7 | 완료 화면 과외 버튼 — 처음엔 껐고, `/class` 가 생긴 뒤 켰다 | `FEATURES.conversionCta` (지금 `true`) |
 
 **Q2 확정 (2026-08-29, 서현).** `questions.config.ts` 에 다섯 문항으로 들어갔다 (국어는 2026-08-30 자로 8문항 별도) —
 서술형 4 · 문항 목록 1. 전부 선택 입력이고, 하나도 안 적어도 넘어간다. §9 미결은 모두 닫혔다.
@@ -347,3 +404,21 @@ G4(자동 반영 성공률)는 Notion 단독 기준으로 읽는다.
   같은 제출을 여러 번 눌러도 접수는 1건이고, 같은 접수번호가 돌아온다.
 - **비밀값**: `SUPABASE_SERVICE_ROLE_KEY` 는 서버에서만 쓴다(`src/lib/supabase/admin.ts` 는 `server-only`).
   절대 `NEXT_PUBLIC_` 접두사를 붙이지 말 것 — 붙이면 브라우저로 새어 나가 DB 전체가 열린다.
+- **저장소를 막아 둔 브라우저**: 사파리 프라이빗 모드나 '사이트 데이터 차단' 을 켜면
+  `localStorage` 의 메서드가 예외를 던진다. 그러면 이어하기를 위한 복원이 끝나지 않아
+  접수 화면이 "불러오는 중…" 에서 영영 멈춘다 — 터지지도 않아 학생은 느린 줄만 안다.
+  `store.ts` 의 `safeStorage` 가 메모리로 받아내서 접수는 끝까지 되게 한다(새로고침 이어하기만 잃는다).
+  같은 이유로 초안 id 도 한 번 만든 값을 붙잡아 둔다 — 부를 때마다 새로 만들면 사진마다
+  다른 폴더에 올라가고 제출이 통째로 거절된다.
+- **날짜는 전부 한국 시간**: 서버는 UTC 로 돌고 DB 함수는 `at time zone 'Asia/Seoul'` 로 적혀 있다.
+  회신 예정일·삭제 예정일·접수번호의 MMDD 를 서버에서 UTC 로 세면 새벽 0~9시에 하루가 어긋난다.
+  `src/lib/kst.ts` 하나만 쓴다.
+- **조회 실패와 '없음' 은 다른 말**: `listClasses()` 는 `{ rows, failed }` 를 준다. 오류일 때 빈 배열을
+  주면 모집 페이지가 "지금은 열린 반이 없어요" 로 바뀌어, 그날 찾아온 사람을 전부 놓친다.
+- **원점수는 적는 화면에서 막는다**: 만점을 넘겨도 그냥 두면 제출 순간에 서버가 거절하는데,
+  그때는 이미 다른 화면이라 어느 과목의 무엇이 잘못됐는지 알 수 없다. `scoreProblem()` 이
+  화면과 서버 양쪽에서 같은 기준을 본다.
+- **관리자 서버 함수는 예외 대신 로그인 화면으로**: 7일이 지나 쿠키가 만료된 것뿐인데 예외를
+  던지면 "잠시 문제가 생겼어요" 라는 알 수 없는 화면이 뜬다. 어느 쪽이든 그 함수는 실행되지 않는다.
+- **운영용 주소는 열쇠가 없으면 무조건 막힌다**(`lib/worker/auth.ts`). 예전에는 재처리 주소 하나가
+  `WORKER_SECRET` 을 안 넣은 배포에서 누구나 부를 수 있었다. 잠금은 기본값이어야 한다.

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { LIMITS, maxPhotosFor } from '@/config/app';
 import { subjectLabel, type SubjectCode } from '@/config/subjects';
-import { dropBlob, keepBlob, takeBlob } from '@/lib/blobs';
+import { dropBlob, keepBlob, readBlob } from '@/lib/blobs';
 import { getDraftId } from '@/lib/draft';
 import { normalizeImage } from '@/lib/image';
 import { photosOf, useApply, type Photo } from '@/lib/store';
@@ -87,7 +87,7 @@ export function UploadSection({ subject }: { subject: SubjectCode }) {
   }
 
   async function retry(photo: Photo) {
-    const blob = takeBlob(photo.id);
+    const blob = readBlob(photo.id);
     if (!blob) {
       setNotice('새로고침하면서 사진이 사라졌어요. 다시 골라주세요.');
       removePhoto(photo.id);

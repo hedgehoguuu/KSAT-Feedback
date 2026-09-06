@@ -10,7 +10,8 @@ export function keepBlob(id: string, blob: Blob) {
   blobs.set(id, blob);
 }
 
-export function takeBlob(id: string): Blob | undefined {
+/** 읽기만 한다. 지우지 않으므로 재시도는 몇 번이든 할 수 있다. */
+export function readBlob(id: string): Blob | undefined {
   return blobs.get(id);
 }
 
