@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 import { useSyncExternalStore } from 'react';
 import type { ExamCode } from '@/config/exams';
 import { findExam } from '@/config/exams';
@@ -95,6 +95,42 @@ const EMPTY: State = {
 };
 
 const touch = () => ({ updatedAt: Date.now() });
+
+/**
+ * localStorage 를 쓰되, 못 쓰면 메모리로 떨어진다.
+ *
+ * 사파리 프라이빗 모드나 '사이트 데이터 차단' 을 켠 브라우저에서는 localStorage 의
+ * 메서드가 예외를 던진다. 그대로 두면 persist 의 복원이 끝나지 않고, 복원을 기다리는
+ * 화면이 "불러오는 중…" 에서 영영 멈춘다 — 터지지도 않아서 학생은 그냥 느린 줄 안다.
+ *
+ * 메모리로 떨어지면 새로고침할 때 이어하기는 안 되지만, 접수는 끝까지 된다.
+ * 이어하기를 잃는 것과 접수를 통째로 잃는 것은 비교할 일이 아니다.
+ */
+const memory = new Map<string, string>();
+
+const safeStorage: StateStorage = {
+  getItem: (name) => {
+    try {
+      return localStorage.getItem(name);
+    } catch {
+      return memory.get(name) ?? null;
+    }
+  },
+  setItem: (name, value) => {
+    try {
+      localStorage.setItem(name, value);
+    } catch {
+      memory.set(name, value);
+    }
+  },
+  removeItem: (name) => {
+    try {
+      localStorage.removeItem(name);
+    } catch {
+      memory.delete(name);
+    }
+  },
+};
 
 export const useApply = create<State & Actions>()(
   persist(
@@ -219,7 +255,7 @@ export const useApply = create<State & Actions>()(
     }),
     {
       name: 'ksat-feedback:apply:v1',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeStorage),
       version: 1,
       // previewUrl 은 새로고침하면 죽는 objectURL 이라 저장하지 않는다
       partialize: (s) => ({
@@ -253,7 +289,8 @@ export const useApply = create<State & Actions>()(
 // 컴포넌트 안에서 만들면 렌더마다 새 함수라 매번 구독을 끊고 다시 건다 — 밖에 둔다.
 const subscribeHydration = (onChange: () => void) =>
   useApply.persist?.onFinishHydration(onChange) ?? (() => {});
-// localStorage 가 없으면 persist 자체가 안 붙는다 (사파리 프라이빗 등) — 그때는 바로 통과시킨다
+// persist 가 아예 안 붙은 경우(있을 수 없지만)에는 바로 통과시킨다.
+// 저장소를 못 쓰는 브라우저는 safeStorage 가 메모리로 받아내므로 복원은 정상적으로 끝난다.
 const hydratedSnapshot = () => useApply.persist?.hasHydrated() ?? true;
 // 서버에서는 저장분을 모르니 항상 '아직'
 const serverSnapshot = () => false;

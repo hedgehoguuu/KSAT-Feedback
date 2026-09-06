@@ -39,6 +39,12 @@ export default function ExamStep() {
       <h1 className="text-[24px] font-bold leading-[1.35]">어떤 시험을 봤어요?</h1>
       <p className="mt-2 text-[15px] text-muted">고르면 학년은 알아서 정해져요.</p>
 
+      {open.length === 0 ? (
+        <p className="mt-7 rounded-2xl bg-surface p-5 text-[14px] leading-[1.7] text-muted">
+          지금은 받고 있는 시험이 없어요. 다음 회차가 열리면 알려드릴게요.
+        </p>
+      ) : null}
+
       <ul className="mt-7 flex flex-col gap-3">
         {open.map((exam) => {
           const selected = exam.code === examCode;
