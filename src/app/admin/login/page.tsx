@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminLogin({ searchParams }: PageProps<'/admin/login'>) {
   if (await isAdmin()) redirect('/admin');
-  const { error } = await searchParams;
+  const { error, expired } = await searchParams;
 
   return (
     <main className="flex flex-1 flex-col justify-center px-5 py-16">
@@ -14,6 +14,12 @@ export default async function AdminLogin({ searchParams }: PageProps<'/admin/log
       <p className="mt-2 text-[14px] leading-[1.6] text-muted">
         개설 클래스와 신청자를 보는 화면이에요.
       </p>
+
+      {expired ? (
+        <p className="mt-5 rounded-xl bg-surface px-4 py-3 text-[14px] leading-[1.6]" role="status">
+          로그인이 풀렸어요. 다시 들어와 주세요.
+        </p>
+      ) : null}
 
       {!adminConfigured() ? (
         <div className="mt-6 rounded-2xl bg-surface p-4">

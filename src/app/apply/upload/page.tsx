@@ -19,7 +19,13 @@ export default function UploadStep() {
   const intake = useIntake();
 
   const exam = findExam(examCode);
-  if (!exam) return null;
+  // 시험을 안 고른 채 들어온 것. 레이아웃이 ①단계로 되돌리는 중이라 잠깐만 보인다 —
+  // 그동안 흰 화면 대신 다른 화면과 같은 말을 보여준다.
+  if (!exam) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-10 text-[14px] text-muted">잠시만요…</div>
+    );
+  }
 
   // 운영에서 꺼 둔 과목은 아예 보이지 않는다 (OPS-1)
   const available = exam.subjects.filter((code) => !intake.disabledSubjects.includes(code));

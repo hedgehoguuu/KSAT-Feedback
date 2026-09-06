@@ -73,6 +73,8 @@ type Actions = {
   ensureSubmitKey: () => string;
   /** 제출 성공 — 접수 결과만 남기고 입력분은 지운다 (FE-8 AC) */
   complete: (r: Receipt) => void;
+  /** 완료 화면에 도착했다는 신호. 이 표시는 그때까지만 필요하다. */
+  settle: () => void;
   reset: () => void;
 };
 
@@ -200,6 +202,16 @@ export const useApply = create<State & Actions>()(
         set({ ...EMPTY, receipt: r, justCompleted: true, updatedAt: Date.now() });
       },
 
+      /**
+       * 완료 화면에 닿으면 표시를 내린다.
+       *
+       * 이 표시는 '제출 직후 완료 화면으로 가는 중' 을 뜻하고, 그동안 ①단계로 되돌리는
+       * 가드를 잠시 꺼 둔다. 그런데 내리는 곳이 없어서 한 번 켜지면 그 세션 내내 켜져
+       * 있었다 — 완료 화면에서 뒤로가기를 누르면 가드가 죽은 채라 아무 단계나 열리고,
+       * 입력이 비어 있어서 학생이 빈 화면에 갇혔다.
+       */
+      settle: () => set((s) => (s.justCompleted ? { ...s, justCompleted: false } : s)),
+
       reset: () => {
         get().photos.forEach((p) => p.previewUrl && URL.revokeObjectURL(p.previewUrl));
         set({ ...EMPTY });
@@ -237,15 +249,18 @@ export const useApply = create<State & Actions>()(
   ),
 );
 
+// useSyncExternalStore 는 구독 함수가 바뀌면 다시 구독한다.
+// 컴포넌트 안에서 만들면 렌더마다 새 함수라 매번 구독을 끊고 다시 건다 — 밖에 둔다.
+const subscribeHydration = (onChange: () => void) =>
+  useApply.persist?.onFinishHydration(onChange) ?? (() => {});
+// localStorage 가 없으면 persist 자체가 안 붙는다 (사파리 프라이빗 등) — 그때는 바로 통과시킨다
+const hydratedSnapshot = () => useApply.persist?.hasHydrated() ?? true;
+// 서버에서는 저장분을 모르니 항상 '아직'
+const serverSnapshot = () => false;
+
 /** persist 복원이 끝났는지. 서버 렌더 결과와 어긋나지 않게 렌더를 미루는 데 쓴다. */
 export function useHydrated(): boolean {
-  return useSyncExternalStore(
-    (onChange) => useApply.persist?.onFinishHydration(onChange) ?? (() => {}),
-    // localStorage 가 없으면 persist 자체가 안 붙는다 (사파리 프라이빗 등) — 그때는 바로 통과시킨다
-    () => useApply.persist?.hasHydrated() ?? true,
-    // 서버에서는 저장분을 모르니 항상 '아직'
-    () => false,
-  );
+  return useSyncExternalStore(subscribeHydration, hydratedSnapshot, serverSnapshot);
 }
 
 export function photosOf(photos: Photo[], subject: SubjectCode): Photo[] {

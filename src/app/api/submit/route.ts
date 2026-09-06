@@ -11,6 +11,7 @@ import { findExam, isExamCode } from '@/config/exams';
 import { isSubjectCode, maxScoreOf } from '@/config/subjects';
 import { isValidEmail } from '@/lib/email';
 import { readIntake } from '@/lib/intake';
+import { seoulDate } from '@/lib/kst';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { processSubmission } from '@/lib/worker/process';
 
@@ -111,8 +112,6 @@ export async function POST(req: Request) {
   if (totalFiles > LIMITS.maxPhotosTotal) return bad('too many files');
 
   const now = new Date();
-  const purgeAfter = new Date(now);
-  purgeAfter.setDate(purgeAfter.getDate() + POLICY.retentionDays);
 
   const payload = {
     idempotency_key: idempotencyKey,
@@ -120,7 +119,8 @@ export async function POST(req: Request) {
     grade: exam.grade,
     email: email.trim(),
     consent_at: now.toISOString(),
-    purge_after: purgeAfter.toISOString().slice(0, 10),
+    // 지우는 쪽이 한국 날짜로 비교한다. 여기만 UTC 로 세면 하루가 어긋난다.
+    purge_after: seoulDate(now, POLICY.retentionDays),
     subjects: subjects.map((s) => ({
       subject_code: s.subjectCode,
       raw_score: s.rawScore ?? null,
@@ -139,7 +139,7 @@ export async function POST(req: Request) {
     // 로컬 mock — 같은 멱등키면 같은 접수번호를 돌려준다
     const issued = mockIssued.get(idempotencyKey);
     if (issued) return NextResponse.json({ receiptNo: issued, dueDate: replyDueDate(now), mode: 'mock' });
-    const day = now.toISOString().slice(0, 10);
+    const day = seoulDate(now);
     const seq = (mockSeq.get(day) ?? 0) + 1;
     mockSeq.set(day, seq);
     const receiptNo = formatReceiptNo(seq, now);

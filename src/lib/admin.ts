@@ -61,7 +61,11 @@ export async function requireAdmin(): Promise<void> {
 /**
  * 쓰기(서버 함수)에서 부른다. 화면만 막고 서버 함수가 열려 있으면 잠근 것이 아니다 —
  * 서버 함수는 화면을 거치지 않고 POST 로 바로 불릴 수 있다.
+ *
+ * 막을 때 예외를 던지지 않고 로그인 화면으로 보낸다. 예외를 던지면 7일이 지나 쿠키가
+ * 만료된 것뿐인데도 "잠시 문제가 생겼어요" 라는 알 수 없는 오류 화면이 뜬다.
+ * 어느 쪽이든 그 서버 함수는 실행되지 않으므로 잠금은 그대로다.
  */
 export async function assertAdmin(): Promise<void> {
-  if (!(await isAdmin())) throw new Error('관리자만 할 수 있어요');
+  if (!(await isAdmin())) redirect('/admin/login?expired=1');
 }

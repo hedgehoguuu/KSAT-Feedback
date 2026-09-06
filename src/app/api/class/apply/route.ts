@@ -35,6 +35,8 @@ export async function POST(req: Request) {
 
   if (!slug) return bad('반을 찾을 수 없어요');
   if (studentName.length < 1 || studentName.length > 30) return bad('학생 이름을 적어주세요');
+  // 화면의 maxLength 는 브라우저에서만 도는 안내다. 형식은 안 따지되 길이는 여기서 막는다.
+  if (receiptNo.length > 32) return bad('접수번호를 다시 확인해주세요');
   if (!isPhone(parentPhone)) return bad('학부모 연락처를 다시 확인해주세요');
   if (body.consent !== true) return bad('개인정보 수집·이용 동의가 필요해요');
 

@@ -39,3 +39,24 @@ export function isSubjectCode(v: string): v is SubjectCode {
 export function maxScoreOf(code: SubjectCode): number {
   return BY_CODE.get(code)?.maxScore ?? 100;
 }
+
+/**
+ * 적어 준 원점수가 이상하면 그 이유를, 괜찮으면 null 을 돌려준다.
+ *
+ * 원점수는 안 적어도 되는 칸이라 빈 값은 문제가 아니다. 문제는 적었는데 말이 안 되는
+ * 경우다 — 예전에는 그대로 통과시켰다가 마지막 제출에서 서버가 거절했다. 학생은
+ * 이미 다음 화면에 있어서 어느 과목의 무엇이 잘못됐는지 알 수 없었다.
+ * 그래서 적는 그 화면에서 바로 막는다. 서버 검사는 그대로 두고 여기를 더한 것이다.
+ */
+export function scoreProblem(code: SubjectCode, raw: string): string | null {
+  const text = raw.trim();
+  if (!text) return null;
+
+  const max = maxScoreOf(code);
+  const n = Number(text);
+  if (!Number.isFinite(n)) return '원점수는 숫자로 적어주세요';
+  if (!Number.isInteger(n)) return '원점수는 소수점 없이 적어주세요';
+  if (n < 0) return '원점수는 0점보다 작을 수 없어요';
+  if (n > max) return `${max}점 만점이에요. 다시 확인해주세요.`;
+  return null;
+}

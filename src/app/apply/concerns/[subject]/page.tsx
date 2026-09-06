@@ -15,7 +15,7 @@ import {
   type Question,
 } from '@/config/questions.config';
 import { findExam } from '@/config/exams';
-import { isSubjectCode, maxScoreOf, subjectLabel, type SubjectCode } from '@/config/subjects';
+import { isSubjectCode, maxScoreOf, scoreProblem, subjectLabel, type SubjectCode } from '@/config/subjects';
 import { filledSubjects } from '@/lib/flow';
 import { useApply } from '@/lib/store';
 
@@ -37,12 +37,20 @@ export default function ConcernStep() {
   const subject = isSubjectCode(raw) ? (raw as SubjectCode) : null;
   const at = subject ? targets.indexOf(subject) : -1;
 
+  // targets 는 매 렌더 새로 만들어지는 배열이라, 그대로 의존성에 두면 효과가 렌더마다 다시 돈다.
+  // 실제로 달라지는 값(첫 과목·길이·현재 위치)만 본다.
+  const first = targets[0];
   useEffect(() => {
     if (targets.length === 0) router.replace('/apply/upload');
-    else if (at < 0) router.replace(`/apply/concerns/${targets[0]}`);
-  }, [at, targets, router]);
+    else if (at < 0) router.replace(`/apply/concerns/${first}`);
+  }, [at, first, targets.length, router]);
 
-  if (!subject || at < 0) return null;
+  // 넘어가는 중이다. 빈 화면 대신 다른 화면과 같은 말을 보여준다.
+  if (!subject || at < 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-10 text-[14px] text-muted">잠시만요…</div>
+    );
+  }
 
   const questions = questionsFor(subject);
   const answers = concerns[subject] ?? {};
@@ -50,10 +58,14 @@ export default function ConcernStep() {
   const exam = findExam(examCode);
   const allEmpty = !score.trim() && questions.every((q) => !isAnswered(q, answers[q.id]));
   const isLast = at === targets.length - 1;
+  // 적어 준 원점수가 말이 안 되면 여기서 막는다. 그냥 두면 마지막 제출에서 서버가 거절하는데,
+  // 그때는 이미 다른 화면이라 어느 과목의 무엇이 잘못됐는지 알 수 없다.
+  const scoreError = scoreProblem(subject, score);
   const goNext = () =>
     router.push(isLast ? '/apply/email' : `/apply/concerns/${targets[at + 1]}`);
 
   function onNext() {
+    if (scoreError) return;
     // 비워도 넘어갈 수 있다. 대신 한 번만 부드럽게 확인한다 (FE-5 AC)
     if (allEmpty) setAskSkip(true);
     else goNext();
@@ -80,6 +92,7 @@ export default function ConcernStep() {
           subject={subject}
           examTitle={exam ? exam.notionLabel : '이번 모의고사'}
           value={score}
+          problem={scoreError}
           onChange={(v) => setScore(subject, v)}
         />
 
@@ -108,7 +121,12 @@ export default function ConcernStep() {
         </p>
       </main>
 
-      <BottomBar label={isLast ? '다 적었어요' : '다음 과목'} onClick={onNext} />
+      <BottomBar
+        label={isLast ? '다 적었어요' : '다음 과목'}
+        onClick={onNext}
+        disabled={Boolean(scoreError)}
+        error={scoreError}
+      />
 
       {askSkip ? (
         <SkipSheet
@@ -131,16 +149,17 @@ function ScoreField({
   subject,
   examTitle,
   value,
+  problem,
   onChange,
 }: {
   subject: SubjectCode;
   examTitle: string;
   value: string;
+  /** 위에서 판정한 결과를 그대로 받는다. 여기서 또 판정하면 막는 조건과 어긋날 수 있다. */
+  problem: string | null;
   onChange: (v: string) => void;
 }) {
   const max = maxScoreOf(subject);
-  const num = Number(value);
-  const over = value.trim() !== '' && Number.isFinite(num) && num > max;
 
   return (
     <div className="flex flex-col gap-2">
@@ -158,14 +177,19 @@ function ScoreField({
           placeholder={`0 ~ ${max}`}
           onChange={(e) => onChange(e.target.value)}
           aria-describedby={`${subject}-score-help`}
-          className="min-h-13 w-[140px] rounded-xl border border-line bg-background px-4 text-[16px] font-semibold outline-none placeholder:font-normal placeholder:text-muted focus:border-brand"
+          aria-invalid={problem ? true : undefined}
+          className={[
+            'min-h-13 w-[140px] rounded-xl border bg-background px-4 text-[16px] font-semibold outline-none placeholder:font-normal placeholder:text-muted',
+            problem ? 'border-danger' : 'border-line focus:border-brand',
+          ].join(' ')}
         />
         <span className="text-[15px] text-muted">{`점 / ${max}점 만점`}</span>
       </div>
-      <p id={`${subject}-score-help`} className="text-[13px] text-muted">
-        {over
-          ? `${max}점 만점이에요. 다시 확인해주세요.`
-          : '아직 채점 전이면 비워두셔도 괜찮아요.'}
+      <p
+        id={`${subject}-score-help`}
+        className={`text-[13px] ${problem ? 'font-semibold text-danger' : 'text-muted'}`}
+      >
+        {problem ?? '아직 채점 전이면 비워두셔도 괜찮아요.'}
       </p>
     </div>
   );

@@ -8,6 +8,11 @@ type Props = {
   disabled?: boolean;
   /** 비활성일 때 버튼 아래에 문장으로 보여줄 이유 (FE-3 AC) */
   reason?: string | null;
+  /**
+   * 실패했을 때 보여줄 말. reason 과 자리는 같지만 빨갛게, 그리고 더 세게 알린다.
+   * 예전에는 실패도 reason 으로 흘려보내서, 제출이 안 된 순간이 작은 회색 글씨였다.
+   */
+  error?: string | null;
   pending?: boolean;
   secondary?: ReactNode;
 };
@@ -25,7 +30,7 @@ const MIN_HEIGHT = 88;
  * 이제 내용이 막대 아래로 지나가고, 끝까지 내려도 마지막 줄이 막대에 가리지 않는다.
  * 높이는 재서 넣는다 — '이유' 문장이 붙고 빠지면서 높이가 달라지기 때문이다.
  */
-export function BottomBar({ label, onClick, disabled, reason, pending, secondary }: Props) {
+export function BottomBar({ label, onClick, disabled, reason, error, pending, secondary }: Props) {
   const barRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(MIN_HEIGHT);
 
@@ -57,7 +62,14 @@ export function BottomBar({ label, onClick, disabled, reason, pending, secondary
         >
           {pending ? '보내는 중…' : label}
         </button>
-        {reason ? (
+        {error ? (
+          <p
+            className="mt-2.5 rounded-xl bg-danger/10 px-3 py-2.5 text-center text-[13px] font-semibold leading-[1.5] text-danger"
+            role="alert"
+          >
+            {error}
+          </p>
+        ) : reason ? (
           <p className="mt-2 text-center text-[13px] text-muted" role="status">
             {reason}
           </p>

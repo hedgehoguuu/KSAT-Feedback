@@ -150,7 +150,8 @@ export default function EmailStep() {
         onClick={() => void onSubmit()}
         disabled={!canSubmit}
         pending={pending}
-        reason={failure ?? reason}
+        reason={reason}
+        error={failure}
       />
     </>
   );

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { BRANDING, FEATURES, POLICY } from '@/config/app';
@@ -11,6 +12,13 @@ export default function DonePage() {
   const params = useParams<{ receiptNo: string }>();
   const hydrated = useHydrated();
   const receipt = useApply((s) => s.receipt);
+  const settle = useApply((s) => s.settle);
+
+  // 여기까지 왔으면 '제출 직후' 표시는 할 일을 다 했다. 내려 두지 않으면 뒤로가기로
+  // 돌아간 접수 단계에서 가드가 꺼진 채라 빈 화면에 갇힌다.
+  useEffect(() => {
+    settle();
+  }, [settle]);
 
   const receiptNo = decodeURIComponent(params?.receiptNo ?? '');
   // 새로고침해도 접수번호로 이 화면이 유지된다 (FE-7 AC)
