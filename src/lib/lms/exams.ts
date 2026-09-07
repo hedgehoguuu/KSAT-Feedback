@@ -1,5 +1,5 @@
 import 'server-only';
-import { AREAS, isAreaCode, type Elective, type PublishStatus } from '@/config/lms';
+import { AREAS, isAreaCode, layoutAreaFor, type Elective, type PublishStatus } from '@/config/lms';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import {
   areaTrends,
@@ -169,16 +169,15 @@ export function defaultQuestionRows(
   const chosen = electives.length > 0 ? electives : (['speech'] as const);
 
   for (let no = 1; no <= count; no += 1) {
-    if (no <= 3) rows.push(row(no, 'read_theory'));
-    else if (no <= 9) rows.push(row(no, 'read_humanities'));
-    else if (no <= 17) rows.push(row(no, 'read_science'));
-    else if (no <= 26) rows.push(row(no, 'lit_modern_poem'));
-    else if (no <= 34) rows.push(row(no, 'lit_modern_novel'));
-    else {
-      for (const e of chosen) {
-        const area = AREAS.find((a) => a.elective === e);
-        if (area) rows.push(row(no, area.code));
-      }
+    const area = layoutAreaFor(no);
+    if (area) {
+      rows.push(row(no, area));
+      continue;
+    }
+    // 배치표에 없는 뒷번호는 선택과목 구간이다. 고른 과목마다 한 줄씩.
+    for (const e of chosen) {
+      const found = AREAS.find((a) => a.elective === e);
+      if (found) rows.push(row(no, found.code));
     }
   }
   return rows;
@@ -287,6 +286,60 @@ export async function saveGrading(input: {
       updated_at: new Date().toISOString(),
     })
     .eq('id', input.attemptId);
+}
+
+/**
+ * 채점이 끝난 응시를 한 번에 공개한다.
+ *
+ * 학생이 열둘이면 채점 화면을 열두 번 들어가 공개를 눌러야 했다. 그건 일이 아니라 노동이다.
+ *
+ * **채점이 끝난 것만** 공개한다. 매기다 만 응시가 섞여 들어가면 학생이 반쪽짜리 점수를
+ * 보게 되는데, 그게 이 화면에서 가장 나쁜 일이다. 몇 명이 공개됐고 몇 명이 남았는지 돌려준다.
+ */
+export async function publishGradedAttempts(
+  exam: ExamRow,
+): Promise<{ published: number; skipped: number }> {
+  const board = await examBoard(exam);
+
+  const ready = board.rows
+    .filter((r) => r.attempt && r.score.complete && r.attempt.status !== 'published')
+    .map((r) => r.attempt!.id);
+  const skipped = board.rows.filter((r) => !r.attempt || !r.score.complete).length;
+
+  if (ready.length > 0) {
+    await db()
+      .from('lms_attempts')
+      .update({ status: 'published', updated_at: new Date().toISOString() })
+      .in('id', ready);
+  }
+
+  return { published: ready.length, skipped };
+}
+
+/**
+ * 다른 회차의 문항표를 그대로 가져온다.
+ *
+ * 같은 형식의 실전 모의고사를 매주 보면 배점과 영역 배치가 거의 그대로다. 매번 45줄을
+ * 새로 만드는 대신 지난 회차를 베끼고 다른 데만 고치는 편이 빠르다.
+ *
+ * 정답은 가져오지 않는다 — 회차마다 반드시 다르고, 지난 회차 정답이 남아 있으면
+ * 고치는 걸 잊었을 때 조용히 틀린 채점이 된다. 비워서 오면 최소한 빈 게 보인다.
+ */
+export async function copyQuestionTable(fromExamId: string, toExamId: string): Promise<number> {
+  const source = await listQuestions(fromExamId);
+  if (source.length === 0) return 0;
+
+  await replaceQuestions(
+    toExamId,
+    source.map((q) => ({
+      no: q.no,
+      area_code: q.area_code,
+      points: q.points,
+      answer: null,
+      passage: q.passage,
+    })),
+  );
+  return source.length;
 }
 
 /* ────────────────────────────────────────────────── 화면이 통째로 쓰는 것 */

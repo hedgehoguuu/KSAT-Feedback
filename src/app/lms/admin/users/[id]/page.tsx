@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { ConfirmSubmit } from '@/components/lms/ConfirmSubmit';
 import { Card, Shell, btn, btnDanger, btnGhost, input, label } from '@/components/lms/Shell';
 import { ELECTIVES, ELECTIVE_LIST, LMS, ROLES } from '@/config/lms';
 import { requireRole } from '@/lib/lms/auth';
@@ -168,9 +169,17 @@ export default async function AccountDetailPage({ params, searchParams }: PagePr
 
             <form action={deleteAccount}>
               <input type="hidden" name="id" value={user.id} />
-              <button type="submit" className={btnDanger} disabled={user.id === me.id}>
+              <ConfirmSubmit
+                className={btnDanger}
+                disabled={user.id === me.id}
+                message={
+                  user.role === 'student'
+                    ? `${user.name} 학생의 계정을 지웁니다.\n\n이 학생의 모든 응시 기록 · 점수 · 피드백이 함께 사라지고 되돌릴 수 없어요.\n\n로그인만 막으려면 '정지시키기'를 쓰세요.`
+                    : `${user.name} 님의 계정을 지웁니다.\n\n되돌릴 수 없어요. 로그인만 막으려면 '정지시키기'를 쓰세요.`
+                }
+              >
                 계정 지우기
-              </button>
+              </ConfirmSubmit>
             </form>
           </div>
           <p className="mt-3 text-[13px] leading-[1.6] text-muted">

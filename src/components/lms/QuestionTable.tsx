@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { AREAS, AREA_GROUPS, LMS, fmtScore } from '@/config/lms';
-import { btn, btnGhost, input } from './Shell';
+import type { OcrResult, OcrRow } from '@/lib/lms/ocr';
+import { QuestionOcr } from './QuestionOcr';
+import { Card, btn, btnGhost, input } from './Shell';
 
 /**
  * 문항표 편집.
@@ -27,14 +29,41 @@ type Row = QuestionDraft & { key: number };
 
 export function QuestionTable({
   action,
+  ocrAction,
+  ocrConfigured,
   examId,
   initial,
 }: {
   action: (formData: FormData) => Promise<void>;
+  /** 사진에서 읽기. 결과는 아래 표에 채워 넣기만 하고 저장은 튜터가 누른다. */
+  ocrAction: (formData: FormData) => Promise<OcrResult>;
+  ocrConfigured: boolean;
   examId: string;
   initial: QuestionDraft[];
 }) {
   const [rows, setRows] = useState<Row[]>(() => initial.map((r) => ({ ...r, key: nextKey++ })));
+  /** 사진에서 온 줄. 표에서 눈에 띄게 표시해 확인을 유도한다. */
+  const [fromPhoto, setFromPhoto] = useState<Set<string>>(new Set());
+
+  /**
+   * 읽은 결과를 표에 넣는다.
+   *   replace — 통째로 바꾼다. 빈 표에서 시작할 때.
+   *   merge   — 이미 있는 줄은 두고 없는 것만 더한다. 손으로 고쳐 둔 것을 안 지우려는 것.
+   */
+  function applyOcr(ocrRows: OcrRow[], mode: 'replace' | 'merge') {
+    const keyOf = (r: { no: number; area_code: string }) => `${r.no}|${r.area_code}`;
+    const marked = new Set(ocrRows.map(keyOf));
+
+    setRows((prev) => {
+      if (mode === 'replace') {
+        return ocrRows.map((r) => ({ ...r, key: nextKey++ }));
+      }
+      const have = new Set(prev.map(keyOf));
+      const added = ocrRows.filter((r) => !have.has(keyOf(r))).map((r) => ({ ...r, key: nextKey++ }));
+      return [...prev, ...added].sort((a, b) => a.no - b.no || a.area_code.localeCompare(b.area_code));
+    });
+    setFromPhoto(marked);
+  }
 
   const totalPoints = useMemo(() => rows.reduce((sum, r) => sum + (Number(r.points) || 0), 0), [rows]);
 
@@ -76,7 +105,19 @@ export function QuestionTable({
     ]);
 
   return (
-    <form action={action}>
+    <>
+      <Card title="사진으로 만들기" className="mb-5">
+        <QuestionOcr
+          action={ocrAction}
+          examId={examId}
+          count={rows.length || LMS.defaultQuestionCount}
+          onRows={applyOcr}
+          configured={ocrConfigured}
+        />
+      </Card>
+
+      <Card title="문항표">
+      <form action={action}>
       <input type="hidden" name="exam_id" value={examId} />
 
       <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -113,7 +154,7 @@ export function QuestionTable({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.key}>
+              <tr key={row.key} className={fromPhoto.has(`${row.no}|${row.area_code}`) ? 'bg-mark-soft/40' : ''}>
                 <td>
                   <input
                     name="no"
@@ -202,10 +243,18 @@ export function QuestionTable({
         </button>
       </div>
 
+      {fromPhoto.size > 0 ? (
+        <p className="mt-3 rounded-xl bg-mark-soft px-4 py-3 text-[13px] font-bold leading-[1.6] text-mark">
+          연한 칸이 사진에서 읽은 줄이에요. 저장하기 전에 번호·영역·배점을 눈으로 확인해주세요.
+        </p>
+      ) : null}
+
       <p className="mt-3 text-[13px] leading-[1.6] text-muted">
-        번호를 그대로 두고 영역·배점만 고치면 이미 매긴 O/X 는 그대로 남아요.
-        번호를 지우면 그 문항의 채점 결과도 함께 사라져요.
+        번호와 영역을 그대로 두고 배점만 고치면 이미 매긴 O/X 는 그대로 남아요.
+        번호나 영역을 바꾸면 그 문항의 채점 결과는 사라져요 — 다른 문항이 된 것으로 봐요.
       </p>
-    </form>
+      </form>
+      </Card>
+    </>
   );
 }

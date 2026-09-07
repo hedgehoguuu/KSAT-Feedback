@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ConfirmSubmit } from '@/components/lms/ConfirmSubmit';
 import { Card, Empty, Shell, btn, btnDanger, input, label } from '@/components/lms/Shell';
 import { COURSE_STATUS } from '@/config/lms';
 import { requireRole } from '@/lib/lms/auth';
@@ -91,7 +92,12 @@ export default async function AdminCoursesPage({ searchParams }: PageProps<'/lms
 
                   <form action={deleteCourseAction}>
                     <input type="hidden" name="id" value={c.id} />
-                    <button type="submit" className={btnDanger}>지우기</button>
+                    <ConfirmSubmit
+                      className={btnDanger}
+                      message={`'${c.name}' 반을 지웁니다.\n\n시험 회차 ${c.examCount}개와 그 안의 모든 채점 결과가 함께 사라지고 되돌릴 수 없어요.\n학생 계정은 남습니다.\n\n수업이 끝난 반이라면 지우지 말고 '종료'로 바꾸세요.`}
+                    >
+                      지우기
+                    </ConfirmSubmit>
                   </form>
                 </li>
               ))}

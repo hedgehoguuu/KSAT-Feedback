@@ -2,16 +2,20 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { isAreaCode, isElective, isPublishStatus, LMS, type Elective } from '@/config/lms';
+import { isAreaCode, isElective, isPublishStatus, LMS, passwordProblem, type Elective } from '@/config/lms';
 import { assertRole, type SessionUser } from '@/lib/lms/auth';
-import { courseVisibleTo, enroll, unenroll, type CourseRow } from '@/lib/lms/courses';
+import { readQuestionTable, type OcrResult } from '@/lib/lms/ocr';
+import { resetPassword } from '@/lib/lms/users';
+import { courseVisibleTo, enroll, studentVisibleTo, unenroll, type CourseRow } from '@/lib/lms/courses';
 import {
+  copyQuestionTable,
   defaultQuestionRows,
   deleteExam,
   getExam,
   listQuestions,
   openAttempt,
   replaceQuestions,
+  publishGradedAttempts,
   saveExam,
   saveGrading,
   getAttempt,
@@ -244,4 +248,86 @@ export async function submitGrading(formData: FormData): Promise<void> {
 
   revalidatePath(`/lms/exams/${attempt.exam_id}`);
   redirect(`/lms/attempts/${attemptId}?saved=1`);
+}
+
+/* ────────────────────────────────────────────────── 문항표 사진에서 읽기 */
+
+/**
+ * 시험지 정답표·배점표 사진을 읽어 문항표 초안을 돌려준다. **저장하지 않는다** —
+ * 편집기에 채워 넣기만 하고, 튜터가 눈으로 보고 저장을 눌러야 DB 로 간다.
+ * 잘못 읽은 값이 조용히 저장되는 것이 이 기능에서 가장 나쁜 일이다.
+ *
+ * 사진은 서버에 남기지 않는다. 읽고 나면 그대로 버린다.
+ */
+export async function extractQuestionTable(formData: FormData): Promise<OcrResult> {
+  const examId = text(formData, 'exam_id');
+  await assertExam(examId);
+
+  const count = Math.min(
+    Math.max(Number(text(formData, 'count')) || LMS.defaultQuestionCount, 1),
+    LMS.maxQuestionCount,
+  );
+
+  const files = formData.getAll('photo').filter((f): f is File => f instanceof File && f.size > 0);
+  if (files.length === 0) return { ok: false, reason: 'NO_IMAGE' };
+
+  // 한 번에 너무 많이 보내면 느리기만 하고 정확해지지 않는다. 정답표는 대개 한두 장이다.
+  const images = await Promise.all(
+    files.slice(0, 4).map(async (file) => ({
+      media_type: file.type || 'image/jpeg',
+      data: Buffer.from(await file.arrayBuffer()).toString('base64'),
+    })),
+  );
+
+  return readQuestionTable(images, count);
+}
+
+/* ─────────────────────────────────────────────── 되풀이를 줄여 주는 것들 */
+
+/** 채점이 끝난 학생을 한 번에 공개한다. 매기다 만 응시는 건드리지 않는다. */
+export async function publishExamGrades(formData: FormData): Promise<void> {
+  const examId = text(formData, 'exam_id');
+  const { exam } = await assertExam(examId);
+
+  const { published, skipped } = await publishGradedAttempts(exam);
+
+  revalidatePath(`/lms/exams/${examId}`);
+  redirect(`/lms/exams/${examId}?published=${published}&skipped=${skipped}`);
+}
+
+/** 다른 회차의 문항표를 그대로 가져온다. 정답은 빼고 온다. */
+export async function copyQuestionsFrom(formData: FormData): Promise<void> {
+  const examId = text(formData, 'exam_id');
+  const { course } = await assertExam(examId);
+
+  const fromId = text(formData, 'from_exam_id');
+  if (!fromId || fromId === examId) redirect(`/lms/exams/${examId}/questions`);
+
+  // 가져오는 쪽도 같은 반이어야 한다. 남의 반 문항표를 id 로 끌어오지 못하게.
+  const source = await getExam(fromId);
+  if (!source || source.course_id !== course.id) redirect(`/lms/exams/${examId}/questions`);
+
+  const copied = await copyQuestionTable(fromId, examId);
+  revalidatePath(`/lms/exams/${examId}`);
+  redirect(`/lms/exams/${examId}/questions?copied=${copied}`);
+}
+
+/**
+ * 튜터가 자기 반 학생의 비밀번호를 새로 발급한다.
+ *
+ * 관리자만 할 수 있게 두면 학생이 비번을 잊은 날 수업이 멈춘다. 대신 자기 반 학생인지를
+ * 반드시 확인한다 — 없으면 튜터가 학생 id 만 알면 남의 반 학생 비밀번호를 바꿀 수 있다.
+ */
+export async function resetStudentPassword(formData: FormData): Promise<void> {
+  const user = await assertRole('admin', 'tutor');
+
+  const studentId = text(formData, 'student_id');
+  const courseId = text(formData, 'course_id');
+  const password = String(formData.get('password') ?? '');
+
+  if (!(await studentVisibleTo(studentId, user))) redirect('/lms/tutor');
+  if (passwordProblem(password)) redirect(`/lms/courses/${courseId}?error=weak`);
+
+  await resetPassword(studentId, password);
+  redirect(`/lms/courses/${courseId}?reset=${encodeURIComponent(studentId)}`);
 }

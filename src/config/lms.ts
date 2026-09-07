@@ -72,7 +72,9 @@ export const AREAS: readonly Area[] = [
   { code: 'read_humanities', group: 'reading', label: '인문' },
   { code: 'read_social', group: 'reading', label: '사회' },
   { code: 'read_science', group: 'reading', label: '과학기술' },
-  { code: 'lit_modern_poem', group: 'literature', label: '현대시' },
+  // 갈래복합. 요즘 시험지의 문학 첫 세트는 시 하나만 나오는 일이 드물고
+  // (가)(나) 로 갈래가 섞여 나오므로, 현대시 한 칸을 이걸로 바꿔 뒀다 (0011).
+  { code: 'lit_complex', group: 'literature', label: '갈래복합' },
   { code: 'lit_modern_novel', group: 'literature', label: '현대소설' },
   { code: 'lit_classic_poem', group: 'literature', label: '고전시가' },
   { code: 'lit_classic_novel', group: 'literature', label: '고전소설' },
@@ -146,6 +148,48 @@ export const LMS = {
   /** 한 회차 만점. 문항표 배점 합이 이 값과 다르면 화면이 경고만 하고 막지는 않는다. */
   fullScore: 100,
 } as const;
+
+/**
+ * 새 회차를 만들 때 미리 깔아 주는 배치.
+ *
+ * 빈 표를 주면 아무도 45줄을 손으로 안 채운다. 그렇다고 이대로 쓰라는 뜻은 아니고,
+ * 회차마다 다른 부분만 고치게 해서 손을 덜자는 것이다.
+ *
+ * `to` 는 그 영역이 끝나는 문항 번호다. 여기 적히지 않은 뒷번호(35번부터)는
+ * 선택과목 구간이라 고른 과목마다 한 줄씩 깔린다.
+ * 시험지 구성이 바뀌면 이 표 한 곳만 고치면 된다.
+ */
+export const DEFAULT_LAYOUT: readonly { to: number; area: string }[] = [
+  { to: 3, area: 'read_theory' },
+  { to: 9, area: 'read_humanities' },
+  { to: 13, area: 'read_social' },
+  { to: 17, area: 'read_science' },
+  { to: 23, area: 'lit_complex' },
+  { to: 27, area: 'lit_modern_novel' },
+  { to: 31, area: 'lit_classic_novel' },
+  { to: 34, area: 'lit_classic_poem' },
+] as const;
+
+/** 이 번호가 선택과목 구간에 들어가면 null. 아니면 그 자리의 영역 코드. */
+export function layoutAreaFor(no: number): string | null {
+  return DEFAULT_LAYOUT.find((band) => no <= band.to)?.area ?? null;
+}
+
+/**
+ * 배치를 사람이 읽는 한 줄로. "1–3 독서론 · 4–9 인문 · …"
+ *
+ * 화면에 배치를 손으로 적어 두면 표를 고칠 때마다 안내 문구가 조용히 거짓말이 된다.
+ * 표에서 만들어 내면 그럴 일이 없다.
+ */
+export function layoutSummary(): string {
+  let from = 1;
+  const parts = DEFAULT_LAYOUT.map((band) => {
+    const range = from === band.to ? `${band.to}` : `${from}–${band.to}`;
+    from = band.to + 1;
+    return `${range} ${areaLabel(band.area)}`;
+  });
+  return [...parts, `${from}– 선택과목`].join(' · ');
+}
 
 /** 아이디가 규칙에 맞으면 null, 아니면 이유를 돌려준다. */
 export function loginIdProblem(raw: string): string | null {
