@@ -433,3 +433,125 @@ export async function studentHistory(
 
   return { points, trends: areaTrends(points) };
 }
+
+/**
+ * 반 전체의 누적. 회차마다 examBoard 를 부르면 반 하나에 쿼리 수십 개가 나가서,
+ * 필요한 것을 네 번에 나눠 통째로 읽고 앱에서 접는다.
+ *
+ * 회차마다 만점이 다르므로(문항 수·배점이 다르다) 평균은 원점수가 아니라 100점 환산으로 낸다.
+ * 원점수 평균은 쉬운 회차가 많았던 학생을 잘한 학생으로 만든다.
+ */
+export type CourseSummaryRow = {
+  student: StudentRow;
+  /** 채점이 끝난 회차 수 */
+  taken: number;
+  /** 100점 환산 평균. 채점된 회차가 없으면 0. */
+  average: number;
+  /** 가장 최근 회차의 100점 환산 점수. 없으면 null. */
+  latest: number | null;
+  areas: ReturnType<typeof areaTrends>;
+  rank: number;
+};
+
+export async function courseSummary(courseId: string): Promise<{
+  exams: ExamRow[];
+  rows: CourseSummaryRow[];
+  /** 영역 코드 → 반 누적 평균 정답률 */
+  areaAverages: Map<string, number>;
+  average: number;
+}> {
+  const [exams, students] = await Promise.all([listExams(courseId), listEnrolled(courseId)]);
+  if (exams.length === 0 || students.length === 0) {
+    return { exams, rows: students.map(emptySummaryRow), areaAverages: new Map(), average: 0 };
+  }
+
+  const examIds = exams.map((e) => e.id);
+  const [{ data: questionRows }, { data: attemptRows }] = await Promise.all([
+    db().from('lms_exam_questions').select(`exam_id, ${QUESTION_COLS}`).in('exam_id', examIds),
+    db().from('lms_attempts').select(ATTEMPT_COLS).in('exam_id', examIds),
+  ]);
+
+  const attempts = (attemptRows ?? []) as AttemptRow[];
+  const { data: answerRows } = attempts.length
+    ? await db()
+        .from('lms_answers')
+        .select('attempt_id, question_id, correct, chosen')
+        .in('attempt_id', attempts.map((a) => a.id))
+    : { data: [] };
+
+  const questionsByExam = new Map<string, QuestionRow[]>();
+  for (const q of (questionRows ?? []) as (QuestionRow & { exam_id: string })[]) {
+    const list = questionsByExam.get(q.exam_id) ?? [];
+    list.push({ ...q, points: Number(q.points) });
+    questionsByExam.set(q.exam_id, list);
+  }
+
+  const answersByAttempt = new Map<string, AnswerRow[]>();
+  for (const a of (answerRows ?? []) as (AnswerRow & { attempt_id: string })[]) {
+    const list = answersByAttempt.get(a.attempt_id) ?? [];
+    list.push({ question_id: a.question_id, correct: a.correct, chosen: a.chosen });
+    answersByAttempt.set(a.attempt_id, list);
+  }
+
+  // 최근 회차가 무엇인지는 시험 날짜(없으면 만든 날)로 정한다.
+  const order = new Map(
+    [...exams]
+      .sort((a, b) => (a.exam_date ?? a.created_at).localeCompare(b.exam_date ?? b.created_at))
+      .map((e, i) => [e.id, i]),
+  );
+
+  const rows: CourseSummaryRow[] = students.map((student) => {
+    const mine = attempts.filter((a) => a.student_id === student.id);
+    const scored = mine
+      .map((attempt) => ({
+        attempt,
+        score: scoreAttempt(
+          questionsByExam.get(attempt.exam_id) ?? [],
+          answersByAttempt.get(attempt.id) ?? [],
+          attempt.elective,
+        ),
+      }))
+      .filter((s) => s.score.complete && s.score.total > 0)
+      .sort((a, b) => (order.get(a.attempt.exam_id) ?? 0) - (order.get(b.attempt.exam_id) ?? 0));
+
+    const scaled = scored.map((s) => (s.score.earned / s.score.total) * 100);
+    return {
+      student,
+      taken: scored.length,
+      average: scaled.length ? scaled.reduce((a, b) => a + b, 0) / scaled.length : 0,
+      latest: scaled.length ? scaled[scaled.length - 1] : null,
+      areas: areaTrends(scored),
+      rank: 0,
+    };
+  });
+
+  // 석차는 한 회차라도 채점이 끝난 학생끼리만 매긴다. 동점은 같은 등수다.
+  const ranked = rows.filter((r) => r.taken > 0).sort((a, b) => b.average - a.average);
+  ranked.forEach((row, i) => {
+    const prev = ranked[i - 1];
+    row.rank = prev && Math.abs(prev.average - row.average) < 1e-9 ? prev.rank : i + 1;
+  });
+
+  const areaAverages = new Map<string, number>();
+  for (const area of AREAS) {
+    const rates = rows
+      .map((r) => r.areas.find((a) => a.code === area.code))
+      .filter((a): a is NonNullable<typeof a> => Boolean(a) && a!.graded > 0)
+      .map((a) => a.rate);
+    if (rates.length) areaAverages.set(area.code, rates.reduce((a, b) => a + b, 0) / rates.length);
+  }
+
+  const withScores = rows.filter((r) => r.taken > 0);
+  return {
+    exams,
+    rows: rows.sort((a, b) => (a.rank || 999) - (b.rank || 999) || a.student.name.localeCompare(b.student.name, 'ko')),
+    areaAverages,
+    average: withScores.length
+      ? withScores.reduce((sum, r) => sum + r.average, 0) / withScores.length
+      : 0,
+  };
+}
+
+function emptySummaryRow(student: StudentRow): CourseSummaryRow {
+  return { student, taken: 0, average: 0, latest: null, areas: [], rank: 0 };
+}
