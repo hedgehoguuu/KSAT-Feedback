@@ -1,19 +1,20 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AreaBars, markWeak } from '@/components/lms/AreaBars';
+import { ConfirmSubmit } from '@/components/lms/ConfirmSubmit';
 import { Card, Empty, Shell, Stat, btn, btnDanger, btnGhost, input, label } from '@/components/lms/Shell';
 import { ELECTIVES, PUBLISH_STATUS, fmtScore } from '@/config/lms';
 import { requireRole } from '@/lib/lms/auth';
 import { courseVisibleTo } from '@/lib/lms/courses';
 import { examBoard, getExam, listQuestions } from '@/lib/lms/exams';
-import { removeExam, startGrading, updateExam } from '../../course-actions';
+import { publishExamGrades, removeExam, startGrading, updateExam } from '../../course-actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ExamPage({ params, searchParams }: PageProps<'/lms/exams/[id]'>) {
   const me = await requireRole('tutor', 'admin');
   const { id } = await params;
-  const { saved } = await searchParams;
+  const { saved, published, skipped } = await searchParams;
 
   const exam = await getExam(id);
   if (!exam) notFound();
@@ -59,6 +60,16 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
       {saved ? (
         <p className="mt-4 rounded-xl bg-surface px-4 py-3 text-[14px]" role="status">저장했어요.</p>
       ) : null}
+      {published !== undefined ? (
+        <p className="mt-4 rounded-xl bg-surface px-4 py-3 text-[14px] leading-[1.6]" role="status">
+          {Number(published) > 0 ? `${published}명을 학생에게 공개했어요.` : '새로 공개할 학생이 없었어요.'}
+          {Number(skipped) > 0 ? (
+            <span className="text-muted">
+              {' '}채점이 아직 안 끝난 {skipped}명은 그대로 뒀어요 — 반쪽짜리 점수는 공개하지 않아요.
+            </span>
+          ) : null}
+        </p>
+      ) : null}
 
       <div className="mt-4 grid gap-3 sm:grid-cols-4">
         <Stat label="문항" value={String(questions.length)} unit="개" note={`배점 합 ${fmtScore(fullScore)}점`} />
@@ -96,7 +107,17 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
           )}
         </Card>
 
-        <Card title={`학생 ${board.rows.length}명`}>
+        <Card
+          title={`학생 ${board.rows.length}명`}
+          action={
+            <form action={publishExamGrades}>
+              <input type="hidden" name="exam_id" value={exam.id} />
+              <button type="submit" className={btnGhost} disabled={gradedCount === 0}>
+                채점 끝난 {gradedCount}명 한 번에 공개
+              </button>
+            </form>
+          }
+        >
           {board.rows.length === 0 ? (
             <Empty>
               이 반에 수강생이 없어요.{' '}
@@ -216,7 +237,12 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
 
           <form action={removeExam} className="mt-4">
             <input type="hidden" name="exam_id" value={exam.id} />
-            <button type="submit" className={btnDanger}>회차 지우기</button>
+            <ConfirmSubmit
+              className={btnDanger}
+              message={`'${exam.title}' 회차를 지웁니다.\n\n문항표 ${questions.length}문항과 학생 ${gradedCount}명의 채점 결과가 함께 사라지고 되돌릴 수 없어요.`}
+            >
+              회차 지우기
+            </ConfirmSubmit>
           </form>
           <p className="mt-2 text-[13px] text-muted">
             문항표와 이 회차의 모든 채점 결과가 함께 사라져요.

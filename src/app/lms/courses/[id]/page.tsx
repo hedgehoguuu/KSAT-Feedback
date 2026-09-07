@@ -1,20 +1,21 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AreaBars, markWeak } from '@/components/lms/AreaBars';
+import { ConfirmSubmit } from '@/components/lms/ConfirmSubmit';
 import { Card, Empty, Shell, Stat, btn, btnGhost, input, label } from '@/components/lms/Shell';
-import { ELECTIVES, PUBLISH_STATUS, fmtRate, fmtScore } from '@/config/lms';
+import { ELECTIVES, LMS, PUBLISH_STATUS, fmtRate, fmtScore } from '@/config/lms';
 import { requireRole } from '@/lib/lms/auth';
 import { courseVisibleTo } from '@/lib/lms/courses';
 import { courseSummary } from '@/lib/lms/exams';
 import { listStudents } from '@/lib/lms/users';
-import { createExam, enrollStudent, removeStudent } from '../../course-actions';
+import { createExam, enrollStudent, removeStudent, resetStudentPassword } from '../../course-actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CoursePage({ params, searchParams }: PageProps<'/lms/courses/[id]'>) {
   const me = await requireRole('tutor', 'admin');
   const { id } = await params;
-  const { error } = await searchParams;
+  const { error, reset } = await searchParams;
 
   const course = await courseVisibleTo(id, me);
   if (!course) notFound();
@@ -43,7 +44,24 @@ export default async function CoursePage({ params, searchParams }: PageProps<'/l
       <Link href="/lms/tutor" className="text-[13px] font-semibold text-muted underline underline-offset-2">
         ← 내 반
       </Link>
-      <h1 className="mt-3 text-[20px] font-extrabold">{course.name}</h1>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-[20px] font-extrabold">{course.name}</h1>
+        {/* 서버 함수는 파일을 못 내려보낸다. 라우트로 직접 간다. */}
+        <a href={`/lms/courses/${course.id}/export`} className={btnGhost} download>
+          성적 CSV 내려받기
+        </a>
+      </div>
+
+      {reset ? (
+        <p className="mt-4 rounded-xl bg-surface px-4 py-3 text-[14px] leading-[1.6]" role="status">
+          비밀번호를 새로 발급했어요. 학생에게 알려주세요 — 처음 들어올 때 본인이 다시 바꾸게 돼요.
+        </p>
+      ) : null}
+      {error === 'weak' ? (
+        <p className="mt-4 rounded-xl bg-mark-soft px-4 py-3 text-[14px] font-bold text-mark" role="alert">
+          비밀번호는 {LMS.minPasswordLength}자 이상이어야 해요.
+        </p>
+      ) : null}
 
       <div className="mt-4 grid gap-3 sm:grid-cols-4">
         <Stat label="수강생" value={String(summary.rows.length)} unit="명" />
@@ -226,11 +244,32 @@ export default async function CoursePage({ params, searchParams }: PageProps<'/l
                       {row.student.profile?.parent_phone ? ` · 학부모 ${row.student.profile.parent_phone}` : ''}
                     </p>
                   </div>
-                  <form action={removeStudent}>
-                    <input type="hidden" name="course_id" value={course.id} />
-                    <input type="hidden" name="student_id" value={row.student.id} />
-                    <button type="submit" className={btnGhost}>빼기</button>
-                  </form>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* 학생이 비번을 잊은 날 관리자를 기다리면 그 수업이 멈춘다. */}
+                    <form action={resetStudentPassword} className="flex items-center gap-2">
+                      <input type="hidden" name="course_id" value={course.id} />
+                      <input type="hidden" name="student_id" value={row.student.id} />
+                      <input
+                        name="password"
+                        required
+                        minLength={LMS.minPasswordLength}
+                        placeholder="새 비밀번호"
+                        className={`${input} w-36`}
+                        aria-label={`${row.student.name} 새 비밀번호`}
+                      />
+                      <button type="submit" className={btnGhost}>발급</button>
+                    </form>
+                    <form action={removeStudent}>
+                      <input type="hidden" name="course_id" value={course.id} />
+                      <input type="hidden" name="student_id" value={row.student.id} />
+                      <ConfirmSubmit
+                        className={btnGhost}
+                        message={`${row.student.name} 학생을 이 반에서 뺍니다.\n\n계정과 지난 성적은 그대로 남아요.`}
+                      >
+                        빼기
+                      </ConfirmSubmit>
+                    </form>
+                  </div>
                 </li>
               ))}
             </ul>

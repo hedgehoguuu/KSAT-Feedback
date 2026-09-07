@@ -142,3 +142,20 @@ export async function coursesOfStudent(studentId: string): Promise<CourseRow[]> 
   const { data: courses } = await db().from('lms_courses').select(COURSE_COLS).in('id', ids).order('created_at', { ascending: false });
   return (courses ?? []) as CourseRow[];
 }
+
+/**
+ * 이 학생이 이 사람의 반에 있는가. 관리자는 늘 통과한다.
+ *
+ * 튜터가 학생 비밀번호를 재발급할 수 있게 하려면 그 학생이 정말 자기 반 학생인지를
+ * 먼저 확인해야 한다. 이게 없으면 튜터가 학생 id 만 알면 남의 반 학생 비밀번호를 바꿀 수 있다.
+ */
+export async function studentVisibleTo(
+  studentId: string,
+  user: { id: string; role: string },
+): Promise<boolean> {
+  if (user.role === 'admin') return true;
+  if (user.role !== 'tutor') return false;
+
+  const courses = await coursesOfStudent(studentId);
+  return courses.some((c) => c.tutor_id === user.id);
+}
