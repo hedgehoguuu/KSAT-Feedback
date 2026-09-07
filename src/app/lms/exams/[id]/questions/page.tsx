@@ -66,19 +66,26 @@ export default async function QuestionTablePage({ params, searchParams }: PagePr
                 className={`${input} w-24`}
               />
             </div>
-            <div>
-              <label className={label} htmlFor="elective">선택과목</label>
-              <select id="elective" name="elective" defaultValue="speech" className={`${input} w-36`}>
+            <fieldset>
+              <legend className={label}>선택과목</legend>
+              {/* 한 반에 화작·언매가 섞여 있는 것이 보통이라 둘 다 켜 둔다.
+                  35번부터는 고른 과목마다 한 줄씩 깔린다 — 같은 번호에 두 줄이 맞다. */}
+              <div className="flex min-h-10 items-center gap-3">
                 {ELECTIVE_LIST.map((e) => (
-                  <option key={e} value={e}>{ELECTIVES[e]}</option>
+                  <label key={e} className="flex items-center gap-1.5 text-[14px] font-bold">
+                    <input type="checkbox" name="elective" value={e} defaultChecked className="size-4" />
+                    {ELECTIVES[e]}
+                  </label>
                 ))}
-              </select>
-            </div>
+              </div>
+            </fieldset>
             <button type="submit" className={btnGhost}>새로 깔기</button>
           </form>
           <p className="mt-3 text-[13px] leading-[1.6] text-muted">
             통상 배치(1–3 독서론 · 4–9 인문 · 10–17 과학기술 · 18–26 현대시 · 27–34 현대소설 · 35– 선택)로
-            덮어써요. <span className="font-bold text-mark">이미 매긴 O/X 가 전부 사라져요</span> —
+            덮어써요. 35번부터는 고른 선택과목마다 한 줄씩 깔려요 — 같은 번호에 두 줄이 보이는 게 맞아요.
+            화작 학생과 언매 학생이 그 번호에서 서로 다른 문항을 풀거든요.
+            <span className="font-bold text-mark"> 이미 매긴 O/X 가 전부 사라져요</span> —
             채점을 시작하기 전에만 쓰세요.
           </p>
         </Card>

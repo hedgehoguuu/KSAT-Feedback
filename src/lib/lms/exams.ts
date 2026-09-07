@@ -103,35 +103,46 @@ export type QuestionInput = {
 };
 
 /**
+ * 문항 하나를 가리키는 열쇠.
+ *
+ * 번호만으로는 모자란다 — 국어 35~45번은 화작 학생과 언매 학생이 **같은 번호로 서로 다른
+ * 문항**을 푼다. 두 벌이 한 회차에 함께 있어야 하므로 번호와 영역을 같이 봐야 한 문항이다.
+ */
+function questionKey(q: { no: number; area_code: string }): string {
+  return `${q.no}|${q.area_code}`;
+}
+
+/**
  * 문항표를 통째로 갈아 끼운다.
  *
  * 한 줄씩 고치지 않는 이유: 문항 번호가 밀리거나 영역이 통째로 바뀌는 일이 잦은데,
  * 그때 어떤 줄이 어떤 줄로 바뀐 것인지 짝을 맞추려면 화면에서 그 정보를 들고 다녀야 한다.
  *
- * 대신 이미 매긴 정오를 잃지 않도록 **문항 번호를 열쇠로 삼아** 살릴 수 있는 것은 살린다.
- * 번호가 그대로면 그 문항의 O/X 는 그대로 남고, 사라진 번호의 정오만 지워진다.
+ * 대신 이미 매긴 정오를 잃지 않도록 **번호와 영역을 열쇠로 삼아** 살릴 수 있는 것은 살린다.
+ * 둘 다 그대로면 그 문항의 O/X 는 그대로 남고, 사라진 것의 정오만 지워진다.
+ * 영역을 고치면 그 문항의 O/X 는 사라진다 — 다른 문항이 된 것으로 본다.
  */
 export async function replaceQuestions(examId: string, rows: QuestionInput[]): Promise<void> {
   const clean = rows
     .filter((r) => Number.isInteger(r.no) && r.no >= 1 && isAreaCode(r.area_code))
-    .sort((a, b) => a.no - b.no);
+    .sort((a, b) => a.no - b.no || a.area_code.localeCompare(b.area_code));
 
   const before = await listQuestions(examId);
-  const idByNo = new Map(before.map((q) => [q.no, q.id]));
-  const keepNos = new Set(clean.map((r) => r.no));
+  const idByKey = new Map(before.map((q) => [questionKey(q), q.id]));
+  const keep = new Set(clean.map(questionKey));
 
-  // 없어진 번호부터 지운다. 그 문항에 달린 정오도 함께 사라진다(cascade).
-  const goneIds = before.filter((q) => !keepNos.has(q.no)).map((q) => q.id);
+  // 없어진 것부터 지운다. 그 문항에 달린 정오도 함께 사라진다(cascade).
+  const goneIds = before.filter((q) => !keep.has(questionKey(q))).map((q) => q.id);
   if (goneIds.length) await db().from('lms_exam_questions').delete().in('id', goneIds);
 
-  const updates = clean.filter((r) => idByNo.has(r.no));
-  const inserts = clean.filter((r) => !idByNo.has(r.no));
+  const updates = clean.filter((r) => idByKey.has(questionKey(r)));
+  const inserts = clean.filter((r) => !idByKey.has(questionKey(r)));
 
   for (const r of updates) {
     await db()
       .from('lms_exam_questions')
-      .update({ area_code: r.area_code, points: r.points, answer: r.answer, passage: r.passage })
-      .eq('id', idByNo.get(r.no)!);
+      .update({ points: r.points, answer: r.answer, passage: r.passage })
+      .eq('id', idByKey.get(questionKey(r))!);
   }
 
   if (inserts.length) {
@@ -143,22 +154,38 @@ export async function replaceQuestions(examId: string, rows: QuestionInput[]): P
 
 /**
  * 새 회차의 기본 문항표. 빈 표를 주면 45줄을 손으로 다 채워야 해서,
- * 국어 시험지의 통상 배치(1–17 독서 · 18–34 문학 · 35–45 선택)를 미리 깔아 준다.
+ * 국어 시험지의 통상 배치(1–17 독서 · 18–34 문학 · 35– 선택)를 미리 깔아 준다.
  * 회차마다 다르므로 그대로 쓰라는 뜻은 아니고, 고칠 거리를 줄이려는 것이다.
+ *
+ * 선택과목 구간은 **고른 과목마다 한 벌씩** 깐다. 한 반에 화작 학생과 언매 학생이
+ * 섞여 있는 것이 보통이고, 두 벌이 다 있어야 둘 다 채점된다.
+ * 같은 번호에 두 줄이 생기는데 그게 맞다 — 35번은 두 학생에게 서로 다른 문항이다.
  */
-export function defaultQuestionRows(count: number, elective: Elective = 'speech'): QuestionInput[] {
-  const electiveArea = AREAS.find((a) => a.elective === elective)?.code ?? 'el_speech';
-  return Array.from({ length: count }, (_, i) => {
-    const no = i + 1;
-    let area_code: string;
-    if (no <= 3) area_code = 'read_theory';
-    else if (no <= 9) area_code = 'read_humanities';
-    else if (no <= 17) area_code = 'read_science';
-    else if (no <= 26) area_code = 'lit_modern_poem';
-    else if (no <= 34) area_code = 'lit_modern_novel';
-    else area_code = electiveArea;
-    return { no, area_code, points: 2, answer: null, passage: null };
-  });
+export function defaultQuestionRows(
+  count: number,
+  electives: readonly Elective[] = ['speech', 'media'],
+): QuestionInput[] {
+  const rows: QuestionInput[] = [];
+  const chosen = electives.length > 0 ? electives : (['speech'] as const);
+
+  for (let no = 1; no <= count; no += 1) {
+    if (no <= 3) rows.push(row(no, 'read_theory'));
+    else if (no <= 9) rows.push(row(no, 'read_humanities'));
+    else if (no <= 17) rows.push(row(no, 'read_science'));
+    else if (no <= 26) rows.push(row(no, 'lit_modern_poem'));
+    else if (no <= 34) rows.push(row(no, 'lit_modern_novel'));
+    else {
+      for (const e of chosen) {
+        const area = AREAS.find((a) => a.elective === e);
+        if (area) rows.push(row(no, area.code));
+      }
+    }
+  }
+  return rows;
+}
+
+function row(no: number, area_code: string): QuestionInput {
+  return { no, area_code, points: 2, answer: null, passage: null };
 }
 
 /* ─────────────────────────────────────────────────────────── 응시 */

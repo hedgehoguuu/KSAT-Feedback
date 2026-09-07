@@ -43,6 +43,21 @@ export function QuestionTable({
   const bothElectives =
     new Set(rows.filter((r) => electiveCodes.has(r.area_code)).map((r) => r.area_code)).size > 1;
 
+  /**
+   * 같은 번호 + 같은 영역이 두 줄이면 실수다. 저장하면 뒤 줄이 조용히 버려지므로
+   * 버려지기 전에 말해 준다. 번호만 같은 것(35번 화작 · 35번 언매)은 실수가 아니다.
+   */
+  const duplicates = useMemo(() => {
+    const seen = new Set<string>();
+    const dup = new Set<number>();
+    for (const r of rows) {
+      const key = `${r.no}|${r.area_code}`;
+      if (seen.has(key)) dup.add(r.no);
+      seen.add(key);
+    }
+    return dup;
+  }, [rows]);
+
   const patch = (key: number, next: Partial<QuestionDraft>) =>
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...next } : r)));
 
@@ -69,11 +84,17 @@ export function QuestionTable({
           {rows.length}문항 · 배점 합{' '}
           <span className="font-bold text-foreground">{fmtScore(totalPoints)}</span>점
         </p>
+        {duplicates.size > 0 ? (
+          <p className="text-[12px] font-bold text-mark">
+            {[...duplicates].join(', ')}번이 같은 영역으로 두 줄이에요. 저장하면 뒤 줄이 사라져요.
+          </p>
+        ) : null}
         {bothElectives ? (
           <p className="text-[12px] text-muted">
-            화작·언매를 함께 넣으면 배점 합이 만점을 넘어요 — 학생은 자기 선택과목만 채점돼요.
+            화작·언매가 함께 있어요. 35번처럼 <span className="font-bold">같은 번호가 두 줄인 것이 맞아요</span> —
+            두 학생이 그 번호에서 서로 다른 문항을 풀거든요. 배점 합이 만점을 넘는 것도 그래서예요.
           </p>
-        ) : !bothElectives && totalPoints !== LMS.fullScore ? (
+        ) : totalPoints !== LMS.fullScore ? (
           <p className="text-[12px] text-mark">만점 {LMS.fullScore}점과 달라요. 배점을 확인해주세요.</p>
         ) : null}
       </div>

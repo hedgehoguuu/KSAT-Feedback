@@ -143,13 +143,21 @@ export async function saveQuestionTable(formData: FormData): Promise<void> {
   const passages = formData.getAll('passage').map((v) => String(v).trim());
 
   const rows: QuestionInput[] = [];
-  const seen = new Set<number>();
-  for (let i = 0; i < nos.length && i < LMS.maxQuestionCount; i += 1) {
+  const seen = new Set<string>();
+  // 선택과목 두 벌 때문에 줄 수가 문항 수보다 많다. 상한도 그만큼 넉넉히 본다.
+  const limit = LMS.maxQuestionCount * 2;
+  for (let i = 0; i < nos.length && i < limit; i += 1) {
     const no = nos[i];
-    // 같은 번호가 두 줄 있으면 DB 가 거절한다. 먼저 적힌 줄을 남긴다.
-    if (!Number.isInteger(no) || no < 1 || seen.has(no)) continue;
+    if (!Number.isInteger(no) || no < 1 || no > LMS.maxQuestionCount) continue;
     if (!isAreaCode(areas[i] ?? '')) continue;
-    seen.add(no);
+
+    /**
+     * 같은 번호라도 영역이 다르면 다른 문항이다 — 35번 화작과 35번 언매는 함께 있어야 한다.
+     * 번호와 영역이 둘 다 같은 줄만 실수로 보고 먼저 적힌 것을 남긴다.
+     */
+    const key = `${no}|${areas[i]}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
 
     const answer = Number(answers[i]);
     rows.push({
@@ -171,9 +179,10 @@ export async function reseedQuestionTable(formData: FormData): Promise<void> {
   await assertExam(examId);
 
   const count = Math.min(Math.max(Number(text(formData, 'count')) || LMS.defaultQuestionCount, 1), LMS.maxQuestionCount);
-  const elective = text(formData, 'elective');
+  // 반에 화작·언매가 섞여 있으면 둘 다 고른다. 하나도 안 고르면 공통만 깐다.
+  const electives = formData.getAll('elective').map(String).filter(isElective);
 
-  await replaceQuestions(examId, defaultQuestionRows(count, isElective(elective) ? elective : 'speech'));
+  await replaceQuestions(examId, defaultQuestionRows(count, electives));
   redirect(`/lms/exams/${examId}/questions?seeded=1`);
 }
 
