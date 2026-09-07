@@ -207,3 +207,99 @@ html.js .reveal:not(.reveal-in) {
     transform: none;
   }
 }
+
+/* ── LMS (/lms) ────────────────────────────────────────────────────────────
+   접수 흐름(/apply)은 손에 쥐고 한 손으로 넘기는 화면이라 480px 기둥이 맞다.
+   LMS 는 표를 본다 — 학생 열둘의 영역 여덟 개를 한눈에 놓고 비교하는 것이 일이라
+   같은 폭에 넣으면 가로로 스크롤하며 읽게 된다. 그래서 기둥만 넓히고
+   재질 · 색 · 글자는 하나도 바꾸지 않는다. 두 벌의 디자인이 되면 안 된다. */
+/* 루트 레이아웃(app/layout.tsx)은 모든 화면이 함께 쓰는 곳이라, 여기 폭을 바꾸면
+   접수 흐름 · 모집 페이지 · 관리자 화면이 전부 따라 움직인다. 그래서 루트를 건드리지 않고
+   'LMS 화면이 떠 있을 때만' 기둥을 넓힌다 — :has() 는 자식이 조상의 모양을 바꿀 수 있는
+   유일한 CSS 수단이다. LMS 를 빼면 이 규칙은 아무것도 안 하고 조용히 사라진다. */
+body:has(.lms-page) .shell {
+  max-width: 1080px;
+}
+body:has(.lms-page) .field {
+  max-width: 1080px;
+}
+
+/* 표. 유리 위에 얹히므로 흰 배경을 깔지 않고 선만 쓴다. */
+.lms-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.lms-table th,
+.lms-table td {
+  padding: 10px 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+.lms-table th {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.lms-table tbody tr {
+  border-top: 1px solid rgb(17 24 39 / 0.08);
+}
+.lms-table .num {
+  text-align: right;
+}
+
+/* 표가 좁은 화면을 넘칠 때. 페이지 전체가 아니라 표만 옆으로 밀린다. */
+.lms-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── 그래프 ────────────────────────────────────────────────────────────────
+   색은 이미 쓰던 두 가지뿐이다. 파랑이 데이터, 빨강은 '여기를 보라'(약한 영역)이고
+   그마저 늘 글자 딱지와 함께 나간다 — 색맹인 사람에게 색만으로 말하지 않기 위해서다.
+   격자와 축은 한 단계 뒤로 물린다. 눈에 남아야 하는 건 데이터뿐이다. */
+.chart-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.chart-line {
+  fill: none;
+  stroke: var(--brand);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.chart-area {
+  fill: var(--brand);
+  opacity: 0.1;
+}
+/* 점이 선 위에 겹쳐도 보이도록 흰 테를 두른다. 테두리가 아니라 여백이다. */
+.chart-dot {
+  fill: var(--brand);
+  stroke: var(--background);
+  stroke-width: 2;
+}
+.chart-axis {
+  fill: var(--muted);
+  font-size: 11px;
+}
+.chart-label {
+  fill: var(--foreground);
+  font-size: 12px;
+  font-weight: 700;
+}
+/* 막대. 끝만 둥글고 바닥은 각지다 — 시작선이 어디인지 흐려지면 길이를 못 읽는다. */
+.chart-bar {
+  fill: var(--brand);
+}
+.chart-bar-weak {
+  fill: var(--mark);
+}
+.chart-track {
+  fill: rgb(17 24 39 / 0.06);
+}
+/* 반 평균 눈금. 두 번째 계열이 아니라 기준선이라 회색 실선으로 짧게만 긋는다. */
+.chart-ref {
+  stroke: var(--muted);
+  stroke-width: 2;
+}
