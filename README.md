@@ -179,6 +179,8 @@ supabase/migrations/              데이터베이스 설계도 — SQL Editor �
   0005_classes.sql                개설 클래스 · 수업 신청 · 튜터 증빙 버킷
   0006_mock_exam.sql              반이 쓰는 실전 모의고사 칸
   0007_no_duplicate_apply.sql     같은 번호로 두 번 신청되지 않게
+  0008_lms.sql                    성적 관리 — 계정 · 반 · 회차 · 문항표 · 채점
+  0009_lms_login_id_lower.sql     로그인 아이디는 소문자만 (0008 의 뒤처리)
 
 docs/                             아티팩트로 공유한 문서
   setup-checklist.html            준비 체크리스트
@@ -373,6 +375,10 @@ lms_answers          문항 하나의 정오                응시 × 문항
 - 첫 관리자는 닭과 달걀이라 `/lms/setup` 이 **기존 `ADMIN_PASSWORD` 잠금으로** 열린다.
   계정이 하나라도 생기면 그 문은 영영 닫힌다.
 - 서명 열쇠는 `LMS_SESSION_SECRET`, 없으면 `ADMIN_PASSWORD` 를 쓴다. 둘 다 없으면 안 열린다.
+- 아이디는 **소문자로만** 저장된다(`0009`). 앱은 늘 소문자로 내려 찾으므로, Table Editor 로
+  대문자가 섞인 줄을 직접 넣으면 그 계정은 영영 로그인이 안 되고 이유도 안 보인다 —
+  그래서 DB 가 아예 거절한다. 찾는 쪽을 `ilike` 로 바꾸지 않은 것은 아이디에 `_` 를
+  허용하고 있어서다(LIKE 에서 `_` 는 아무 글자 하나를 뜻한다).
 
 ### 화면
 
