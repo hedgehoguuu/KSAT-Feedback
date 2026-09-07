@@ -9,8 +9,8 @@ import {
   currentUser,
   lmsConfigured,
   setSessionCookie,
-  verifyPassword,
 } from '@/lib/lms/auth';
+import { verifyPassword } from '@/lib/lms/password';
 import { changeOwnPassword, createUser, findForLogin, markLoggedIn, tryUserCount } from '@/lib/lms/users';
 
 /**

@@ -63,7 +63,7 @@ export async function findIntake(receiptNo: string | null | undefined): Promise<
   const db = supabaseAdmin();
   if (!db) return null;
 
-  const { data } = await db
+  const { data, error } = await db
     .from('submissions')
     .select(
       'receipt_no, exam_code, grade, status, created_at, ' +
@@ -72,7 +72,9 @@ export async function findIntake(receiptNo: string | null | undefined): Promise<
     .eq('receipt_no', no)
     .maybeSingle();
 
-  if (!data) return null;
+  // 9월 고민은 있으면 좋은 것이지 없으면 화면이 못 뜰 것은 아니다.
+  // 여기만 실패를 조용히 넘긴다 — 접수 조회 하나 때문에 채점 화면이 통째로 막히면 안 된다.
+  if (error || !data) return null;
   const row = data as unknown as Row;
 
   const subjects: IntakeSubject[] = (row.submission_subjects ?? [])

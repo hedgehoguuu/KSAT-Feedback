@@ -1,5 +1,5 @@
 import 'server-only';
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHmac } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { LMS, ROLE_HOME, isRole, type Role, type UserStatus } from '@/config/lms';
@@ -45,38 +45,7 @@ export function lmsSetupProblem(): string | null {
   return null;
 }
 
-/* ──────────────────────────────────────────────────────── 비밀번호 */
-
-/**
- * scrypt. bcrypt·argon2 를 쓰려면 패키지를 더해야 하는데, scrypt 는 node 에 이미 있고
- * 같은 계열의 메모리-하드 함수다. 의존성 없이 쓸 수 있는 것 중에서는 이게 맞다.
- *
- * 저장 형태: `s1.{salt}.{hash}` — 나중에 계수를 올릴 때 앞의 s1 로 구분한다.
- */
-const SCRYPT = { N: 16384, r: 8, p: 1, keyLen: 64 } as const;
-
-export function hashPassword(password: string): string {
-  const salt = randomBytes(16);
-  const key = scryptSync(password, salt, SCRYPT.keyLen, SCRYPT);
-  return `s1.${salt.toString('hex')}.${key.toString('hex')}`;
-}
-
-export function verifyPassword(password: string, stored: string | null | undefined): boolean {
-  if (!stored) return false;
-  const [ver, saltHex, keyHex] = stored.split('.');
-  if (ver !== 's1' || !saltHex || !keyHex) return false;
-
-  let expected: Buffer;
-  try {
-    expected = Buffer.from(keyHex, 'hex');
-  } catch {
-    return false;
-  }
-  if (expected.length !== SCRYPT.keyLen) return false;
-
-  const actual = scryptSync(password, Buffer.from(saltHex, 'hex'), SCRYPT.keyLen, SCRYPT);
-  return timingSafeEqual(actual, expected);
-}
+// 비밀번호 해시는 password.ts 에 있다. 여기(쿠키·세션)와 하는 일이 달라서 떼어 뒀다.
 
 /* ──────────────────────────────────────────────────────────── 세션 */
 
@@ -149,13 +118,22 @@ export async function currentUser(): Promise<SessionUser | null> {
   const db = supabaseAdmin();
   if (!db) return null;
 
-  const { data } = await db
+  const { data, error } = await db
     .from('lms_users')
     .select('id, role, login_id, name, status, must_change_password')
     .eq('id', userId)
     .maybeSingle();
 
-  if (!data || data.status !== 'active' || !isRole(data.role)) return null;
+  /**
+   * 여기만 실패를 던지지 않고 '로그인 안 한 사람' 으로 친다.
+   *
+   * 다른 곳은 못 읽으면 던진다 — 조용히 틀린 화면보다 시끄러운 오류가 낫기 때문이다.
+   * 그런데 '이 사람이 누구인가' 를 못 읽었을 때 통과시키면 그건 잠금이 풀린 것이다.
+   * 못 읽었으면 아무도 아닌 것으로 두는 쪽이 맞다 — 잠긴 채로 실패해야 한다.
+   *
+   * 대신 DB 가 잠깐 흔들리면 로그인이 풀린 것처럼 보인다. 쿠키는 그대로라 다시 들어가면 된다.
+   */
+  if (error || !data || data.status !== 'active' || !isRole(data.role)) return null;
   return data as SessionUser;
 }
 

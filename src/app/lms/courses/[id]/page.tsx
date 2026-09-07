@@ -168,7 +168,9 @@ export default async function CoursePage({ params, searchParams }: PageProps<'/l
                         </td>
                         <td>
                           <Link
-                            href={`/lms/students/${row.student.id}`}
+                            // 어느 반에서 왔는지 알려 준다 — 학생이 두 반에 있으면
+                            // 그 화면의 '반 평균' 이 엉뚱한 반 것이 될 수 있다.
+                            href={`/lms/students/${row.student.id}?course=${course.id}`}
                             className="text-[13px] font-bold text-brand underline underline-offset-2"
                           >
                             보기
