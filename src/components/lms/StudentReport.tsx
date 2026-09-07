@@ -16,11 +16,14 @@ export function StudentReport({
   history,
   hrefFor,
   classAverages,
+  referenceLabel = '반 평균',
 }: {
   history: History;
   /** 회차를 눌렀을 때 갈 곳. 튜터는 채점 화면으로, 학생은 피드백 화면으로 간다. */
   hrefFor: (attemptId: string) => string;
   classAverages?: Map<string, number>;
+  /** 기준선이 어느 반 것인지. 학생이 두 반에 있으면 이름을 밝혀야 오해가 없다. */
+  referenceLabel?: string;
 }) {
   const scored = history.points.filter((p) => p.score.complete && p.score.total > 0);
 
@@ -119,7 +122,7 @@ export function StudentReport({
 
       {bars.length > 0 ? (
         <Card title="영역별 정답률 (누적)">
-          <AreaBars rows={bars} />
+          <AreaBars rows={bars} referenceLabel={referenceLabel} />
           <p className="mt-3 text-[13px] leading-[1.6] text-muted">
             문항이 적은 영역은 한 문항만 틀려도 정답률이 크게 떨어져요. 옆의 맞은 개수를 함께 봐주세요.
           </p>

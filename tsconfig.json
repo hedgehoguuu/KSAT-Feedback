@@ -11,6 +11,9 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    // test/ 는 node --experimental-strip-types 로 그대로 돌린다. 번들러를 안 거치므로
+    // 확장자까지 적어야 node 가 찾는다 (app 코드는 그대로 @/ 별칭을 쓴다).
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "incremental": true,
     "plugins": [

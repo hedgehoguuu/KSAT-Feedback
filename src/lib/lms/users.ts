@@ -1,21 +1,7 @@
 import 'server-only';
 import { isElective, isRole, type Elective, type Role, type UserStatus } from '@/config/lms';
-import { supabaseAdmin } from '@/lib/supabase/admin';
-import { hashPassword } from './auth';
-
-/** DB 가 없으면 LMS 는 아무것도 못 한다. mock 으로 흉내내지 않고 바로 말한다. */
-function db() {
-  const client = supabaseAdmin();
-  if (!client) throw new Error('LMS_DB_MISSING');
-  return client;
-}
-
-/** 쓰기가 실패했으면 던진다. 확인하지 않으면 화면이 '저장했어요' 라고 거짓말한다. */
-async function must<T extends { error: unknown }>(op: PromiseLike<T>): Promise<T> {
-  const result = await op;
-  if (result.error) throw result.error;
-  return result;
-}
+import { hashPassword } from './password';
+import { db, inChunks, must, one, rows } from './db';
 
 export type UserRow = {
   id: string;
@@ -73,27 +59,27 @@ export async function tryUserCount(): Promise<number | null> {
 export async function listUsers(role?: Role): Promise<UserRow[]> {
   let q = db().from('lms_users').select(USER_COLS).order('name');
   if (role) q = q.eq('role', role);
-  const { data } = await q;
-  return (data ?? []) as UserRow[];
+  return (await rows(q)) as UserRow[];
 }
 
 export async function getUser(id: string): Promise<UserRow | null> {
-  const { data } = await db().from('lms_users').select(USER_COLS).eq('id', id).maybeSingle();
-  return (data as UserRow) ?? null;
+  return (await one(db().from('lms_users').select(USER_COLS).eq('id', id).maybeSingle())) as UserRow | null;
 }
 
 /** 로그인용. 여기서만 password_hash 를 꺼낸다 — 다른 조회에 섞이면 언젠가 화면으로 샌다. */
 export async function findForLogin(
   loginId: string,
 ): Promise<(UserRow & { password_hash: string }) | null> {
-  const { data } = await db()
-    .from('lms_users')
-    .select(`${USER_COLS}, password_hash`)
-    .eq('login_id', loginId.trim().toLowerCase())
-    .maybeSingle();
-  return (data as UserRow & { password_hash: string }) ?? null;
+  return (await one(
+    db()
+      .from('lms_users')
+      .select(`${USER_COLS}, password_hash`)
+      .eq('login_id', loginId.trim().toLowerCase())
+      .maybeSingle(),
+  )) as (UserRow & { password_hash: string }) | null;
 }
 
+/** 마지막 로그인 시각. 여기만 실패를 삼킨다 — 기록 하나 때문에 로그인을 막을 이유가 없다. */
 export async function markLoggedIn(id: string): Promise<void> {
   await db().from('lms_users').update({ last_login_at: new Date().toISOString() }).eq('id', id);
 }
@@ -102,20 +88,21 @@ export async function getStudent(userId: string): Promise<StudentRow | null> {
   const user = await getUser(userId);
   if (!user || user.role !== 'student') return null;
 
-  const { data } = await db().from('lms_students').select(PROFILE_COLS).eq('user_id', userId).maybeSingle();
-  return { ...user, profile: (data as StudentProfile) ?? null };
+  const profile = await one<StudentProfile>(
+    db().from('lms_students').select(PROFILE_COLS).eq('user_id', userId).maybeSingle(),
+  );
+  return { ...user, profile };
 }
 
 export async function listStudents(): Promise<StudentRow[]> {
   const users = await listUsers('student');
   if (users.length === 0) return [];
 
-  const { data } = await db()
-    .from('lms_students')
-    .select(PROFILE_COLS)
-    .in('user_id', users.map((u) => u.id));
+  // 학생이 백 명을 넘으면 주소줄이 길어져 414 가 난다. 나눠 묻는다.
+  const profiles = await inChunks(users.map((u) => u.id), (batch) =>
+    db().from('lms_students').select(PROFILE_COLS).in('user_id', batch));
 
-  const byId = new Map(((data ?? []) as StudentProfile[]).map((p) => [p.user_id, p]));
+  const byId = new Map((profiles as StudentProfile[]).map((p) => [p.user_id, p]));
   return users.map((u) => ({ ...u, profile: byId.get(u.id) ?? null }));
 }
 

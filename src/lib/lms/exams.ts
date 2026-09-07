@@ -1,6 +1,6 @@
 import 'server-only';
 import { AREAS, isAreaCode, layoutAreaFor, type Elective, type PublishStatus } from '@/config/lms';
-import { supabaseAdmin } from '@/lib/supabase/admin';
+import { db, inChunks, must, one, rows } from './db';
 import {
   areaTrends,
   courseStats,
@@ -12,25 +12,6 @@ import {
 } from './score';
 import { listEnrolled } from './courses';
 import { getStudent, type StudentRow } from './users';
-
-function db() {
-  const client = supabaseAdmin();
-  if (!client) throw new Error('LMS_DB_MISSING');
-  return client;
-}
-
-/**
- * 쓰기가 실패했으면 던진다.
- *
- * supabase-js 는 실패해도 예외를 안 던지고 { error } 로 돌려준다. 그래서 확인하지 않으면
- * 저장이 안 됐는데도 화면이 '저장했어요' 를 띄운다 — 사람이 한 일이 아무 말 없이
- * 사라지는 것이 이 서비스에서 가장 나쁜 고장이다. 던지면 화면이 오류를 보여주고 다시 누른다.
- */
-async function must<T extends { error: unknown }>(op: PromiseLike<T>): Promise<T> {
-  const result = await op;
-  if (result.error) throw result.error;
-  return result;
-}
 
 export type ExamRow = {
   id: string;
@@ -58,19 +39,19 @@ const ATTEMPT_COLS = 'id, exam_id, student_id, elective, overall_comment, status
 /* ─────────────────────────────────────────────────────────── 시험 회차 */
 
 export async function listExams(courseId: string): Promise<ExamRow[]> {
-  const { data } = await db()
-    .from('lms_exams')
-    .select(EXAM_COLS)
-    .eq('course_id', courseId)
-    // 날짜를 안 적은 회차가 맨 아래로 가지 않도록 만든 순서를 보조로 쓴다.
-    .order('exam_date', { ascending: false, nullsFirst: false })
-    .order('created_at', { ascending: false });
-  return (data ?? []) as ExamRow[];
+  return await rows<ExamRow>(
+    db()
+      .from('lms_exams')
+      .select(EXAM_COLS)
+      .eq('course_id', courseId)
+      // 날짜를 안 적은 회차가 맨 아래로 가지 않도록 만든 순서를 보조로 쓴다.
+      .order('exam_date', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false }),
+  );
 }
 
 export async function getExam(id: string): Promise<ExamRow | null> {
-  const { data } = await db().from('lms_exams').select(EXAM_COLS).eq('id', id).maybeSingle();
-  return (data as ExamRow) ?? null;
+  return await one<ExamRow>(db().from('lms_exams').select(EXAM_COLS).eq('id', id).maybeSingle());
 }
 
 export async function saveExam(input: {
@@ -103,8 +84,10 @@ export async function deleteExam(id: string): Promise<void> {
 /* ─────────────────────────────────────────────────────────── 문항표 */
 
 export async function listQuestions(examId: string): Promise<QuestionRow[]> {
-  const { data } = await db().from('lms_exam_questions').select(QUESTION_COLS).eq('exam_id', examId).order('no');
-  return ((data ?? []) as QuestionRow[]).map((q) => ({ ...q, points: Number(q.points) }));
+  const found = await rows<QuestionRow>(
+    db().from('lms_exam_questions').select(QUESTION_COLS).eq('exam_id', examId).order('no'),
+  );
+  return found.map((q) => ({ ...q, points: Number(q.points) }));
 }
 
 export type QuestionInput = {
@@ -207,13 +190,11 @@ function row(no: number, area_code: string): QuestionInput {
 /* ─────────────────────────────────────────────────────────── 응시 */
 
 export async function listAttempts(examId: string): Promise<AttemptRow[]> {
-  const { data } = await db().from('lms_attempts').select(ATTEMPT_COLS).eq('exam_id', examId);
-  return (data ?? []) as AttemptRow[];
+  return await rows<AttemptRow>(db().from('lms_attempts').select(ATTEMPT_COLS).eq('exam_id', examId));
 }
 
 export async function getAttempt(id: string): Promise<AttemptRow | null> {
-  const { data } = await db().from('lms_attempts').select(ATTEMPT_COLS).eq('id', id).maybeSingle();
-  return (data as AttemptRow) ?? null;
+  return await one<AttemptRow>(db().from('lms_attempts').select(ATTEMPT_COLS).eq('id', id).maybeSingle());
 }
 
 /**
@@ -223,13 +204,15 @@ export async function getAttempt(id: string): Promise<AttemptRow | null> {
  * 지난 회차의 채점 결과가 뒤늦게 달라지지 않게 하려는 것이다.
  */
 export async function openAttempt(examId: string, studentId: string): Promise<AttemptRow> {
-  const { data: found } = await db()
-    .from('lms_attempts')
-    .select(ATTEMPT_COLS)
-    .eq('exam_id', examId)
-    .eq('student_id', studentId)
-    .maybeSingle();
-  if (found) return found as AttemptRow;
+  const found = await one<AttemptRow>(
+    db()
+      .from('lms_attempts')
+      .select(ATTEMPT_COLS)
+      .eq('exam_id', examId)
+      .eq('student_id', studentId)
+      .maybeSingle(),
+  );
+  if (found) return found;
 
   const student = await getStudent(studentId);
   const { data, error } = await db()
@@ -253,16 +236,16 @@ export async function openAttempt(examId: string, studentId: string): Promise<At
 }
 
 export async function listAnswers(attemptId: string): Promise<AnswerRow[]> {
-  const { data } = await db()
-    .from('lms_answers')
-    .select('question_id, correct, chosen')
-    .eq('attempt_id', attemptId);
-  return (data ?? []) as AnswerRow[];
+  return await rows<AnswerRow>(
+    db().from('lms_answers').select('question_id, correct, chosen').eq('attempt_id', attemptId),
+  );
 }
 
 export async function listAreaComments(attemptId: string): Promise<Map<string, string>> {
-  const { data } = await db().from('lms_area_comments').select('area_code, comment').eq('attempt_id', attemptId);
-  return new Map(((data ?? []) as { area_code: string; comment: string }[]).map((r) => [r.area_code, r.comment]));
+  const found = await rows<{ area_code: string; comment: string }>(
+    db().from('lms_area_comments').select('area_code, comment').eq('attempt_id', attemptId),
+  );
+  return new Map(found.map((r) => [r.area_code, r.comment]));
 }
 
 /**
@@ -415,17 +398,14 @@ export async function examBoard(exam: ExamRow): Promise<{
   ]);
 
   const byStudent = new Map(attempts.map((a) => [a.student_id, a]));
-  const answerRows = attempts.length
-    ? ((
-        await db()
-          .from('lms_answers')
-          .select('attempt_id, question_id, correct, chosen')
-          .in('attempt_id', attempts.map((a) => a.id))
-      ).data ?? [])
-    : [];
+  const answerRows = await inChunks<AnswerRow & { attempt_id: string }>(
+    attempts.map((a) => a.id),
+    (batch) =>
+      db().from('lms_answers').select('attempt_id, question_id, correct, chosen').in('attempt_id', batch),
+  );
 
   const answersByAttempt = new Map<string, AnswerRow[]>();
-  for (const row of answerRows as (AnswerRow & { attempt_id: string })[]) {
+  for (const row of answerRows) {
     const list = answersByAttempt.get(row.attempt_id) ?? [];
     list.push({ question_id: row.question_id, correct: row.correct, chosen: row.chosen });
     answersByAttempt.set(row.attempt_id, list);
@@ -461,49 +441,46 @@ export async function studentHistory(
   }[];
   trends: ReturnType<typeof areaTrends>;
 }> {
-  const { data } = await db()
-    .from('lms_attempts')
-    .select(ATTEMPT_COLS)
-    .eq('student_id', studentId)
-    .order('updated_at', { ascending: false });
-
-  let attempts = (data ?? []) as AttemptRow[];
+  let attempts = await rows<AttemptRow>(
+    db()
+      .from('lms_attempts')
+      .select(ATTEMPT_COLS)
+      .eq('student_id', studentId)
+      .order('updated_at', { ascending: false }),
+  );
   if (opts.publishedOnly) attempts = attempts.filter((a) => a.status === 'published');
   if (attempts.length === 0) return { points: [], trends: [] };
 
   const examIds = [...new Set(attempts.map((a) => a.exam_id))];
-  const [{ data: examRows }, { data: questionRows }, { data: answerRows }, { data: commentRows }] =
-    await Promise.all([
-      db().from('lms_exams').select(EXAM_COLS).in('id', examIds),
-      db().from('lms_exam_questions').select(`exam_id, ${QUESTION_COLS}`).in('exam_id', examIds),
-      db()
-        .from('lms_answers')
-        .select('attempt_id, question_id, correct, chosen')
-        .in('attempt_id', attempts.map((a) => a.id)),
-      db()
-        .from('lms_area_comments')
-        .select('attempt_id, area_code, comment')
-        .in('attempt_id', attempts.map((a) => a.id)),
-    ]);
+  const attemptIds = attempts.map((a) => a.id);
+  const [examRows, questionRows, answerRows, commentRows] = await Promise.all([
+    inChunks<ExamRow>(examIds, (b) => db().from('lms_exams').select(EXAM_COLS).in('id', b)),
+    inChunks<QuestionRow & { exam_id: string }>(examIds, (b) =>
+      db().from('lms_exam_questions').select(`exam_id, ${QUESTION_COLS}`).in('exam_id', b)),
+    inChunks<AnswerRow & { attempt_id: string }>(attemptIds, (b) =>
+      db().from('lms_answers').select('attempt_id, question_id, correct, chosen').in('attempt_id', b)),
+    inChunks<{ attempt_id: string; area_code: string; comment: string }>(attemptIds, (b) =>
+      db().from('lms_area_comments').select('attempt_id, area_code, comment').in('attempt_id', b)),
+  ]);
 
-  const exams = new Map(((examRows ?? []) as ExamRow[]).map((e) => [e.id, e]));
+  const exams = new Map(examRows.map((e) => [e.id, e]));
 
   const questionsByExam = new Map<string, QuestionRow[]>();
-  for (const q of (questionRows ?? []) as (QuestionRow & { exam_id: string })[]) {
+  for (const q of questionRows) {
     const list = questionsByExam.get(q.exam_id) ?? [];
     list.push({ ...q, points: Number(q.points) });
     questionsByExam.set(q.exam_id, list);
   }
 
   const answersByAttempt = new Map<string, AnswerRow[]>();
-  for (const a of (answerRows ?? []) as (AnswerRow & { attempt_id: string })[]) {
+  for (const a of answerRows) {
     const list = answersByAttempt.get(a.attempt_id) ?? [];
     list.push({ question_id: a.question_id, correct: a.correct, chosen: a.chosen });
     answersByAttempt.set(a.attempt_id, list);
   }
 
   const commentsByAttempt = new Map<string, Map<string, string>>();
-  for (const c of (commentRows ?? []) as { attempt_id: string; area_code: string; comment: string }[]) {
+  for (const c of commentRows) {
     const map = commentsByAttempt.get(c.attempt_id) ?? new Map<string, string>();
     map.set(c.area_code, c.comment);
     commentsByAttempt.set(c.attempt_id, map);
@@ -565,28 +542,30 @@ export async function courseSummary(courseId: string): Promise<{
   }
 
   const examIds = exams.map((e) => e.id);
-  const [{ data: questionRows }, { data: attemptRows }] = await Promise.all([
-    db().from('lms_exam_questions').select(`exam_id, ${QUESTION_COLS}`).in('exam_id', examIds),
-    db().from('lms_attempts').select(ATTEMPT_COLS).in('exam_id', examIds),
+  const [questionRows, attempts] = await Promise.all([
+    inChunks<QuestionRow & { exam_id: string }>(examIds, (b) =>
+      db().from('lms_exam_questions').select(`exam_id, ${QUESTION_COLS}`).in('exam_id', b)),
+    inChunks<AttemptRow>(examIds, (b) => db().from('lms_attempts').select(ATTEMPT_COLS).in('exam_id', b)),
   ]);
 
-  const attempts = (attemptRows ?? []) as AttemptRow[];
-  const { data: answerRows } = attempts.length
-    ? await db()
-        .from('lms_answers')
-        .select('attempt_id, question_id, correct, chosen')
-        .in('attempt_id', attempts.map((a) => a.id))
-    : { data: [] };
+  /**
+   * 여기가 주소줄이 가장 길어지는 자리다. 학생 스무 명이 회차 스무 번을 보면 응시가 400개고,
+   * 한 번에 물으면 주소가 15KB 가 되어 414 로 튕긴다. 한 학기면 닿는 규모라 나눠 묻는다.
+   */
+  const answerRows = await inChunks<AnswerRow & { attempt_id: string }>(
+    attempts.map((a) => a.id),
+    (b) => db().from('lms_answers').select('attempt_id, question_id, correct, chosen').in('attempt_id', b),
+  );
 
   const questionsByExam = new Map<string, QuestionRow[]>();
-  for (const q of (questionRows ?? []) as (QuestionRow & { exam_id: string })[]) {
+  for (const q of questionRows) {
     const list = questionsByExam.get(q.exam_id) ?? [];
     list.push({ ...q, points: Number(q.points) });
     questionsByExam.set(q.exam_id, list);
   }
 
   const answersByAttempt = new Map<string, AnswerRow[]>();
-  for (const a of (answerRows ?? []) as (AnswerRow & { attempt_id: string })[]) {
+  for (const a of answerRows) {
     const list = answersByAttempt.get(a.attempt_id) ?? [];
     list.push({ question_id: a.question_id, correct: a.correct, chosen: a.chosen });
     answersByAttempt.set(a.attempt_id, list);

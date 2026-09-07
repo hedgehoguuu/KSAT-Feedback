@@ -1,20 +1,7 @@
 import 'server-only';
 import type { CourseStatus } from '@/config/lms';
-import { supabaseAdmin } from '@/lib/supabase/admin';
+import { db, inChunks, must, one, rows } from './db';
 import { listStudents, type StudentRow } from './users';
-
-function db() {
-  const client = supabaseAdmin();
-  if (!client) throw new Error('LMS_DB_MISSING');
-  return client;
-}
-
-/** 쓰기가 실패했으면 던진다. 확인하지 않으면 학생이 반에 안 들어갔는데 들어간 것처럼 보인다. */
-async function must<T extends { error: unknown }>(op: PromiseLike<T>): Promise<T> {
-  const result = await op;
-  if (result.error) throw result.error;
-  return result;
-}
 
 export type CourseRow = {
   id: string;
@@ -44,32 +31,29 @@ export async function listCourses(tutorId?: string): Promise<CourseCard[]> {
   let q = db().from('lms_courses').select(COURSE_COLS).order('created_at', { ascending: false });
   if (tutorId) q = q.eq('tutor_id', tutorId);
 
-  const { data } = await q;
-  const courses = (data ?? []) as CourseRow[];
+  const courses = (await rows(q)) as CourseRow[];
   if (courses.length === 0) return [];
 
   const ids = courses.map((c) => c.id);
-  const [{ data: enrolls }, { data: exams }, { data: tutors }] = await Promise.all([
-    db().from('lms_enrollments').select('course_id').in('course_id', ids),
-    db().from('lms_exams').select('course_id').in('course_id', ids),
-    db().from('lms_users').select('id, name').eq('role', 'tutor'),
+  const [enrolls, exams, tutors] = await Promise.all([
+    inChunks<{ course_id: string }>(ids, (b) => db().from('lms_enrollments').select('course_id').in('course_id', b)),
+    inChunks<{ course_id: string }>(ids, (b) => db().from('lms_exams').select('course_id').in('course_id', b)),
+    rows<{ id: string; name: string }>(db().from('lms_users').select('id, name').eq('role', 'tutor')),
   ]);
 
-  const count = (rows: { course_id: string }[] | null, id: string) =>
-    (rows ?? []).filter((r) => r.course_id === id).length;
-  const tutorName = new Map(((tutors ?? []) as { id: string; name: string }[]).map((t) => [t.id, t.name]));
+  const count = (list: { course_id: string }[], id: string) => list.filter((r) => r.course_id === id).length;
+  const tutorName = new Map(tutors.map((t) => [t.id, t.name]));
 
   return courses.map((c) => ({
     ...c,
     tutorName: (c.tutor_id && tutorName.get(c.tutor_id)) || '미배정',
-    studentCount: count(enrolls as { course_id: string }[] | null, c.id),
-    examCount: count(exams as { course_id: string }[] | null, c.id),
+    studentCount: count(enrolls, c.id),
+    examCount: count(exams, c.id),
   }));
 }
 
 export async function getCourse(id: string): Promise<CourseRow | null> {
-  const { data } = await db().from('lms_courses').select(COURSE_COLS).eq('id', id).maybeSingle();
-  return (data as CourseRow) ?? null;
+  return await one<CourseRow>(db().from('lms_courses').select(COURSE_COLS).eq('id', id).maybeSingle());
 }
 
 /**
@@ -121,8 +105,10 @@ export async function deleteCourse(id: string): Promise<void> {
 /* ───────────────────────────────────────────────────────────── 수강 */
 
 export async function listEnrolled(courseId: string): Promise<StudentRow[]> {
-  const { data } = await db().from('lms_enrollments').select('student_id').eq('course_id', courseId);
-  const ids = new Set(((data ?? []) as { student_id: string }[]).map((r) => r.student_id));
+  const enrolled = await rows<{ student_id: string }>(
+    db().from('lms_enrollments').select('student_id').eq('course_id', courseId),
+  );
+  const ids = new Set(enrolled.map((r) => r.student_id));
   if (ids.size === 0) return [];
 
   // 학생 수가 반당 수십 명이라 통째로 읽고 거른다. 이름순 정렬을 한곳에서만 하려는 뜻도 있다.
@@ -144,12 +130,15 @@ export async function unenroll(courseId: string, studentId: string): Promise<voi
 
 /** 이 학생이 듣는 반. 학생 화면이 자기 회차를 찾을 때 쓴다. */
 export async function coursesOfStudent(studentId: string): Promise<CourseRow[]> {
-  const { data } = await db().from('lms_enrollments').select('course_id').eq('student_id', studentId);
-  const ids = ((data ?? []) as { course_id: string }[]).map((r) => r.course_id);
+  const mine = await rows<{ course_id: string }>(
+    db().from('lms_enrollments').select('course_id').eq('student_id', studentId),
+  );
+  const ids = mine.map((r) => r.course_id);
   if (ids.length === 0) return [];
 
-  const { data: courses } = await db().from('lms_courses').select(COURSE_COLS).in('id', ids).order('created_at', { ascending: false });
-  return (courses ?? []) as CourseRow[];
+  const courses = await inChunks<CourseRow>(ids, (b) =>
+    db().from('lms_courses').select(COURSE_COLS).in('id', b).order('created_at', { ascending: false }));
+  return courses;
 }
 
 /**
