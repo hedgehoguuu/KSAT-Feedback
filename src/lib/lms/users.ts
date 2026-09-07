@@ -40,8 +40,27 @@ const PROFILE_COLS = 'user_id, grade, school, elective, parent_phone, receipt_no
 
 /** 계정이 한 개도 없으면 첫 관리자를 만들 수 있는 상태다 (/lms/setup). */
 export async function userCount(): Promise<number> {
-  const { count } = await db().from('lms_users').select('id', { count: 'exact', head: true });
+  const { count, error } = await db().from('lms_users').select('id', { count: 'exact', head: true });
+  if (error) throw error;
   return count ?? 0;
+}
+
+/**
+ * 세어 보되, 못 물어봤으면 null 을 돌려준다.
+ *
+ * 로그인 화면은 DB 가 어떻든 반드시 떠야 한다. 환경변수는 채워져 있는데 키가 틀렸다거나
+ * 표를 아직 안 만들었다면 위 함수는 예외를 던지고, 그러면 로그인 화면 자체가
+ * '잠시 문제가 생겼어요' 로 바뀐다 — 무엇이 잘못됐는지 볼 방법이 사라진다.
+ *
+ * '0명' 과 '못 물어봤음' 은 다르다. 첫 관리자를 만들어도 되는지는 0명일 때만 참이고,
+ * 못 물어본 것을 0명으로 치면 이미 계정이 있는 DB 에 관리자를 하나 더 만들 수 있다.
+ */
+export async function tryUserCount(): Promise<number | null> {
+  try {
+    return await userCount();
+  } catch {
+    return null;
+  }
 }
 
 export async function listUsers(role?: Role): Promise<UserRow[]> {

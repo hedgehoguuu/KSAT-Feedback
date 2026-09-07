@@ -1,9 +1,8 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ROLE_HOME } from '@/config/lms';
-import { isAdmin } from '@/lib/admin';
 import { currentUser, lmsSetupProblem } from '@/lib/lms/auth';
-import { userCount } from '@/lib/lms/users';
+import { tryUserCount } from '@/lib/lms/users';
 import { login } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -12,6 +11,7 @@ const MESSAGES: Record<string, string> = {
   '1': '아이디나 비밀번호가 달라요',
   suspended: '정지된 계정이에요. 선생님께 문의해주세요.',
   setup: '아직 준비가 안 됐어요',
+  db: '데이터베이스에 못 물어봤어요. 잠시 뒤 다시 해보거나 선생님께 알려주세요.',
   expired: '로그인이 풀렸어요. 다시 들어와 주세요.',
 };
 
@@ -23,7 +23,10 @@ export default async function LmsLogin({ searchParams }: PageProps<'/lms/login'>
   const setupProblem = lmsSetupProblem();
 
   // 계정이 하나도 없으면 첫 관리자를 만들어야 한다. 그 문은 기존 관리자 잠금이 지킨다.
-  const needsBootstrap = !setupProblem && (await userCount()) === 0;
+  // 못 세었으면(null) DB 가 대답을 안 한 것이다 — 그때는 로그인 칸을 그대로 두고 아래에서 말해 준다.
+  const count = setupProblem ? null : await tryUserCount();
+  const needsBootstrap = count === 0;
+  const dbUnreachable = !setupProblem && count === null;
   const key = typeof error === 'string' ? error : expired ? 'expired' : null;
 
   return (
@@ -81,10 +84,22 @@ export default async function LmsLogin({ searchParams }: PageProps<'/lms/login'>
         </form>
       )}
 
+      {dbUnreachable ? (
+        <div className="glass-solid mt-6 rounded-2xl p-4">
+          <p className="text-[15px] font-bold">데이터베이스에 못 물어봤어요</p>
+          <p className="mt-1 text-[13px] leading-[1.6] text-muted">
+            주소와 키는 채워져 있는데 대답이 없어요. 키가 맞는지, 그리고{' '}
+            <span className="font-bold">supabase/migrations</span> 의 SQL 을 번호 순서대로
+            다 돌렸는지 확인해주세요. 로그인은 그대로 해볼 수 있어요.
+          </p>
+        </div>
+      ) : null}
+
       {needsBootstrap ? (
         <p className="mt-6 text-[13px] leading-[1.6] text-muted">
           아직 계정이 하나도 없어요.{' '}
-          <Link href={(await isAdmin()) ? '/lms/setup' : '/admin/login'} className="font-bold text-brand underline underline-offset-2">
+          {/* 관리자가 아니어도 이리로 보낸다 — 그 화면이 왜 못 들어오는지 직접 말해 준다. */}
+          <Link href="/lms/setup" className="font-bold text-brand underline underline-offset-2">
             첫 관리자 계정 만들기
           </Link>
         </p>

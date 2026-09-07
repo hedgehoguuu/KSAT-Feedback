@@ -8,6 +8,9 @@ export const dynamic = 'force-dynamic';
 const NAV = [
   { href: '/admin', label: '클래스' },
   { href: '/admin/applications', label: '신청자' },
+  // 성적 관리(/lms)는 계정이 따로다. 여기서 눌러 들어가면 같은 도메인이라
+  // 첫 관리자를 만들 때 이 화면의 잠금이 그대로 열쇠가 된다.
+  { href: '/lms', label: '성적 관리' },
   { href: '/setup', label: '설치 점검' },
 ];
 

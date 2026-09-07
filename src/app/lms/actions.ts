@@ -11,7 +11,7 @@ import {
   setSessionCookie,
   verifyPassword,
 } from '@/lib/lms/auth';
-import { changeOwnPassword, createUser, findForLogin, markLoggedIn, userCount } from '@/lib/lms/users';
+import { changeOwnPassword, createUser, findForLogin, markLoggedIn, tryUserCount } from '@/lib/lms/users';
 
 /**
  * 모든 쓰기는 맨 앞에서 누구인지 확인한다. 서버 함수는 화면을 거치지 않고
@@ -28,7 +28,16 @@ export async function login(formData: FormData): Promise<void> {
   const loginId = field(formData, 'login_id').toLowerCase();
   const password = String(formData.get('password') ?? '');
 
-  const user = await findForLogin(loginId);
+  /**
+   * DB 가 대답을 안 할 때 '아이디나 비밀번호가 달라요' 라고 하면 안 된다.
+   * 맞는 비밀번호를 넣고도 틀렸다는 말을 듣게 되고, 아무도 원인을 못 찾는다.
+   */
+  let user: Awaited<ReturnType<typeof findForLogin>>;
+  try {
+    user = await findForLogin(loginId);
+  } catch {
+    redirect('/lms/login?error=db');
+  }
 
   /**
    * 아이디가 없을 때도 비밀번호를 확인하는 시늉을 한다 —
@@ -84,7 +93,9 @@ export async function changePassword(formData: FormData): Promise<void> {
  */
 export async function bootstrapAdmin(formData: FormData): Promise<void> {
   if (!(await isAdmin())) redirect('/admin/login');
-  if ((await userCount()) > 0) redirect('/lms/login');
+  // 0명일 때만 만든다. 못 물어봤으면(null) 만들지 않는다 — 확인하지 못한 채
+  // 관리자를 하나 더 만들어 주는 쪽이 훨씬 나쁘다.
+  if ((await tryUserCount()) !== 0) redirect('/lms/login');
 
   const loginId = field(formData, 'login_id').toLowerCase();
   const password = String(formData.get('password') ?? '');
