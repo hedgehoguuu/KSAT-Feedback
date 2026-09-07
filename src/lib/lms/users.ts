@@ -10,6 +10,13 @@ function db() {
   return client;
 }
 
+/** 쓰기가 실패했으면 던진다. 확인하지 않으면 화면이 '저장했어요' 라고 거짓말한다. */
+async function must<T extends { error: unknown }>(op: PromiseLike<T>): Promise<T> {
+  const result = await op;
+  if (result.error) throw result.error;
+  return result;
+}
+
 export type UserRow = {
   id: string;
   role: Role;
@@ -157,7 +164,8 @@ export async function upsertStudentProfile(
   userId: string,
   profile: Partial<Omit<StudentProfile, 'user_id'>>,
 ): Promise<void> {
-  await db()
+  await must(
+    db()
     .from('lms_students')
     .upsert(
       {
@@ -170,7 +178,8 @@ export async function upsertStudentProfile(
         memo: profile.memo ?? null,
       },
       { onConflict: 'user_id' },
-    );
+    ),
+  );
 }
 
 export async function updateUser(
@@ -185,7 +194,7 @@ export async function updateUser(
   if (patch.role !== undefined && isRole(patch.role)) row.role = patch.role;
   if (Object.keys(row).length === 0) return;
 
-  await db().from('lms_users').update(row).eq('id', id);
+  await must(db().from('lms_users').update(row).eq('id', id));
 }
 
 /**
@@ -193,18 +202,22 @@ export async function updateUser(
  * must_change_password 를 다시 켠다.
  */
 export async function resetPassword(id: string, password: string): Promise<void> {
-  await db()
-    .from('lms_users')
-    .update({ password_hash: hashPassword(password), must_change_password: true })
-    .eq('id', id);
+  await must(
+    db()
+      .from('lms_users')
+      .update({ password_hash: hashPassword(password), must_change_password: true })
+      .eq('id', id),
+  );
 }
 
 /** 본인이 직접 바꾼다. 이때는 강제 변경을 끈다. */
 export async function changeOwnPassword(id: string, password: string): Promise<void> {
-  await db()
-    .from('lms_users')
-    .update({ password_hash: hashPassword(password), must_change_password: false })
-    .eq('id', id);
+  await must(
+    db()
+      .from('lms_users')
+      .update({ password_hash: hashPassword(password), must_change_password: false })
+      .eq('id', id),
+  );
 }
 
 /**
