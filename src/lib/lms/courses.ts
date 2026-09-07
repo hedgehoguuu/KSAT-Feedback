@@ -9,6 +9,13 @@ function db() {
   return client;
 }
 
+/** 쓰기가 실패했으면 던진다. 확인하지 않으면 학생이 반에 안 들어갔는데 들어간 것처럼 보인다. */
+async function must<T extends { error: unknown }>(op: PromiseLike<T>): Promise<T> {
+  const result = await op;
+  if (result.error) throw result.error;
+  return result;
+}
+
 export type CourseRow = {
   id: string;
   name: string;
@@ -97,7 +104,7 @@ export async function saveCourse(input: {
   };
 
   if (input.id) {
-    await db().from('lms_courses').update(row).eq('id', input.id);
+    await must(db().from('lms_courses').update(row).eq('id', input.id));
     return input.id;
   }
 
@@ -108,7 +115,7 @@ export async function saveCourse(input: {
 
 export async function deleteCourse(id: string): Promise<void> {
   // 반을 지우면 그 반의 회차·문항표·응시가 함께 사라진다(cascade). 학생 계정은 남는다.
-  await db().from('lms_courses').delete().eq('id', id);
+  await must(db().from('lms_courses').delete().eq('id', id));
 }
 
 /* ───────────────────────────────────────────────────────────── 수강 */
@@ -124,13 +131,15 @@ export async function listEnrolled(courseId: string): Promise<StudentRow[]> {
 
 export async function enroll(courseId: string, studentId: string): Promise<void> {
   // 이미 들어 있으면 아무 일도 안 일어난다 (기본키 충돌 무시).
-  await db()
-    .from('lms_enrollments')
-    .upsert({ course_id: courseId, student_id: studentId }, { onConflict: 'course_id,student_id' });
+  await must(
+    db()
+      .from('lms_enrollments')
+      .upsert({ course_id: courseId, student_id: studentId }, { onConflict: 'course_id,student_id' }),
+  );
 }
 
 export async function unenroll(courseId: string, studentId: string): Promise<void> {
-  await db().from('lms_enrollments').delete().eq('course_id', courseId).eq('student_id', studentId);
+  await must(db().from('lms_enrollments').delete().eq('course_id', courseId).eq('student_id', studentId));
 }
 
 /** 이 학생이 듣는 반. 학생 화면이 자기 회차를 찾을 때 쓴다. */

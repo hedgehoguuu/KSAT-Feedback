@@ -19,6 +19,19 @@ function db() {
   return client;
 }
 
+/**
+ * 쓰기가 실패했으면 던진다.
+ *
+ * supabase-js 는 실패해도 예외를 안 던지고 { error } 로 돌려준다. 그래서 확인하지 않으면
+ * 저장이 안 됐는데도 화면이 '저장했어요' 를 띄운다 — 사람이 한 일이 아무 말 없이
+ * 사라지는 것이 이 서비스에서 가장 나쁜 고장이다. 던지면 화면이 오류를 보여주고 다시 누른다.
+ */
+async function must<T extends { error: unknown }>(op: PromiseLike<T>): Promise<T> {
+  const result = await op;
+  if (result.error) throw result.error;
+  return result;
+}
+
 export type ExamRow = {
   id: string;
   course_id: string;
@@ -70,7 +83,7 @@ export async function saveExam(input: {
   const row = { title: input.title.trim(), exam_date: input.exam_date, status: input.status };
 
   if (input.id) {
-    await db().from('lms_exams').update(row).eq('id', input.id);
+    await must(db().from('lms_exams').update(row).eq('id', input.id));
     return input.id;
   }
 
@@ -84,7 +97,7 @@ export async function saveExam(input: {
 }
 
 export async function deleteExam(id: string): Promise<void> {
-  await db().from('lms_exams').delete().eq('id', id);
+  await must(db().from('lms_exams').delete().eq('id', id));
 }
 
 /* ─────────────────────────────────────────────────────────── 문항표 */
@@ -133,22 +146,26 @@ export async function replaceQuestions(examId: string, rows: QuestionInput[]): P
 
   // 없어진 것부터 지운다. 그 문항에 달린 정오도 함께 사라진다(cascade).
   const goneIds = before.filter((q) => !keep.has(questionKey(q))).map((q) => q.id);
-  if (goneIds.length) await db().from('lms_exam_questions').delete().in('id', goneIds);
+  if (goneIds.length) await must(db().from('lms_exam_questions').delete().in('id', goneIds));
 
   const updates = clean.filter((r) => idByKey.has(questionKey(r)));
   const inserts = clean.filter((r) => !idByKey.has(questionKey(r)));
 
   for (const r of updates) {
-    await db()
-      .from('lms_exam_questions')
-      .update({ points: r.points, answer: r.answer, passage: r.passage })
-      .eq('id', idByKey.get(questionKey(r))!);
+    await must(
+      db()
+        .from('lms_exam_questions')
+        .update({ points: r.points, answer: r.answer, passage: r.passage })
+        .eq('id', idByKey.get(questionKey(r))!),
+    );
   }
 
   if (inserts.length) {
-    await db()
-      .from('lms_exam_questions')
-      .insert(inserts.map((r) => ({ ...r, exam_id: examId })));
+    await must(
+      db()
+        .from('lms_exam_questions')
+        .insert(inserts.map((r) => ({ ...r, exam_id: examId }))),
+    );
   }
 }
 
@@ -251,8 +268,14 @@ export async function listAreaComments(attemptId: string): Promise<Map<string, s
 /**
  * 채점 한 판을 통째로 저장한다.
  *
- * 정오는 지우고 다시 넣는다. 한 문항씩 맞춰 넣으면 '아까는 O 였는데 지금은 안 매김'
- * 상태를 지우는 것을 빠뜨리기 쉽다 — 그러면 지운 표시가 화면에만 사라지고 DB 에 남는다.
+ * 요청 네 번으로 나눠 하다가 DB 함수 한 번(0012)으로 바꿨다. 예전에는 '정오를 전부
+ * 지우고 → 새로 넣는' 사이에서 실패하면 매겨 둔 채점이 통째로 사라지는데, 그 실패를
+ * 아무도 확인하지 않아서 화면은 '저장했어요' 라고 말했다. 실제로 재현했다 —
+ * 82점 · 정오 45개가 0점 · 0개가 되고 예외도 안 났다.
+ *
+ * plpgsql 함수는 통째로 한 트랜잭션이라 중간에 실패하면 전부 되돌아간다.
+ * 그리고 여기서 error 를 반드시 던진다 — 저장이 안 됐는데 됐다고 말하는 것이
+ * 이 화면에서 가장 나쁜 일이다. 던지면 화면이 오류를 보여주고 튜터는 다시 누른다.
  */
 export async function saveGrading(input: {
   attemptId: string;
@@ -262,30 +285,24 @@ export async function saveGrading(input: {
   overallComment: string | null;
   status: PublishStatus;
 }): Promise<void> {
-  await db().from('lms_answers').delete().eq('attempt_id', input.attemptId);
-  if (input.answers.length) {
-    await db()
-      .from('lms_answers')
-      .insert(input.answers.map((a) => ({ ...a, attempt_id: input.attemptId })));
-  }
-
-  await db().from('lms_area_comments').delete().eq('attempt_id', input.attemptId);
-  const comments = input.areaComments.filter((c) => c.comment.trim().length > 0);
-  if (comments.length) {
-    await db()
-      .from('lms_area_comments')
-      .insert(comments.map((c) => ({ ...c, comment: c.comment.trim(), attempt_id: input.attemptId })));
-  }
-
-  await db()
-    .from('lms_attempts')
-    .update({
-      elective: input.elective,
+  const { error } = await db().rpc('save_grading', {
+    payload: {
+      attempt_id: input.attemptId,
+      elective: input.elective ?? '',
       overall_comment: input.overallComment,
       status: input.status,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', input.attemptId);
+      answers: input.answers.map((a) => ({
+        question_id: a.question_id,
+        correct: a.correct,
+        chosen: a.chosen === null ? '' : String(a.chosen),
+      })),
+      comments: input.areaComments
+        .filter((c) => c.comment.trim().length > 0)
+        .map((c) => ({ area_code: c.area_code, comment: c.comment.trim() })),
+    },
+  });
+
+  if (error) throw error;
 }
 
 /**
@@ -307,10 +324,12 @@ export async function publishGradedAttempts(
   const skipped = board.rows.filter((r) => !r.attempt || !r.score.complete).length;
 
   if (ready.length > 0) {
-    await db()
-      .from('lms_attempts')
-      .update({ status: 'published', updated_at: new Date().toISOString() })
-      .in('id', ready);
+    await must(
+      db()
+        .from('lms_attempts')
+        .update({ status: 'published', updated_at: new Date().toISOString() })
+        .in('id', ready),
+    );
   }
 
   return { published: ready.length, skipped };
