@@ -132,6 +132,16 @@ export const BUDDY = {
       answer: '지금 열려 있는 반으로 안내해 드릴게요.\n아래 버튼을 눌러주세요.',
       action: { kind: 'scroll', label: '신청하러 가기', href: '#classes' },
     },
+    {
+      id: 'question',
+      chip: '수업 시간이 안 맞아요',
+      answer: '수업 시간은 튜터별로 조정 가능해요!.\n상세 문의 오픈채팅방으로 들어와주세요.\n 수업 시간 조정해볼게요. ',
+      action: { 
+        kind: 'link', 
+        label: '오픈채팅방 열기', 
+        href: 'https://open.kakao.com/o/soSwLLMi',
+      },
+    },
   ],
   /** 준비된 질문을 다 물어보셨을 때 마지막으로 남기는 말 */
   done: '더 궁금하신 점은 오픈채팅방으로 편하게 물어봐 주세요.',
