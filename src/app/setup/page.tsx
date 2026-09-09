@@ -38,6 +38,11 @@ const GUIDE: { key: string; label: string; how: string }[] = [
     how: '같은 0005_classes.sql 을 실행하면 만들어져요',
   },
   {
+    key: 'applyAlert',
+    label: '신청 알림 기록',
+    how: 'Supabase > SQL Editor 에서 0013_apply_alert.sql 전체를 붙여넣고 Run. 빨간불에 건수가 적혀 있으면 SQL 이 아니라 실제로 메일이 안 간 신청이니, /admin/applications 에서 직접 연락하고 상태를 옮겨주세요',
+  },
+  {
     key: 'adminPassword',
     label: '관리자 잠금',
     how: 'Vercel 환경변수에 ADMIN_PASSWORD 를 아무 긴 문자열로 넣고 다시 배포',

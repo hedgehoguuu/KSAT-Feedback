@@ -43,6 +43,7 @@ export async function getHealth(): Promise<Health> {
     settings: { ok: false, detail: '아직 확인 못 했어요' },
     dailyCap: { ok: false, detail: '아직 확인 못 했어요' },
     rawScore: { ok: false, detail: '아직 확인 못 했어요' },
+    applyAlert: { ok: false, detail: '아직 확인 못 했어요' },
     bucket: { ok: false, detail: '아직 확인 못 했어요' },
     workerSchema: { ok: false, detail: '아직 확인 못 했어요' },
     classSchema: { ok: false, detail: '아직 확인 못 했어요' },
@@ -81,7 +82,7 @@ export async function getHealth(): Promise<Health> {
 
   const db = supabaseAdmin();
   if (!db) {
-    for (const key of ['connection', 'tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
+    for (const key of ['connection', 'tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
       checks[key] = { ok: false, detail: 'Supabase 연결 전이라 확인할 수 없어요' };
     }
     return {
@@ -100,7 +101,7 @@ export async function getHealth(): Promise<Health> {
     const detail = sqlNotRun
       ? 'SQL 을 아직 실행하지 않았어요. supabase/migrations/0001_init.sql 을 SQL Editor 에서 실행해주세요'
       : '확인하지 못했어요';
-    for (const key of ['tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
+    for (const key of ['tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
       checks[key] = { ok: false, detail };
     }
     return {
@@ -125,6 +126,8 @@ export async function getHealth(): Promise<Health> {
     daily_capacity?: number | null;
     today_count?: number;
     raw_score?: boolean;
+    apply_alert?: boolean;
+    alert_failed_count?: number;
   };
 
   checks.connection = { ok: true, detail: 'Supabase 에 정상적으로 닿았어요' };
@@ -153,6 +156,17 @@ export async function getHealth(): Promise<Health> {
     detail: status.raw_score
       ? '과목 원점수 칸이 있어요'
       : '원점수 칸이 없어요. 0004_raw_score.sql 을 실행해주세요',
+  };
+  // 0013 을 안 돌리면 알림 메일이 실패해도 아무 데도 안 남는다 — 그게 제일 위험하다.
+  // 이미 실패한 신청이 있으면 개수까지 같이 말한다. 그 신청은 사람이 직접 연락해야 한다.
+  const alertFailed = status.alert_failed_count ?? 0;
+  checks.applyAlert = {
+    ok: Boolean(status.apply_alert) && alertFailed === 0,
+    detail: !status.apply_alert
+      ? '알림 결과를 적을 칸이 없어요. 0013_apply_alert.sql 을 실행해주세요'
+      : alertFailed > 0
+        ? `알림 메일이 안 간 신청이 ${alertFailed}건 있어요. /admin/applications 에서 직접 연락하고 상태를 옮기면 사라져요`
+        : '신청 알림 메일 결과가 기록돼요',
   };
   checks.workerSchema = {
     ok: Boolean(status.worker_schema),

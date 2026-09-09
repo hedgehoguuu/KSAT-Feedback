@@ -52,6 +52,17 @@ export default async function AdminApplications() {
                 </p>
               </div>
 
+              {/* 알림 메일이 실패한 신청. 메일함에는 아무것도 안 왔을 테니, 이 줄이
+                  그 신청의 존재를 알리는 유일한 자리다. 성공은 따로 말하지 않는다 —
+                  메일이 이미 왔다는 것이 곧 성공이라, 화면에서 한 번 더 말할 이유가 없다. */}
+              {r.alert_error ? (
+                <p className="mt-3 rounded-xl bg-danger/10 px-3 py-2.5 text-[13px] leading-[1.55] text-danger">
+                  <span className="font-bold">알림 메일이 안 갔어요</span> — 이 신청은 메일함에
+                  없어요. 아래 연락처로 직접 연락해주세요.
+                  <span className="mt-1 block break-all font-normal opacity-80">{r.alert_error}</span>
+                </p>
+              ) : null}
+
               <form action={setApplicationStatusAction} className="mt-3 flex items-center gap-2">
                 <input type="hidden" name="id" value={r.id} />
                 <select

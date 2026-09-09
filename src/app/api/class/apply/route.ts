@@ -1,6 +1,6 @@
 import { NextResponse, after } from 'next/server';
 import { isPhone, isReceiptNo, normalizePhone, normalizeReceiptNo } from '@/config/class';
-import { ApplyError, applyToClass, getClass } from '@/lib/classes';
+import { ApplyError, applyToClass, getClass, markApplicationAlert } from '@/lib/classes';
 import { sendApplicationAlert } from '@/lib/class-mail';
 
 export const runtime = 'nodejs';
@@ -44,15 +44,25 @@ export async function POST(req: Request) {
   if (!target || target.status !== 'open') return bad('지금 신청을 받고 있지 않은 반이에요', 409);
   if (target.full) return bad('자리가 다 찼어요', 409);
 
+  let applicationId: string;
   try {
-    await applyToClass({ slug, studentName, receiptNo, parentPhone });
+    applicationId = await applyToClass({ slug, studentName, receiptNo, parentPhone });
   } catch (err) {
     if (err instanceof ApplyError) return bad(err.message, err.code === 'UNKNOWN' ? 500 : 409);
     return bad('신청이 안 됐어요. 다시 눌러주세요.', 500);
   }
 
-  // 알림 메일이 늦어도 학생은 기다리지 않는다. 실패해도 신청은 이미 들어와 있다.
+  /**
+   * 알림 메일이 늦어도 학생은 기다리지 않는다. 실패해도 신청은 이미 들어와 있다.
+   *
+   * 그리고 갔는지 안 갔는지를 신청 행에 적는다. 예전에는 실패가 서버 로그 한 줄로만
+   * 남았는데, 그러면 "메일이 안 왔으니 신청도 없겠지" 라는 오해를 아무도 못 깬다.
+   * 이제 /admin/applications 에서 그 신청 옆에 빨갛게 뜬다.
+   */
   after(async () => {
+    // 기록은 성공이든 실패든 딱 한 번, 보내기 바깥에서 한다.
+    // 안에서 부르면 '기록이 실패한 것' 이 '메일이 실패한 것' 으로 둔갑한다.
+    let reason: string | null = null;
     try {
       await sendApplicationAlert({
         classTitle: target.title,
@@ -64,8 +74,10 @@ export async function POST(req: Request) {
         capacity: target.capacity,
       });
     } catch (err) {
+      reason = err instanceof Error ? err.message : String(err);
       console.error('[class-apply] 알림 메일 실패', err);
     }
+    await markApplicationAlert(applicationId, reason);
   });
 
   return NextResponse.json({

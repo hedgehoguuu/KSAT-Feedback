@@ -77,6 +77,13 @@ export type ApplicationRow = {
   memo: string | null;
   created_at: string;
   purge_after: string;
+  /**
+   * 신청 알림 메일이 어떻게 됐나 (0013).
+   * 둘 다 없으면 '모름' 이다 — 0013 을 돌리기 전에 들어온 신청이거나, 아직 보내는 중이다.
+   * 안 갔다고 단정하지 않는다. 없는 사고를 만들지 않기 위해서다.
+   */
+  alert_sent_at?: string | null;
+  alert_error?: string | null;
 };
 
 export type ApplicationListItem = ApplicationRow & {
@@ -92,6 +99,12 @@ const CLASS_COLUMNS_BASE =
   'tutor_name, tutor_school, tutor_percentile, proof_paths, recommend, detail, ' +
   'capacity, price, price_note, status, sort_order, updated_at';
 const CLASS_COLUMNS = `${CLASS_COLUMNS_BASE}, mock_exam`;
+
+/** 0012 까지의 열. 0013 을 아직 안 돌린 데이터베이스에도 있는 것들이다. */
+const APPLICATION_COLUMNS_BASE =
+  'id, class_id, student_name, receipt_no, parent_phone, status, memo, created_at, purge_after, ' +
+  'classes(title, slug)';
+const APPLICATION_COLUMNS = `${APPLICATION_COLUMNS_BASE}, alert_sent_at, alert_error`;
 
 /**
  * 없는 열을 물었을 때 Postgres 가 주는 코드(42703).
@@ -358,14 +371,17 @@ export async function listApplications(): Promise<ApplicationListItem[]> {
   const db = supabaseAdmin();
   if (!db) return [];
 
-  const { data, error } = await db
-    .from('class_applications')
-    .select(
-      'id, class_id, student_name, receipt_no, parent_phone, status, memo, created_at, purge_after, ' +
-        'classes(title, slug)',
-    )
-    .order('created_at', { ascending: false })
-    .limit(300);
+  const read = (columns: string) =>
+    db
+      .from('class_applications')
+      .select(columns)
+      .order('created_at', { ascending: false })
+      .limit(300);
+
+  let { data, error } = await read(APPLICATION_COLUMNS);
+  // 배포가 먼저 나가고 0013 을 나중에 돌리면 잠깐 알림 칸이 없다.
+  // 그것 때문에 신청자 목록이 통째로 비면 안 된다 — 칸만 빼고 다시 묻는다.
+  if (isMissingColumn(error)) ({ data, error } = await read(APPLICATION_COLUMNS_BASE));
 
   if (error || !data) return [];
 
@@ -388,6 +404,36 @@ export async function listApplications(): Promise<ApplicationListItem[]> {
     classSlug: r.classes?.slug ?? '',
     receiptMatched: r.receipt_no ? known.has(r.receipt_no) : null,
   }));
+}
+
+/**
+ * 신청 알림 메일이 어떻게 됐는지 신청 행에 적는다 (0013).
+ *
+ * 절대 던지지 않는다. 이걸 부르는 자리는 이미 메일이 실패한 뒤라, 여기서 또 터지면
+ * 잡을 사람이 없다 — 기록하려다 기록을 잃는다. 못 적으면 로그만 남기고 넘어간다.
+ *
+ * 0013 을 아직 안 돌렸으면 칸이 없어서 조용히 실패한다. 그건 /setup 의
+ * '신청 알림 기록' 이 빨간불로 알려 준다.
+ */
+export async function markApplicationAlert(id: string, error: string | null): Promise<void> {
+  const db = supabaseAdmin();
+  if (!db) return;
+
+  try {
+    const { error: writeError } = await db
+      .from('class_applications')
+      .update({
+        alert_sent_at: error ? null : new Date().toISOString(),
+        // 오류 원문은 길 수 있다. 화면에 한 줄로 뜨면 되는 만큼만 남긴다.
+        alert_error: error ? error.slice(0, 500) : null,
+      })
+      .eq('id', id);
+
+    if (writeError) console.error('[classes] 알림 결과를 적지 못했어요', writeError);
+  } catch (err) {
+    // 그물이 끊긴 경우. supabase-js 는 HTTP 오류만 error 로 주고, 네트워크가 끊기면 던진다.
+    console.error('[classes] 알림 결과를 적지 못했어요', err);
+  }
 }
 
 export async function setApplicationStatus(id: string, status: ApplicationStatus): Promise<void> {
