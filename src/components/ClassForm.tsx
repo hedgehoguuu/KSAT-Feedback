@@ -38,7 +38,7 @@ export function ClassForm({ data, proofs, error }: Props) {
         <input type="hidden" name="mode" value={isNew ? 'new' : 'edit'} />
 
         <label className={label}>
-          <span className={labelText}>주소 (slug)</span>
+          <span className={labelText}>주소(slug)</span>
           <input
             name="slug"
             defaultValue={data?.slug ?? ''}
@@ -146,7 +146,7 @@ export function ClassForm({ data, proofs, error }: Props) {
           <input
             name="recommend"
             defaultValue={data?.recommend ?? ''}
-            placeholder="시간이 모자라 뒷 지문을 버리는 학생"
+            placeholder="시간이 모자라 뒷부분 지문을 버리는 학생"
             className={input}
           />
           <span className={hint}>한 줄로. 카드에서 「추천 학생」으로 보여요.</span>
@@ -185,7 +185,7 @@ export function ClassForm({ data, proofs, error }: Props) {
 
         <div className="flex gap-3">
           <label className={`${label} flex-1`}>
-            <span className={labelText}>수강료 (원)</span>
+            <span className={labelText}>수강료(원)</span>
             <input
               type="number"
               name="price"
@@ -230,7 +230,7 @@ export function ClassForm({ data, proofs, error }: Props) {
                 </option>
               ))}
             </select>
-            <span className={hint}>초안은 /class 에 안 보여요.</span>
+            <span className={hint}>초안은 /class에 안 보여요.</span>
           </label>
           <label className={`${label} w-28`}>
             <span className={labelText}>정렬</span>
@@ -287,7 +287,7 @@ export function ClassForm({ data, proofs, error }: Props) {
             >
               증빙 올리기
             </button>
-            <span className={hint}>JPG · PNG · WEBP, 5MB 까지.</span>
+            <span className={hint}>JPG · PNG · WEBP, 5MB까지.</span>
           </form>
         </section>
       ) : null}

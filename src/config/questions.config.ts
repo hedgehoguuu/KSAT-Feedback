@@ -65,7 +65,7 @@ export const CONCERN_QUESTIONS: readonly Question[] = [
   {
     id: 'q5',
     type: 'long',
-    label: '평소 해당 과목에 대해 어느 부분이 가장 개선이 필요하다고 느꼈는지 알려주세요.',
+    label: '평소 해당 과목에서 어느 부분에 가장 개선이 필요하다고 느꼈는지 알려주세요.',
   },
   {
     id: 'q6',
@@ -84,7 +84,7 @@ const KOREAN_QUESTIONS: readonly Question[] = [
     id: 'k1',
     type: 'short',
     label: '평소 국어 성적은 어느 정도였는지 적어주세요.',
-    placeholder: '예) 2-3등급 왔다갔다해요',
+    placeholder: '예) 2~3등급 왔다 갔다 해요',
   },
   {
     id: 'k2',
@@ -104,7 +104,7 @@ const KOREAN_QUESTIONS: readonly Question[] = [
     summary: 'hard',
     label: '시간을 너무 오래 쓰거나, 풀이 방향이 보이지 않아 현장에서 당황하게 만든 문항 번호를 적어주세요.',
     helper: '왜 어려웠는지도 함께 적어주면 훨씬 정확하게 볼 수 있어요. 여러 개면 하나씩 추가해주세요.',
-    placeholder: '예) 3페이지 독서지문, 7번',
+    placeholder: '예) 3페이지 독서 지문, 7번',
   },
   {
     id: 'k4',
@@ -132,8 +132,8 @@ const KOREAN_QUESTIONS: readonly Question[] = [
   {
     id: 'k8',
     type: 'long',
-    label: '위 질문에 상세한 답을 위해, 튜터에게 제공하고 싶은 정보가 있다면 알려주세요.',
-    placeholder: '예) 평소 문제풀이 방식이나 습관, 하루 공부시간, 목표 등급',
+    label: '위 질문에 대한 상세한 답변을 위해, 튜터에게 제공하고 싶은 정보가 있다면 알려주세요.',
+    placeholder: '예) 평소 문제 풀이 방식이나 습관, 하루 공부 시간, 목표 등급',
   },
 ] as const;
 

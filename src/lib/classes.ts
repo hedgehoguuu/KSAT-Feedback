@@ -269,7 +269,7 @@ export async function uploadProof(slug: string, file: File): Promise<void> {
   // 안 보면 버킷이 거절하면서 알아볼 수 없는 오류 원문이 그대로 화면에 뜬다.
   const ext = PROOF_TYPES[file.type];
   if (!ext) throw new Error('JPG · PNG · WEBP 이미지만 올릴 수 있어요');
-  if (file.size > PROOF_MAX_BYTES) throw new Error('이미지가 5MB 를 넘어요. 줄여서 올려주세요.');
+  if (file.size > PROOF_MAX_BYTES) throw new Error('이미지가 5MB를 넘어요. 줄여서 올려주세요.');
 
   const path = `${slug}/${crypto.randomUUID()}.${ext}`;
 

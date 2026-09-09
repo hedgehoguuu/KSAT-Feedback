@@ -224,7 +224,7 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
             <div>
               <label className={label} htmlFor="status">회차 공개</label>
               <select id="status" name="status" defaultValue={exam.status} className={`${input} w-32`}>
-                <option value="draft">작성중</option>
+                <option value="draft">작성 중</option>
                 <option value="published">공개</option>
               </select>
             </div>

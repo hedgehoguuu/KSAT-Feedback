@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 const TITLE = '국어 3인 관찰반 · 180분';
 const DESCRIPTION =
-  '시험 치는 80분을 옆에서 봅니다. 지문별 시간을 재고, 그 기록으로 남은 90분을 이야기하는 3인 팀수업.';
+  '시험 치는 80분을 옆에서 봅니다. 지문별 시간을 재고, 그 기록으로 남은 90분을 이야기하는 3인 팀 수업.';
 
 export const metadata: Metadata = {
   title: TITLE,

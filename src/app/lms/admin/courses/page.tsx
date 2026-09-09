@@ -84,7 +84,7 @@ export default async function AdminCoursesPage({ searchParams }: PageProps<'/lms
                       ))}
                     </select>
                     <select name="status" defaultValue={c.status} className={`${input} w-28`}>
-                      <option value="active">진행중</option>
+                      <option value="active">진행 중</option>
                       <option value="archived">종료</option>
                     </select>
                     <button type="submit" className={btn}>바꾸기</button>

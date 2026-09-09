@@ -28,8 +28,8 @@ export const ROLE_HOME: Record<Role, string> = {
 /* ─────────────────────────────────────────────────────── 선택과목 */
 
 export const ELECTIVES = {
-  speech: '화법과작문',
-  media: '언어와매체',
+  speech: '화법과 작문',
+  media: '언어와 매체',
 } as const;
 export type Elective = keyof typeof ELECTIVES;
 export const ELECTIVE_LIST = Object.keys(ELECTIVES) as Elective[];
@@ -78,8 +78,8 @@ export const AREAS: readonly Area[] = [
   { code: 'lit_modern_novel', group: 'literature', label: '현대소설' },
   { code: 'lit_classic_poem', group: 'literature', label: '고전시가' },
   { code: 'lit_classic_novel', group: 'literature', label: '고전소설' },
-  { code: 'el_speech', group: 'elective', label: '화법과작문', elective: 'speech' },
-  { code: 'el_media', group: 'elective', label: '언어와매체', elective: 'media' },
+  { code: 'el_speech', group: 'elective', label: '화법과 작문', elective: 'speech' },
+  { code: 'el_media', group: 'elective', label: '언어와 매체', elective: 'media' },
 ] as const;
 
 const AREA_BY_CODE = new Map(AREAS.map((a) => [a.code, a]));
@@ -112,21 +112,21 @@ export function groupedAreas(elective: Elective | null): { group: AreaGroup; lab
 
 /* ─────────────────────────────────────────────────────────── 상태 */
 
-export const COURSE_STATUS = { active: '진행중', archived: '종료' } as const;
+export const COURSE_STATUS = { active: '진행 중', archived: '종료' } as const;
 export type CourseStatus = keyof typeof COURSE_STATUS;
 export const COURSE_STATUSES = Object.keys(COURSE_STATUS) as CourseStatus[];
 export function isCourseStatus(v: string): v is CourseStatus {
   return v in COURSE_STATUS;
 }
 
-export const USER_STATUS = { active: '사용중', suspended: '정지' } as const;
+export const USER_STATUS = { active: '사용 중', suspended: '정지' } as const;
 export type UserStatus = keyof typeof USER_STATUS;
 
 /**
  * 시험 회차 · 응시 기록의 공개 상태.
  * draft 는 튜터만 본다 — 채점 도중의 반쪽짜리 점수가 학생에게 보이면 안 된다.
  */
-export const PUBLISH_STATUS = { draft: '작성중', published: '공개' } as const;
+export const PUBLISH_STATUS = { draft: '작성 중', published: '공개' } as const;
 export type PublishStatus = keyof typeof PUBLISH_STATUS;
 export function isPublishStatus(v: string): v is PublishStatus {
   return v in PUBLISH_STATUS;

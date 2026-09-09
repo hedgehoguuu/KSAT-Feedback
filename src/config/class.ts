@@ -23,7 +23,7 @@ export const CLASS = {
 
 export const CLASS_STATUS = {
   draft: '초안',
-  open: '모집중',
+  open: '모집 중',
   closed: '마감',
 } as const;
 export type ClassStatus = keyof typeof CLASS_STATUS;
@@ -35,7 +35,7 @@ export function isClassStatus(v: string): v is ClassStatus {
 export const APPLICATION_STATUS = {
   new: '신청',
   contacted: '연락함',
-  paid: '입금완료',
+  paid: '입금 완료',
   canceled: '취소',
 } as const;
 export type ApplicationStatus = keyof typeof APPLICATION_STATUS;
