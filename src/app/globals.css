@@ -208,6 +208,140 @@ html.js .reveal:not(.reveal-in) {
   }
 }
 
+/* ── 챗봇 (관찰이) ─────────────────────────────────────────────────────────
+   오른쪽 아래에 떠 있는 곰 마스코트. 그림 파일이 아니라 SVG 로 그린다 —
+   png 한 장이면 더 쉽지만 배율마다 흐려지고, 눈을 깜빡이게 하거나 말풍선이 열릴 때
+   웃는 눈으로 바꿀 수도 없다.
+
+   생김새(귀·얼굴·눈·주둥이·옷깃)는 ClassBuddy.tsx 의 <Mascot> 에 있다.
+   여기에는 크기 · 사이트 색을 쓰는 부분 · 움직임만 둔다. */
+.buddy {
+  display: block;
+  width: 62px;
+  height: 62px;
+  /* 알파 모양을 따라가는 그림자라 둥근 곰 모양 그대로 바닥에 진다. */
+  filter: drop-shadow(0 8px 14px rgb(17 24 39 / 0.26));
+}
+
+/* 옷깃은 사이트가 이미 쓰는 빨간펜 색을 그대로 쓴다 — 마스코트라고 색을 늘리지 않는다.
+   SVG 의 fill 속성에는 var() 가 안 통해서 CSS 로 칠한다. */
+.buddy-coat {
+  fill: var(--mark);
+}
+.buddy-fold {
+  stroke: rgb(0 0 0 / 0.14);
+}
+
+/* 눈. transform-box 를 안 걸면 SVG 는 제 중심이 아니라 뷰박스 원점을 기준으로 찌그러진다. */
+.buddy-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* 말풍선 머리에 붙는 작은 얼굴. 이름표 옆에서 뜨기까지 하면 시선이 글자에서 떠난다 —
+   여기서는 눈만 깜빡인다. */
+.buddy.buddy-mini {
+  width: 24px;
+  height: 24px;
+  filter: none;
+  animation: none;
+}
+
+.buddy-trigger {
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.buddy-trigger:active {
+  transform: scale(0.92);
+}
+
+/* 관찰이가 답을 쓰는 동안의 점 세 개 */
+.buddy-dot {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+/* 움직임은 여기 안에만 둔다.
+   전체 규칙(맨 위 prefers-reduced-motion)은 시간을 0.01ms 로 줄이는데, 끝없이 도는
+   애니메이션에 그걸 걸면 멈추는 게 아니라 미친 듯이 떨린다. 아예 걸지 않는 게 맞다. */
+@media (prefers-reduced-motion: no-preference) {
+  .buddy {
+    animation: buddy-float 3.6s ease-in-out infinite;
+  }
+  .buddy-eye {
+    animation: buddy-blink 5.2s infinite;
+  }
+  .buddy-panel {
+    animation: buddy-pop 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .buddy-hint {
+    animation: buddy-pop 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .buddy-dot {
+    animation: buddy-typing 1.1s ease-in-out infinite;
+  }
+  .buddy-dot:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  .buddy-dot:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+}
+
+@keyframes buddy-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* 오래 뜨고 잠깐 감는다. 반대로 하면 자는 것처럼 보인다. */
+@keyframes buddy-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+
+/* 마스코트 쪽(오른쪽 아래)에서 자라 나온다 — 거기서 나왔다는 것이 보여야 한다.
+   끝나면 transform 이 남지 않는다. 남으면 그 안의 유리가 페이지 배경을 못 뚫어 본다. */
+@keyframes buddy-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.buddy-panel,
+.buddy-hint {
+  transform-origin: bottom right;
+}
+
+@keyframes buddy-typing {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
 /* ── LMS (/lms) ────────────────────────────────────────────────────────────
    접수 흐름(/apply)은 손에 쥐고 한 손으로 넘기는 화면이라 480px 기둥이 맞다.
    LMS 는 표를 본다 — 학생 열둘의 영역 여덟 개를 한눈에 놓고 비교하는 것이 일이라

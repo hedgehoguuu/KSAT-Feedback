@@ -1,3 +1,4 @@
+import { ClassBuddy } from '@/components/ClassBuddy';
 import { ClassCard } from '@/components/ClassCard';
 import { ClassGallery } from '@/components/ClassGallery';
 import { Marked } from '@/components/Marked';
@@ -16,7 +17,7 @@ export default async function ClassLanding() {
   const proofUrls = await signProofUrls(classes.flatMap((c) => c.proof_paths));
 
   return (
-    <main className="flex flex-1 flex-col pb-16">
+    <main className="flex flex-1 flex-col pb-28">
       {/* ── ① 학생이 이미 손에 쥔 것에서 시작한다 ──────────────── */}
       <section className="px-5 pt-14">
         <Reveal>
@@ -186,7 +187,10 @@ export default async function ClassLanding() {
       </section>
 
       {/* ── ⑤ 개설 클래스 ──────────────────────────────────────── */}
-      <section id="classes" className="mt-16 scroll-mt-4 px-5">
+      {/* 관찰이(아래 챗봇)의 "신청하러 가기" 가 굴러오는 자리다.
+          id 를 바꾸면 config/class-copy.ts 의 BUDDY 쪽 href 도 같이 바꿔야 한다.
+          tabIndex 는 눈에 보이는 이동만이 아니라 화면 읽기의 자리도 여기로 옮기기 위한 것이다. */}
+      <section id="classes" tabIndex={-1} className="mt-16 scroll-mt-4 px-5 outline-none">
         <Reveal>
           <h2 className={H2}>{COPY.classesTitle}</h2>
           <p className="mt-3 text-[15px] leading-[1.7] text-muted">{COPY.classesLead}</p>
@@ -258,6 +262,9 @@ export default async function ClassLanding() {
         )}
       </section>
 
+      {/* 떠 있는 챗봇. Reveal 바깥에 둔다 — 떠오르는 동안 transform 이 걸린 조상 안에서는
+          position: fixed 가 화면이 아니라 그 조상을 기준으로 붙는다. */}
+      <ClassBuddy />
     </main>
   );
 }
