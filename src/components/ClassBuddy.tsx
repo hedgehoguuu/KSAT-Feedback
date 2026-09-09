@@ -12,6 +12,13 @@ type Line =
 const TYPING_MS = 520;
 /** 말풍선을 닫은 뒤 한마디가 다시 떠오르기까지. 곧바로 튀어나오면 닫은 손을 되받아친다. */
 const HINT_IN_MS = 1200;
+/**
+ * 곁의 한마디를 접을 자리. '신청하러 가기' 가 향하는 곳과 같아야 하므로 따로 적지 않고
+ * BUDDY 에서 꺼내 쓴다 — 두 군데에 적으면 한쪽만 고쳐질 날이 온다.
+ */
+const HINT_HIDE_AT = (
+  BUDDY.asks.find((a) => a.action.kind === 'scroll')?.action.href ?? ''
+).replace(/^#/, '');
 
 /**
  * 화면 오른쪽 아래에 떠 있는 챗봇 — 관찰이.
@@ -31,6 +38,8 @@ export function ClassBuddy() {
   const [open, setOpen] = useState(false);
   /** 뜸을 들일 만큼 시간이 지났는가. 닫을 때마다 도로 꺼서 다시 뜸을 들인다. */
   const [hintReady, setHintReady] = useState(false);
+  /** 신청 자리가 화면에 들어와 있는가. */
+  const [atTarget, setAtTarget] = useState(false);
   const [asked, setAsked] = useState<string[]>([]);
   const [typing, setTyping] = useState(false);
   const [thread, setThread] = useState<Line[]>([{ role: 'bot', text: BUDDY.greeting }]);
@@ -43,8 +52,8 @@ export function ClassBuddy() {
 
   const rest = BUDDY.asks.filter((a) => !asked.includes(a.id));
   const finished = rest.length === 0;
-  /** 곁의 한마디는 따로 켜고 끄지 않는다 — '닫혀 있고, 뜸을 다 들였는가' 가 곧 답이다. */
-  const hint = Boolean(BUDDY.hint) && !open && hintReady;
+  /** 곁의 한마디는 따로 켜고 끄지 않는다 — 아래 세 가지가 곧 답이다. */
+  const hint = Boolean(BUDDY.hint) && !open && hintReady && !atTarget;
 
   const close = useCallback((refocus = true) => {
     setOpen(false);
@@ -62,6 +71,18 @@ export function ClassBuddy() {
     const show = setTimeout(() => setHintReady(true), HINT_IN_MS);
     return () => clearTimeout(show);
   }, [open, hintReady]);
+
+  // ── 신청 자리에 다다르면 곁의 한마디를 접는다 ────────────────────
+  // 거기서는 "여기서 신청하세요" 가 카드로 이미 크게 있고, 한마디는 할 일이 없다.
+  // 그대로 두면 반투명한 말풍선이 수강료 위에 겹쳐 숫자를 읽기 어렵게 만든다.
+  // 마스코트는 남는다 — 그 자리에서도 오픈채팅으로 물어볼 수는 있어야 한다.
+  useEffect(() => {
+    const el = document.getElementById(HINT_HIDE_AT);
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([entry]) => setAtTarget(entry.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   // ── 열려 있는 동안: Esc · 바깥 누르기로 닫기 ─────────────────────
   useEffect(() => {
@@ -232,7 +253,7 @@ export function ClassBuddy() {
         <p
           onClick={() => setOpen(true)}
           aria-hidden
-          className="buddy-hint glass pointer-events-auto mb-2.5 mr-1 cursor-pointer rounded-full rounded-br-[8px] px-3.5 py-2 text-[13px] font-bold"
+          className="buddy-hint glass-solid pointer-events-auto mb-2.5 mr-1 cursor-pointer rounded-full rounded-br-[8px] px-3.5 py-2 text-[13px] font-bold"
         >
           {BUDDY.hint}
         </p>
