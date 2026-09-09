@@ -19,11 +19,7 @@ export const metadata: Metadata = {
 
 export default function ClassLayout({ children }: LayoutProps<'/class'>) {
   return (
-    <>
-      {/* 자바스크립트가 살아 있을 때만 스크롤 등장 효과를 켠다.
-          화면보다 먼저 실행돼야 글이 깜빡이지 않는다. */}
-      <script dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }} />
-      {children}
-    </>
+    // 스크롤 등장 효과의 안전장치는 루트 레이아웃에 있다 (app/layout.tsx).
+    <>{children}</>
   );
 }
