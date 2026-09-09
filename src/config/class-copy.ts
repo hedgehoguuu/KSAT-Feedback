@@ -134,7 +134,7 @@ export const BUDDY = {
     },
     {
       id: 'question',
-      chip: '수업 시간이 안 맞아요',
+      chip: '신청하고 싶은데, 수업 시간이 안 맞아요',
       answer: '수업 시간은 튜터별로 조정 가능해요!.\n상세 문의 오픈채팅방으로 들어와주세요.\n 수업 시간 조정해볼게요. ',
       action: { 
         kind: 'link', 
