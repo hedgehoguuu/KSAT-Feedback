@@ -136,6 +136,19 @@ export async function enroll(courseId: string, studentId: string): Promise<'OK' 
   return 'OK';
 }
 
+/** 이 학생이 이 반 명단에 있는가. */
+export async function isEnrolled(courseId: string, studentId: string): Promise<boolean> {
+  const found = await one<{ student_id: string }>(
+    db()
+      .from('lms_enrollments')
+      .select('student_id')
+      .eq('course_id', courseId)
+      .eq('student_id', studentId)
+      .maybeSingle(),
+  );
+  return found !== null;
+}
+
 export async function unenroll(courseId: string, studentId: string): Promise<void> {
   await must(db().from('lms_enrollments').delete().eq('course_id', courseId).eq('student_id', studentId));
 }

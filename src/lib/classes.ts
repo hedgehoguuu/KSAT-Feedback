@@ -397,10 +397,18 @@ export async function findLiveApplication(
   return (data as { id: string }).id;
 }
 
+/**
+ * 신청자 목록을 부른 결과. 반 목록(ClassList)과 같은 이유로 '못 불러왔다' 를 따로 준다.
+ *
+ * 예전에는 오류일 때 빈 배열을 줬고, 관리자 화면은 그걸 "아직 신청이 없어요" 로 그렸다.
+ * 신청이 들어와 있는데 없다고 말하는 것 — 이 화면에서 가장 비싼 거짓말이다.
+ */
+export type ApplicationList = { rows: ApplicationListItem[]; failed: boolean };
+
 /** 신청자 목록. 9모 접수번호가 실제로 있는 번호인지 같이 표시한다. */
-export async function listApplications(): Promise<ApplicationListItem[]> {
+export async function listApplications(): Promise<ApplicationList> {
   const db = supabaseAdmin();
-  if (!db) return [];
+  if (!db) return { rows: [], failed: true };
 
   const read = (columns: string) =>
     db
@@ -414,27 +422,35 @@ export async function listApplications(): Promise<ApplicationListItem[]> {
   // 그것 때문에 신청자 목록이 통째로 비면 안 된다 — 칸만 빼고 다시 묻는다.
   if (isMissingColumn(error)) ({ data, error } = await read(APPLICATION_COLUMNS_BASE));
 
-  if (error || !data) return [];
+  if (error || !data) {
+    console.error('[classes] 신청자 목록 조회 실패', error);
+    return { rows: [], failed: true };
+  }
 
   type Joined = ApplicationRow & { classes: { title: string; slug: string } | null };
   const rows = data as unknown as Joined[];
 
+  // 접수번호 대조는 덤이다. 못 물어봤으면 전부 '대조 실패' 로 칠하지 않고 표시를 비운다(null).
   const receipts = [...new Set(rows.map((r) => r.receipt_no).filter((v): v is string => Boolean(v)))];
-  const known = new Set<string>();
+  let known: Set<string> | null = new Set<string>();
   if (receipts.length > 0) {
-    const { data: found } = await db
+    const { data: found, error: lookupError } = await db
       .from('submissions')
       .select('receipt_no')
       .in('receipt_no', receipts);
-    for (const row of (found ?? []) as { receipt_no: string }[]) known.add(row.receipt_no);
+    if (lookupError) known = null;
+    else for (const row of (found ?? []) as { receipt_no: string }[]) known.add(row.receipt_no);
   }
 
-  return rows.map((r) => ({
-    ...r,
-    classTitle: r.classes?.title ?? '(삭제된 반)',
-    classSlug: r.classes?.slug ?? '',
-    receiptMatched: r.receipt_no ? known.has(r.receipt_no) : null,
-  }));
+  return {
+    rows: rows.map((r) => ({
+      ...r,
+      classTitle: r.classes?.title ?? '(삭제된 반)',
+      classSlug: r.classes?.slug ?? '',
+      receiptMatched: r.receipt_no && known ? known.has(r.receipt_no) : null,
+    })),
+    failed: false,
+  };
 }
 
 /**

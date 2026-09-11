@@ -6,7 +6,7 @@ import { isAreaCode, isElective, isPublishStatus, LMS, passwordProblem, type Ele
 import { assertRole, type SessionUser } from '@/lib/lms/auth';
 import { readQuestionTable, type OcrResult } from '@/lib/lms/ocr';
 import { resetPassword } from '@/lib/lms/users';
-import { courseVisibleTo, enroll, studentVisibleTo, unenroll, type CourseRow } from '@/lib/lms/courses';
+import { courseVisibleTo, enroll, isEnrolled, studentVisibleTo, unenroll, type CourseRow } from '@/lib/lms/courses';
 import {
   copyQuestionTable,
   defaultQuestionRows,
@@ -197,10 +197,14 @@ export async function reseedQuestionTable(formData: FormData): Promise<void> {
 /** 학생 한 명의 채점 화면을 연다. 없으면 그때 만든다. */
 export async function startGrading(formData: FormData): Promise<void> {
   const examId = text(formData, 'exam_id');
-  await assertExam(examId);
+  const { course } = await assertExam(examId);
 
+  /**
+   * 이 반 수강생만. 회차가 내 반인지만 보면, id 를 손으로 바꿔 보냈을 때 남의 반 학생의
+   * 응시가 이 회차에 생긴다 — 공개하면 그 학생 화면에 모르는 반의 성적이 뜬다.
+   */
   const studentId = text(formData, 'student_id');
-  if (!studentId) redirect(`/lms/exams/${examId}`);
+  if (!studentId || !(await isEnrolled(course.id, studentId))) redirect(`/lms/exams/${examId}`);
 
   const attempt = await openAttempt(examId, studentId);
   redirect(`/lms/attempts/${attempt.id}`);

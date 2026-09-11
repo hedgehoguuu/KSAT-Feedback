@@ -7,7 +7,7 @@ import { seoulStamp } from '@/lib/kst';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminApplications() {
-  const rows = await listApplications();
+  const { rows, failed } = await listApplications();
   const live = rows.filter((r) => r.status !== 'canceled');
 
   return (
@@ -18,13 +18,21 @@ export default async function AdminApplications() {
           연락처로 카카오톡을 보내고 상태를 옮겨주세요. 취소로 바꾸면 그 자리는 다시 열려요.
           신청 정보는 {CLASS.retentionDays}일 뒤 지워져요.
         </p>
-        <p className="mt-2 text-[14px] font-bold">
-          지금까지 {live.length}명
-          {rows.length !== live.length ? <span className="font-semibold text-muted"> · 취소 {rows.length - live.length}</span> : null}
-        </p>
+        {/* 못 불러왔으면 인원수를 말하지 않는다 — '0명' 도 틀린 말이다. */}
+        {failed ? null : (
+          <p className="mt-2 text-[14px] font-bold">
+            지금까지 {live.length}명
+            {rows.length !== live.length ? <span className="font-semibold text-muted"> · 취소 {rows.length - live.length}</span> : null}
+          </p>
+        )}
       </header>
 
-      {rows.length === 0 ? (
+      {failed ? (
+        <p className="rounded-2xl bg-danger/10 p-5 text-[14px] leading-[1.6] text-danger" role="alert">
+          <span className="font-bold">신청자 목록을 불러오지 못했어요.</span> 신청이 없다는 뜻이 아니에요 —
+          잠시 뒤 새로고침해주세요. 계속 이러면 /setup 에서 DB 연결을 확인해주세요.
+        </p>
+      ) : rows.length === 0 ? (
         <p className="rounded-2xl bg-surface p-5 text-[14px] leading-[1.6] text-muted">아직 신청이 없어요.</p>
       ) : (
         <ul className="flex flex-col gap-3">

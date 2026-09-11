@@ -51,7 +51,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = key;
 const { createUser, findForLogin, getStudent, listStudents, listUsers, resetPassword,
         tryUserCount, updateUser, deleteUser, upsertStudentProfile } = await import('../src/lib/lms/users.ts');
 const { saveCourse, listCourses, enroll, listEnrolled, courseVisibleTo, studentVisibleTo,
-        unenroll } = await import('../src/lib/lms/courses.ts');
+        unenroll, isEnrolled } = await import('../src/lib/lms/courses.ts');
 const { saveExam, listExams, listQuestions, replaceQuestions, defaultQuestionRows, openAttempt,
         saveGrading, loadGrading, examBoard, courseSummary, studentHistory, copyQuestionTable,
         publishGradedAttempts, listAnswers, listAreaComments, deleteExam } = await import('../src/lib/lms/exams.ts');
@@ -130,6 +130,8 @@ ok('관리자 계정은 튜터에게 학생으로 안 잡힌다', !(await studen
 eq('학생 전용 재발급은 관리자 계정을 못 바꾼다',
   await resetPassword(adminId, 'hijacked-pass', { studentOnly: true }), false);
 ok('관리자 비밀번호가 그대로', verifyPassword('new-admin-pass', (await findForLogin('boss'))!.password_hash));
+ok('수강생은 명단에 있다', await isEnrolled(courseId, students[0].id));
+ok('관리자는 명단에 없다 (채점을 못 연다)', !(await isEnrolled(courseId, adminId)));
 
 section('5. 회차와 문항표');
 const examId = await saveExam({ course_id: courseId, title: '1주차', exam_date: '2026-09-10', status: 'draft' });
