@@ -401,7 +401,12 @@ export async function examBoard(exam: ExamRow): Promise<{
   const answerRows = await inChunks<AnswerRow & { attempt_id: string }>(
     attempts.map((a) => a.id),
     (batch) =>
-      db().from('lms_answers').select('attempt_id, question_id, correct, chosen').in('attempt_id', batch),
+      db()
+        .from('lms_answers')
+        .select('attempt_id, question_id, correct, chosen')
+        .in('attempt_id', batch)
+        .order('attempt_id')
+        .order('question_id'),
   );
 
   const answersByAttempt = new Map<string, AnswerRow[]>();
@@ -427,11 +432,17 @@ export async function examBoard(exam: ExamRow): Promise<{
 
 /**
  * 한 학생의 누적. 학생 화면과 튜터의 학생 상세가 같이 쓴다.
+ *
  * publishedOnly 는 학생이 볼 때 켠다 — 채점 중인 회차가 학생에게 보이면 안 된다.
+ * 응시와 **회차가 둘 다** 공개여야 보인다. 응시만 보면, 채점을 공개한 뒤 회차를
+ * 비공개로 돌려도 성적·정답·피드백이 계속 보인다.
+ *
+ * courseIds 는 튜터가 볼 때 준다 — 그 반들의 회차만 읽는다. 학생이 두 반을 들으면
+ * 다른 튜터 반의 미공개 채점과 코멘트까지 딸려 오기 때문이다. 없으면 반을 가리지 않는다.
  */
 export async function studentHistory(
   studentId: string,
-  opts: { publishedOnly: boolean },
+  opts: { publishedOnly: boolean; courseIds?: readonly string[] },
 ): Promise<{
   points: {
     attempt: AttemptRow;
@@ -441,29 +452,51 @@ export async function studentHistory(
   }[];
   trends: ReturnType<typeof areaTrends>;
 }> {
-  let attempts = await rows<AttemptRow>(
+  const allAttempts = await rows<AttemptRow>(
     db()
       .from('lms_attempts')
       .select(ATTEMPT_COLS)
       .eq('student_id', studentId)
       .order('updated_at', { ascending: false }),
   );
-  if (opts.publishedOnly) attempts = attempts.filter((a) => a.status === 'published');
+  if (allAttempts.length === 0) return { points: [], trends: [] };
+
+  // 회차를 먼저 읽는다. 이 응시를 보여도 되는지는 회차가 정한다 — 어느 반인지, 공개했는지.
+  // 걸러진 응시의 정오·코멘트는 아예 읽지 않는다.
+  const examRows = await inChunks<ExamRow>([...new Set(allAttempts.map((a) => a.exam_id))], (b) =>
+    db().from('lms_exams').select(EXAM_COLS).in('id', b).order('id'));
+  const allowedCourses = opts.courseIds ? new Set(opts.courseIds) : null;
+  const exams = new Map(
+    examRows
+      .filter((e) => !allowedCourses || allowedCourses.has(e.course_id))
+      .filter((e) => !opts.publishedOnly || e.status === 'published')
+      .map((e) => [e.id, e]),
+  );
+  const attempts = allAttempts.filter(
+    (a) => exams.has(a.exam_id) && (!opts.publishedOnly || a.status === 'published'),
+  );
   if (attempts.length === 0) return { points: [], trends: [] };
 
   const examIds = [...new Set(attempts.map((a) => a.exam_id))];
   const attemptIds = attempts.map((a) => a.id);
-  const [examRows, questionRows, answerRows, commentRows] = await Promise.all([
-    inChunks<ExamRow>(examIds, (b) => db().from('lms_exams').select(EXAM_COLS).in('id', b)),
+  const [questionRows, answerRows, commentRows] = await Promise.all([
     inChunks<QuestionRow & { exam_id: string }>(examIds, (b) =>
-      db().from('lms_exam_questions').select(`exam_id, ${QUESTION_COLS}`).in('exam_id', b)),
+      db().from('lms_exam_questions').select(`exam_id, ${QUESTION_COLS}`).in('exam_id', b).order('no').order('id')),
     inChunks<AnswerRow & { attempt_id: string }>(attemptIds, (b) =>
-      db().from('lms_answers').select('attempt_id, question_id, correct, chosen').in('attempt_id', b)),
+      db()
+        .from('lms_answers')
+        .select('attempt_id, question_id, correct, chosen')
+        .in('attempt_id', b)
+        .order('attempt_id')
+        .order('question_id')),
     inChunks<{ attempt_id: string; area_code: string; comment: string }>(attemptIds, (b) =>
-      db().from('lms_area_comments').select('attempt_id, area_code, comment').in('attempt_id', b)),
+      db()
+        .from('lms_area_comments')
+        .select('attempt_id, area_code, comment')
+        .in('attempt_id', b)
+        .order('attempt_id')
+        .order('area_code')),
   ]);
-
-  const exams = new Map(examRows.map((e) => [e.id, e]));
 
   const questionsByExam = new Map<string, QuestionRow[]>();
   for (const q of questionRows) {
@@ -544,8 +577,9 @@ export async function courseSummary(courseId: string): Promise<{
   const examIds = exams.map((e) => e.id);
   const [questionRows, attempts] = await Promise.all([
     inChunks<QuestionRow & { exam_id: string }>(examIds, (b) =>
-      db().from('lms_exam_questions').select(`exam_id, ${QUESTION_COLS}`).in('exam_id', b)),
-    inChunks<AttemptRow>(examIds, (b) => db().from('lms_attempts').select(ATTEMPT_COLS).in('exam_id', b)),
+      db().from('lms_exam_questions').select(`exam_id, ${QUESTION_COLS}`).in('exam_id', b).order('no').order('id')),
+    inChunks<AttemptRow>(examIds, (b) =>
+      db().from('lms_attempts').select(ATTEMPT_COLS).in('exam_id', b).order('id')),
   ]);
 
   /**
@@ -554,7 +588,13 @@ export async function courseSummary(courseId: string): Promise<{
    */
   const answerRows = await inChunks<AnswerRow & { attempt_id: string }>(
     attempts.map((a) => a.id),
-    (b) => db().from('lms_answers').select('attempt_id, question_id, correct, chosen').in('attempt_id', b),
+    (b) =>
+      db()
+        .from('lms_answers')
+        .select('attempt_id, question_id, correct, chosen')
+        .in('attempt_id', b)
+        .order('attempt_id')
+        .order('question_id'),
   );
 
   const questionsByExam = new Map<string, QuestionRow[]>();

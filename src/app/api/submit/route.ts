@@ -69,6 +69,30 @@ export async function POST(req: Request) {
 
   const exam = findExam(examCode)!;
   const allowed = new Set(exam.subjects);
+  const db = supabaseAdmin();
+
+  /**
+   * 이미 받은 접수의 재시도는 스위치·상한을 보기 전에 돌려준다.
+   *
+   * 오늘의 마지막 자리로 저장된 뒤 응답만 유실되면, 다시 눌렀을 때 접수는 이미 '닫힘' 이다.
+   * 스위치를 먼저 보면 409 가 떠서 학생은 접수번호를 못 받는다 — 접수는 들어가 있는데도.
+   * create_submission 도 같은 키를 상한보다 먼저 보지만, 거기까지 가기 전에 여기서 막혔다.
+   * 후처리도 다시 걸지 않는다 — 처음 요청이 이미 걸었다. 못 물어보면 평소 길로 간다.
+   */
+  if (db) {
+    const { data: prior } = await db
+      .from('submissions')
+      .select('receipt_no, created_at')
+      .eq('idempotency_key', idempotencyKey)
+      .maybeSingle();
+    if (prior) {
+      return NextResponse.json({
+        receiptNo: prior.receipt_no,
+        dueDate: replyDueDate(new Date(prior.created_at)),
+        mode: 'supabase',
+      });
+    }
+  }
 
   // 접수 스위치는 화면뿐 아니라 서버에서도 확인한다 (OPS-1)
   const intake = await readIntake();
@@ -132,8 +156,6 @@ export async function POST(req: Request) {
       })),
     })),
   };
-
-  const db = supabaseAdmin();
 
   if (!db) {
     // 로컬 mock — 같은 멱등키면 같은 접수번호를 돌려준다

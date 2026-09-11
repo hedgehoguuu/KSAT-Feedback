@@ -24,7 +24,8 @@ export default async function MyAttemptPage({ params }: PageProps<'/lms/me/[atte
     listAnswers(attemptId),
     listAreaComments(attemptId),
   ]);
-  if (!exam) notFound();
+  // 회차도 공개여야 한다. 채점을 공개한 뒤 회차를 비공개로 돌리면 여기서 닫힌다.
+  if (!exam || exam.status !== 'published') notFound();
 
   const score = scoreAttempt(questions, answers, attempt.elective);
   const bars = markWeak(

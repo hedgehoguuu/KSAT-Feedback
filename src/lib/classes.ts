@@ -366,6 +366,37 @@ export async function applyToClass(input: ApplyInput): Promise<string> {
   return String(data);
 }
 
+/**
+ * 이미 들어간 같은 신청이 있는가 — 같은 반 · 같은 연락처 · 같은 학생 이름.
+ *
+ * 응답만 유실되고 학부모님이 다시 누른 경우를 알아보려는 것이다. 이름까지 보는 이유는
+ * 형제처럼 번호만 같은 다른 신청을 재시도로 착각하지 않기 위해서다 — 그쪽은 예전처럼
+ * create_class_application 이 판단한다.
+ *
+ * 못 물어보면 null. 그러면 평소 길로 가고, DB 함수가 같은 번호를 한 번 더 막아 준다.
+ */
+export async function findLiveApplication(
+  classId: string,
+  parentPhone: string,
+  studentName: string,
+): Promise<string | null> {
+  const db = supabaseAdmin();
+  if (!db) return null;
+
+  const { data, error } = await db
+    .from('class_applications')
+    .select('id')
+    .eq('class_id', classId)
+    .eq('parent_phone', parentPhone)
+    .eq('student_name', studentName)
+    .neq('status', 'canceled')
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return (data as { id: string }).id;
+}
+
 /** 신청자 목록. 9모 접수번호가 실제로 있는 번호인지 같이 표시한다. */
 export async function listApplications(): Promise<ApplicationListItem[]> {
   const db = supabaseAdmin();

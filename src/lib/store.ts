@@ -257,6 +257,25 @@ export const useApply = create<State & Actions>()(
       name: 'ksat-feedback:apply:v1',
       storage: createJSONStorage(() => safeStorage),
       version: 1,
+      /**
+       * 복원할 때 '올리는 중' 이던 사진을 '안 올라감' 으로 바꾼다.
+       *
+       * 올리던 작업과 원본(lib/blobs 의 메모리)은 새로고침과 함께 사라진다. 상태만 그대로
+       * 되살리면 화면은 영영 올리는 중이라 믿고 다음 버튼을 막는데, 다시 올리기 버튼도 안 뜬다.
+       * 오류로 두면 다시 올리기가 뜨고, 누르면 원본이 없으니 다시 고르라고 안내한다.
+       */
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<State>;
+        return {
+          ...current,
+          ...saved,
+          photos: (saved.photos ?? current.photos).map((p) =>
+            p.status === 'queued' || p.status === 'uploading'
+              ? { ...p, status: 'error' as const, progress: 0, error: '새로고침하면서 올리던 사진이 끊겼어요' }
+              : p,
+          ),
+        };
+      },
       // previewUrl 은 새로고침하면 죽는 objectURL 이라 저장하지 않는다
       partialize: (s) => ({
         examCode: s.examCode,

@@ -62,6 +62,8 @@ export async function enrollStudent(formData: FormData): Promise<void> {
   await assertCourse(courseId);
 
   const studentId = text(formData, 'student_id');
+  // 학생 계정이 아니면 enroll 이 넣지 않고 'NOT_STUDENT' 를 돌려준다. 화면은 학생만 고르게
+  // 하므로 여기 닿는 건 손으로 바꾼 요청뿐이다 — 따로 안내하지 않고 돌려보낸다.
   if (studentId) await enroll(courseId, studentId);
 
   revalidatePath(`/lms/courses/${courseId}`);
@@ -328,6 +330,6 @@ export async function resetStudentPassword(formData: FormData): Promise<void> {
   if (!(await studentVisibleTo(studentId, user))) redirect('/lms/tutor');
   if (passwordProblem(password)) redirect(`/lms/courses/${courseId}?error=weak`);
 
-  await resetPassword(studentId, password);
+  if (!(await resetPassword(studentId, password, { studentOnly: true }))) redirect('/lms/tutor');
   redirect(`/lms/courses/${courseId}?reset=${encodeURIComponent(studentId)}`);
 }

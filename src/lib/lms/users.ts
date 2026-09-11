@@ -100,7 +100,7 @@ export async function listStudents(): Promise<StudentRow[]> {
 
   // 학생이 백 명을 넘으면 주소줄이 길어져 414 가 난다. 나눠 묻는다.
   const profiles = await inChunks(users.map((u) => u.id), (batch) =>
-    db().from('lms_students').select(PROFILE_COLS).in('user_id', batch));
+    db().from('lms_students').select(PROFILE_COLS).in('user_id', batch).order('user_id'));
 
   const byId = new Map((profiles as StudentProfile[]).map((p) => [p.user_id, p]));
   return users.map((u) => ({ ...u, profile: byId.get(u.id) ?? null }));
@@ -185,16 +185,25 @@ export async function updateUser(
 }
 
 /**
- * 관리자가 비밀번호를 새로 발급한다. 발급된 비밀번호는 본인이 바꿔야 하므로
- * must_change_password 를 다시 켠다.
+ * 비밀번호를 새로 발급한다. 발급된 비밀번호는 본인이 바꿔야 하므로
+ * must_change_password 를 다시 켠다. 실제로 바뀐 계정이 있으면 true.
+ *
+ * studentOnly 는 튜터 쪽에서 부를 때 켠다. 앞에서 학생인지 이미 봤더라도 UPDATE 에도
+ * 조건을 건다 — 확인이 빠진 호출이 나중에 생겨도 학생이 아닌 계정은 안 바뀐다.
  */
-export async function resetPassword(id: string, password: string): Promise<void> {
-  await must(
-    db()
-      .from('lms_users')
-      .update({ password_hash: hashPassword(password), must_change_password: true })
-      .eq('id', id),
-  );
+export async function resetPassword(
+  id: string,
+  password: string,
+  opts: { studentOnly?: boolean } = {},
+): Promise<boolean> {
+  let q = db()
+    .from('lms_users')
+    .update({ password_hash: hashPassword(password), must_change_password: true })
+    .eq('id', id);
+  if (opts.studentOnly) q = q.eq('role', 'student');
+
+  const changed = await must(q.select('id'));
+  return (changed ?? []).length > 0;
 }
 
 /** 본인이 직접 바꾼다. 이때는 강제 변경을 끈다. */

@@ -68,6 +68,11 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
               {' '}채점이 아직 안 끝난 {skipped}명은 그대로 뒀어요 — 반쪽짜리 점수는 공개하지 않아요.
             </span>
           ) : null}
+          {exam.status === 'draft' && Number(published) > 0 ? (
+            <span className="mt-1 block font-bold text-danger">
+              회차가 아직 비공개라 학생에게는 안 보여요. 아래 &lsquo;회차 공개&rsquo;를 공개로 바꿔주세요.
+            </span>
+          ) : null}
         </p>
       ) : null}
 

@@ -37,7 +37,11 @@ export default async function StudentDetailPage({ params, searchParams }: PagePr
   const context = asked ?? mine[0]!;
 
   const [history, summary, intake] = await Promise.all([
-    studentHistory(id, { publishedOnly: false }),
+    // 튜터는 자기 반 회차만. 학생이 다른 튜터 반도 들으면 그 반의 미공개 채점까지 딸려 온다.
+    studentHistory(id, {
+      publishedOnly: false,
+      courseIds: me.role === 'admin' ? undefined : mine.map((c) => c!.id),
+    }),
     courseSummary(context.id),
     // 9월 시험지 피드백에 적어 준 고민. 접수번호를 안 적었거나 못 찾으면 null 이다.
     findIntake(student.profile?.receipt_no),

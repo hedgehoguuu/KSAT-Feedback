@@ -55,6 +55,16 @@ export default async function GradingPage({ params, searchParams }: PageProps<'/
         </p>
       ) : null}
 
+      {/* 학생에게는 채점과 회차가 둘 다 공개여야 보인다. 채점만 공개하고 안심하지 않게. */}
+      {data.exam.status === 'draft' && data.attempt.status === 'published' ? (
+        <p className="mt-4 rounded-xl bg-danger/10 px-4 py-3 text-[13px] leading-[1.6] text-danger" role="status">
+          채점은 공개했지만 회차가 아직 비공개라 학생에게는 안 보여요.{' '}
+          <Link href={`/lms/exams/${data.exam.id}`} className="font-bold underline underline-offset-2">
+            회차에서 공개로 바꾸기
+          </Link>
+        </p>
+      ) : null}
+
       {intake ? (
         <div className="mt-5">
           <IntakeCard intake={intake} compact />

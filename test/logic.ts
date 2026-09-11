@@ -26,6 +26,7 @@ import {
   type QuestionRow,
 } from '../src/lib/lms/score.ts';
 import { defaultQuestionRows } from '../src/lib/lms/exams.ts';
+import { inChunks } from '../src/lib/lms/db.ts';
 import { done, eq, ok, section } from './assert.ts';
 
 /* ────────────────────────────────────────────────── 문항표 배치 */
@@ -169,5 +170,47 @@ eq('소수는 첫째 자리까지', fmtScore(78.25), '78.3');
 eq('비율은 반올림 퍼센트', fmtRate(0.8235), '82%');
 eq('영역 이름', areaLabel('lit_complex'), '갈래복합');
 eq('모르는 코드는 코드를 그대로', areaLabel('nope'), 'nope');
+
+/* ────────────────────────────────────────────────── 나눠 읽기 */
+
+/**
+ * Supabase 처럼 한 번에 cap 줄까지만 주는 가짜 표. in() 조건은 key 열로 거르고,
+ * range 가 요청한 것보다 적게 돌려줄 수 있다 — 실제 서버 상한이 그렇게 동작한다.
+ */
+function fakeTable<T extends Record<string, string>>(all: T[], key: keyof T, cap: number) {
+  return (batch: string[]) => ({
+    range: async (from: number, to: number) => {
+      const wanted = new Set(batch);
+      const hit = all.filter((r) => wanted.has(r[key]));
+      return { data: hit.slice(from, Math.min(to + 1, from + cap)), error: null };
+    },
+  });
+}
+const grid = (outer: number, inner: number, prefix: string) =>
+  [...Array(outer)].flatMap((_, a) =>
+    [...Array(inner)].map((__, q) => ({ owner: `${prefix}${a}`, item: `${prefix}${a}-${q}` })));
+const idsOf = (rows: { owner: string }[]) => [...new Set(rows.map((r) => r.owner))];
+const distinct = (rows: { item: string }[]) => new Set(rows.map((r) => r.item)).size;
+
+section('나눠 읽기 — 1,000줄에서 잘리면 안 된다');
+const answers = grid(23, 45, 'a');
+const answersRead = await inChunks(idsOf(answers), fakeTable(answers, 'owner', 1000));
+eq('응시 23개 × 답안 45개 = 1,035줄 전부', answersRead.length, 1035);
+eq('겹친 줄이 없다', distinct(answersRead), 1035);
+const questions = grid(20, 56, 'e');
+eq('회차 20개 × 문항표 56줄 = 1,120줄 전부',
+  (await inChunks(idsOf(questions), fakeTable(questions, 'owner', 1000))).length, 1120);
+eq('서버 상한이 500이어도 전부',
+  (await inChunks(idsOf(answers), fakeTable(answers, 'owner', 500))).length, 1035);
+const many = grid(250, 45, 'm');
+eq('id 250개(묶음 셋) × 45 = 11,250줄 전부',
+  distinct(await inChunks(idsOf(many), fakeTable(many, 'owner', 1000))), 11250);
+let pageThrew = false;
+try {
+  await inChunks(['x'], () => ({ range: async () => ({ data: null, error: new Error('boom') }) }));
+} catch {
+  pageThrew = true;
+}
+ok('못 읽으면 빈 목록이 아니라 던진다', pageThrew);
 
 done();

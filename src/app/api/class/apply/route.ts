@@ -1,6 +1,6 @@
 import { NextResponse, after } from 'next/server';
 import { isPhone, isReceiptNo, normalizePhone, normalizeReceiptNo } from '@/config/class';
-import { ApplyError, applyToClass, getClass, markApplicationAlert } from '@/lib/classes';
+import { ApplyError, applyToClass, findLiveApplication, getClass, markApplicationAlert } from '@/lib/classes';
 import { sendApplicationAlert } from '@/lib/class-mail';
 
 export const runtime = 'nodejs';
@@ -41,7 +41,18 @@ export async function POST(req: Request) {
   if (body.consent !== true) return bad('개인정보 수집·이용 동의가 필요해요');
 
   const target = await getClass(slug);
-  if (!target || target.status !== 'open') return bad('지금 신청을 받고 있지 않은 반이에요', 409);
+  if (!target) return bad('지금 신청을 받고 있지 않은 반이에요', 409);
+
+  /**
+   * 이미 들어간 신청의 재시도는 마감·정원을 보기 전에 알아본다.
+   *
+   * 마지막 자리 신청이 저장된 뒤 응답만 유실되면(모바일에서 흔하다), 다시 눌렀을 때 반은
+   * 이미 '꽉 참' 이다. 정원을 먼저 보면 "자리가 다 찼어요" 가 떠서, 신청이 들어가 있는데도
+   * 떨어진 줄 안다. 알림 메일도 다시 보내지 않는다 — 처음 요청이 이미 보냈다.
+   */
+  if (await findLiveApplication(target.id, parentPhone, studentName)) return accepted(receiptNo);
+
+  if (target.status !== 'open') return bad('지금 신청을 받고 있지 않은 반이에요', 409);
   if (target.full) return bad('자리가 다 찼어요', 409);
 
   let applicationId: string;
@@ -80,6 +91,10 @@ export async function POST(req: Request) {
     await markApplicationAlert(applicationId, reason);
   });
 
+  return accepted(receiptNo);
+}
+
+function accepted(receiptNo: string) {
   return NextResponse.json({
     ok: true,
     receiptShapeOk: receiptNo === '' ? null : isReceiptNo(receiptNo),

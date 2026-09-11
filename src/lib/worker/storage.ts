@@ -52,19 +52,45 @@ export async function listAll(prefix = ''): Promise<Entry[]> {
   return out;
 }
 
-/** DB 가 알고 있는 경로 — 사진과 합친 PDF 전부 */
+/**
+ * DB 가 알고 있는 경로 — 사진과 합친 PDF 전부.
+ *
+ * 여기서 빠진 경로는 '주인 없는 파일' 로 보고 지운다. 그래서 두 가지를 반드시 지킨다.
+ *   ① 못 읽었으면 던진다. 예전에는 오류를 무시해서, DB 가 잠깐 흔들린 날 참조 목록이
+ *      비고 멀쩡한 시험지까지 전부 고아로 잡혔다.
+ *   ② 끝까지 읽는다. Supabase 는 한 번에 1,000줄까지만 준다 — 사진이 1,000장을 넘으면
+ *      그 뒤 것들이 목록에서 빠지고, 빠진 것은 지워진다.
+ */
 async function referencedPaths(): Promise<Set<string>> {
-  const db = supabaseAdmin();
   const set = new Set<string>();
-  if (!db) return set;
+  if (!supabaseAdmin()) return set;
 
-  const files = await db.from('submission_files').select('storage_path');
-  for (const row of files.data ?? []) if (row.storage_path) set.add(row.storage_path);
-
-  const pdfs = await db.from('submission_subjects').select('pdf_path');
-  for (const row of pdfs.data ?? []) if (row.pdf_path) set.add(row.pdf_path);
-
+  for (const path of await readColumn('submission_files', 'storage_path')) set.add(path);
+  for (const path of await readColumn('submission_subjects', 'pdf_path')) set.add(path);
   return set;
+}
+
+/**
+ * 한 칸을 처음부터 끝까지 읽는다. 빈 쪽이 나올 때까지 넘긴다 — 서버의 한 쪽 상한을
+ * 짐작해서 '덜 왔으니 끝' 으로 치지 않는다. 틀리게 짐작하면 그만큼 지워진다.
+ */
+async function readColumn(table: string, column: string): Promise<string[]> {
+  const db = supabaseAdmin()!;
+  const out: string[] = [];
+
+  for (let from = 0; ; ) {
+    const { data, error } = await db
+      .from(table)
+      .select(column)
+      .not(column, 'is', null)
+      .order('id')
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(`${table} 을 못 읽었어요: ${error.message}`);
+    if (!data || data.length === 0) return out;
+
+    for (const row of data as unknown as Record<string, string>[]) out.push(row[column]);
+    from += data.length;
+  }
 }
 
 function summarize(entries: Entry[]) {
@@ -115,7 +141,20 @@ export async function cleanupOrphans(
   const { olderThanHours = 24, dryRun = false } = opts;
 
   const all = await listAll();
-  const referenced = await referencedPaths();
+
+  let referenced: Set<string>;
+  try {
+    referenced = await referencedPaths();
+  } catch (err) {
+    // 무엇이 쓰이는지 모르면 아무것도 지우지 않는다. 던지지 않는 것은 크론의 뒤 작업을
+    // 막지 않기 위해서다 — 청소는 내일 다시 돈다.
+    const reason = err instanceof Error ? err.message : String(err);
+    console.error('[storage] 참조 목록을 못 읽어 청소를 건너뜀', reason);
+    return {
+      scanned: all.length, orphans: 0, removed: 0, mb: 0,
+      errors: [`참조 목록을 못 읽어서 아무것도 지우지 않았어요: ${reason}`],
+    };
+  }
   const cutoff = Date.now() - olderThanHours * 3600_000;
 
   const orphans = all.filter((e) => {

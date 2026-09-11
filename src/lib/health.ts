@@ -44,6 +44,7 @@ export async function getHealth(): Promise<Health> {
     dailyCap: { ok: false, detail: '아직 확인 못 했어요' },
     rawScore: { ok: false, detail: '아직 확인 못 했어요' },
     applyAlert: { ok: false, detail: '아직 확인 못 했어요' },
+    rpcLocked: { ok: false, detail: '아직 확인 못 했어요' },
     bucket: { ok: false, detail: '아직 확인 못 했어요' },
     workerSchema: { ok: false, detail: '아직 확인 못 했어요' },
     classSchema: { ok: false, detail: '아직 확인 못 했어요' },
@@ -82,7 +83,7 @@ export async function getHealth(): Promise<Health> {
 
   const db = supabaseAdmin();
   if (!db) {
-    for (const key of ['connection', 'tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
+    for (const key of ['connection', 'tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
       checks[key] = { ok: false, detail: 'Supabase 연결 전이라 확인할 수 없어요' };
     }
     return {
@@ -101,7 +102,7 @@ export async function getHealth(): Promise<Health> {
     const detail = sqlNotRun
       ? 'SQL 을 아직 실행하지 않았어요. supabase/migrations/0001_init.sql 을 SQL Editor 에서 실행해주세요'
       : '확인하지 못했어요';
-    for (const key of ['tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
+    for (const key of ['tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
       checks[key] = { ok: false, detail };
     }
     return {
@@ -128,6 +129,7 @@ export async function getHealth(): Promise<Health> {
     raw_score?: boolean;
     apply_alert?: boolean;
     alert_failed_count?: number;
+    rpc_locked?: boolean;
   };
 
   checks.connection = { ok: true, detail: 'Supabase 에 정상적으로 닿았어요' };
@@ -167,6 +169,17 @@ export async function getHealth(): Promise<Health> {
       : alertFailed > 0
         ? `알림 메일이 안 간 신청이 ${alertFailed}건 있어요. /admin/applications 에서 직접 연락하고 상태를 옮기면 사라져요`
         : '신청 알림 메일 결과가 기록돼요',
+  };
+  // 0014 를 안 돌리면 서버 전용 함수를 공개 키로도 부를 수 있다 — 채점 덮어쓰기, 신청 끼워 넣기.
+  // 칸이 아예 없으면(undefined) 0014 전의 setup_status 라서 확인할 수 없다는 뜻이다.
+  checks.rpcLocked = {
+    ok: status.rpc_locked === true,
+    detail:
+      status.rpc_locked === true
+        ? '서버 전용 함수는 서버 키로만 불려요'
+        : status.rpc_locked === false
+          ? '공개 키로도 부를 수 있는 서버 전용 함수가 있어요. 0014_lock_rpc.sql 을 실행해주세요'
+          : '아직 잠그지 않았어요. 0014_lock_rpc.sql 을 실행해주세요',
   };
   checks.workerSchema = {
     ok: Boolean(status.worker_schema),

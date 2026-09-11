@@ -122,6 +122,15 @@ ok('관리자는 다 본다', (await courseVisibleTo(courseId, { id: adminId, ro
 ok('튜터는 자기 반 학생만', await studentVisibleTo(students[0].id, { id: tutorId, role: 'tutor' }));
 ok('남의 반 학생은 아니다', !(await studentVisibleTo(students[0].id, { id: adminId, role: 'tutor' })));
 
+// 튜터가 관리자 id 를 자기 반에 넣고 '학생 비밀번호 재발급' 으로 관리자 비밀번호를 바꾸던 길
+eq('관리자 계정은 반에 못 넣는다', await enroll(courseId, adminId), 'NOT_STUDENT');
+eq('명단에 관리자 줄이 없다',
+  (await db().from('lms_enrollments').select('student_id').eq('student_id', adminId)).data?.length, 0);
+ok('관리자 계정은 튜터에게 학생으로 안 잡힌다', !(await studentVisibleTo(adminId, { id: tutorId, role: 'tutor' })));
+eq('학생 전용 재발급은 관리자 계정을 못 바꾼다',
+  await resetPassword(adminId, 'hijacked-pass', { studentOnly: true }), false);
+ok('관리자 비밀번호가 그대로', verifyPassword('new-admin-pass', (await findForLogin('boss'))!.password_hash));
+
 section('5. 회차와 문항표');
 const examId = await saveExam({ course_id: courseId, title: '1주차', exam_date: '2026-09-10', status: 'draft' });
 await replaceQuestions(examId, defaultQuestionRows(45));
@@ -199,6 +208,9 @@ eq('미채점 1명은 남는다', res.skipped, 1);
 eq('다시 눌러도 새로 공개할 게 없다', (await publishGradedAttempts(exam)).published, 0);
 
 section('11. 학생이 보는 것');
+eq('회차가 비공개면 채점을 공개해도 안 보인다',
+  (await studentHistory(students[0].id, { publishedOnly: true })).points.length, 0);
+await saveExam({ id: examId, course_id: courseId, title: '1주차', exam_date: '2026-09-10', status: 'published' });
 const hist = await studentHistory(students[0].id, { publishedOnly: true });
 eq('공개된 회차가 보인다', hist.points.length, 1);
 eq('점수가 맞는다', hist.points[0].score.earned, 82);
@@ -253,5 +265,21 @@ eq('지난 회차 응시는 화작 그대로', (await loadGrading(attempt.id))!.
 eq('그래서 점수도 그대로', (await loadGrading(attempt.id))!.score.earned, 81);
 await updateUser(students[0].id, { status: 'suspended' });
 eq('정지시킬 수 있다', (await listStudents()).find((s) => s.id === students[0].id)?.status, 'suspended');
+
+section('17. 다른 튜터 반의 채점은 딸려 오지 않는다');
+const tutor2 = id(await createUser({ role: 'tutor', login_id: 'tutor-two', password: 'tutor-pass-2', name: '둘째' }));
+const course2 = await saveCourse({ name: '특강', tutor_id: tutor2, class_id: null, status: 'active', memo: null });
+await enroll(course2, students[0].id);
+const exam3 = await saveExam({ course_id: course2, title: '특강 1회', exam_date: '2026-09-20', status: 'draft' });
+await replaceQuestions(exam3, defaultQuestionRows(10));
+const a3 = await openAttempt(exam3, students[0].id);
+await saveGrading({ attemptId: a3.id, elective: 'speech', answers: [],
+  areaComments: [{ area_code: 'read_theory', comment: '특강 튜터만 볼 코멘트' }],
+  overallComment: '비공개 총평', status: 'draft' });
+const firstTutorView = await studentHistory(students[0].id, { publishedOnly: false, courseIds: [courseId] });
+ok('첫 튜터에게는 자기 반 회차만', firstTutorView.points.every((p) => p.exam.course_id === courseId));
+ok('특강 회차는 안 온다', !firstTutorView.points.some((p) => p.exam.id === exam3));
+ok('관리자(반 제한 없음)는 둘 다 본다',
+  (await studentHistory(students[0].id, { publishedOnly: false })).points.some((p) => p.exam.id === exam3));
 
 done();

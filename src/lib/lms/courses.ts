@@ -1,7 +1,7 @@
 import 'server-only';
 import type { CourseStatus } from '@/config/lms';
 import { db, inChunks, must, one, rows } from './db';
-import { listStudents, type StudentRow } from './users';
+import { getUser, listStudents, type StudentRow } from './users';
 
 export type CourseRow = {
   id: string;
@@ -36,8 +36,10 @@ export async function listCourses(tutorId?: string): Promise<CourseCard[]> {
 
   const ids = courses.map((c) => c.id);
   const [enrolls, exams, tutors] = await Promise.all([
-    inChunks<{ course_id: string }>(ids, (b) => db().from('lms_enrollments').select('course_id').in('course_id', b)),
-    inChunks<{ course_id: string }>(ids, (b) => db().from('lms_exams').select('course_id').in('course_id', b)),
+    inChunks<{ course_id: string }>(ids, (b) =>
+      db().from('lms_enrollments').select('course_id').in('course_id', b).order('course_id').order('student_id')),
+    inChunks<{ course_id: string }>(ids, (b) =>
+      db().from('lms_exams').select('course_id').in('course_id', b).order('id')),
     rows<{ id: string; name: string }>(db().from('lms_users').select('id, name').eq('role', 'tutor')),
   ]);
 
@@ -115,13 +117,23 @@ export async function listEnrolled(courseId: string): Promise<StudentRow[]> {
   return (await listStudents()).filter((s) => ids.has(s.id));
 }
 
-export async function enroll(courseId: string, studentId: string): Promise<void> {
+/**
+ * 수강 등록. 학생 계정만 넣는다.
+ *
+ * 폼은 학생 목록만 보여주지만 id 는 손으로 바꿔 보낼 수 있다. 여기서 안 막으면 튜터가
+ * 관리자 id 를 자기 반에 넣고, '자기 반 학생 비밀번호 재발급' 으로 관리자 비밀번호를 바꾼다.
+ */
+export async function enroll(courseId: string, studentId: string): Promise<'OK' | 'NOT_STUDENT'> {
+  const target = await getUser(studentId);
+  if (!target || target.role !== 'student') return 'NOT_STUDENT';
+
   // 이미 들어 있으면 아무 일도 안 일어난다 (기본키 충돌 무시).
   await must(
     db()
       .from('lms_enrollments')
       .upsert({ course_id: courseId, student_id: studentId }, { onConflict: 'course_id,student_id' }),
   );
+  return 'OK';
 }
 
 export async function unenroll(courseId: string, studentId: string): Promise<void> {
@@ -137,7 +149,7 @@ export async function coursesOfStudent(studentId: string): Promise<CourseRow[]> 
   if (ids.length === 0) return [];
 
   const courses = await inChunks<CourseRow>(ids, (b) =>
-    db().from('lms_courses').select(COURSE_COLS).in('id', b).order('created_at', { ascending: false }));
+    db().from('lms_courses').select(COURSE_COLS).in('id', b).order('created_at', { ascending: false }).order('id'));
   return courses;
 }
 
@@ -146,13 +158,19 @@ export async function coursesOfStudent(studentId: string): Promise<CourseRow[]> 
  *
  * 튜터가 학생 비밀번호를 재발급할 수 있게 하려면 그 학생이 정말 자기 반 학생인지를
  * 먼저 확인해야 한다. 이게 없으면 튜터가 학생 id 만 알면 남의 반 학생 비밀번호를 바꿀 수 있다.
+ *
+ * 대상이 학생 계정인지도 본다. 예전에는 수강 등록이 역할을 안 따져서 관리자·튜터 계정이
+ * 명단에 들어갈 수 있었고, 그러면 이 문을 지나 그 계정의 비밀번호가 바뀌었다.
  */
 export async function studentVisibleTo(
   studentId: string,
   user: { id: string; role: string },
 ): Promise<boolean> {
+  if (user.role !== 'admin' && user.role !== 'tutor') return false;
+
+  const target = await getUser(studentId);
+  if (!target || target.role !== 'student') return false;
   if (user.role === 'admin') return true;
-  if (user.role !== 'tutor') return false;
 
   const courses = await coursesOfStudent(studentId);
   return courses.some((c) => c.tutor_id === user.id);
