@@ -215,7 +215,7 @@ await saveGrading({
     correct: !wrongNos.has(q.no),
     chosen: q.no === 12 ? 4 : q.no === 21 ? 71 : q.answer,
   })),
-  overallComment: '4점에서 방향을 늦게 잡았어요', status: 'draft',
+  overallComment: '4점에서 방향을 늦게 잡았어요', status: 'draft', rev: null,
 });
 const graded = (await loadGrading(attempt.id))!;
 eq('만점 100', graded.score.total, 100);
@@ -236,7 +236,7 @@ try {
   await saveGrading({
     attemptId: attempt.id,
     answers: [...graded.answers, { question_id: foreign, correct: true, chosen: null }],
-    overallComment: '들어가면 안 되는 총평', status: 'published',
+    overallComment: '들어가면 안 되는 총평', status: 'published', rev: null,
   });
 } catch { threw = true; }
 ok('다른 회차 문항이 섞이면 던진다 (화면이 거짓말 안 함)', threw);
@@ -258,7 +258,7 @@ eq('되돌리면 다시 92점', (await loadGrading(attempt.id))!.score.earned, 9
 const a2 = await openAttempt(examId, students[1].id);
 await saveGrading({ attemptId: a2.id,
   answers: qs.map((q) => ({ question_id: q.id, correct: q.no !== 30, chosen: null })),
-  overallComment: null, status: 'draft' });
+  overallComment: null, status: 'draft', rev: null });
 eq('나은 96점', (await loadGrading(a2.id))!.score.earned, 96);
 
 section('9. 반 비교');
@@ -362,7 +362,7 @@ ok('지난 PDF 는 지워진다', !(await fileExists(afterSend.feedback_path!)))
 // 다희: 채점이 끝난 뒤 보내면 점수도 함께 열린다
 const a3 = await openAttempt(examId, students[2].id);
 await saveGrading({ attemptId: a3.id, answers: qs.map((q) => ({ question_id: q.id, correct: true, chosen: q.answer })),
-  overallComment: null, status: 'draft' });
+  overallComment: null, status: 'draft', rev: null });
 await saveConcerns(a3.id, [{ question_no: 30, body: '맞았지만 불안했어요' }], true);
 await saveConcernAnswers(a3.id, [{ id: (await listConcerns(a3.id))[0].id, answer: '풀이가 맞아요' }]);
 const withScore = await sendFeedback(a3.id);
@@ -408,7 +408,7 @@ const course2 = await saveCourse({ name: '특강', tutor_id: tutor2, class_id: n
 await enroll(course2, students[0].id);
 const exam3 = await saveExam({ course_id: course2, title: '특강 1회', exam_date: '2026-09-20', due_date: null, status: 'draft' });
 const a4 = await openAttempt(exam3, students[0].id);
-await saveGrading({ attemptId: a4.id, answers: [], overallComment: '비공개 총평', status: 'draft' });
+await saveGrading({ attemptId: a4.id, answers: [], overallComment: '비공개 총평', status: 'draft', rev: null });
 const firstTutorView = await studentHistory(students[0].id, { publishedOnly: false, courseIds: [courseId] });
 ok('첫 튜터에게는 자기 반 회차만', firstTutorView.points.every((p) => p.exam.course_id === courseId));
 ok('특강 회차는 안 온다', !firstTutorView.points.some((p) => p.exam.id === exam3));
@@ -577,7 +577,7 @@ eq('여섯 장으로 채운다', (await gradingOf(r1.id)).score.graded, 27);
 section('25. 튜터가 매긴 채점과 공개한 점수는 덮지 않는다');
 const g25 = await gradingOf(r1.id);
 const q5 = (await listQuestions(exam5)).find((q) => q.no === 5)!;
-await saveGrading({ attemptId: r1.id, overallComment: '사진 보고 확인함', status: 'draft',
+await saveGrading({ attemptId: r1.id, overallComment: '사진 보고 확인함', status: 'draft', rev: null,
   answers: [...g25.answers, { question_id: q5.id, correct: true, chosen: 1 }] });
 eq('튜터 채점이 된다', (await gradingOf(r1.id)).attempt.answers_source, 'tutor');
 await requestPhotoRead(r1.id, { by: 'tutor', schedule: hold });
@@ -586,14 +586,14 @@ eq('다시 읽어도 튜터 채점은 그대로', (await gradingOf(r1.id)).score
 eq('튜터가 누르면 읽은 답으로 다시 매긴다', await applyPhotoRead(r1.id, true), 27);
 const g25b = await gradingOf(r1.id);
 eq('다시 사진 채점 · 총평은 그대로', [g25b.attempt.answers_source, g25b.attempt.overall_comment], ['photo', '사진 보고 확인함']);
-await saveGrading({ attemptId: r1.id, answers: g25b.answers, overallComment: '공개', status: 'published' });
+await saveGrading({ attemptId: r1.id, answers: g25b.answers, overallComment: '공개', status: 'published', rev: null });
 eq('공개한 응시는 튜터가 눌러도 안 바꾼다', await applyPhotoRead(r1.id, true), -1);
 const photosOfR1 = await photoIdsOf(r1.id);
 await removePhoto(r1.id, photosOfR1[photosOfR1.length - 1]);
 eq('공개한 뒤에는 사진을 바꿔도 점수가 그대로', (await gradingOf(r1.id)).score.graded, 27);
 
 const r2 = await openAttempt(exam5, students[1].id);
-await saveGrading({ attemptId: r2.id, answers: [], overallComment: '먼저 적은 총평', status: 'draft' });
+await saveGrading({ attemptId: r2.id, answers: [], overallComment: '먼저 적은 총평', status: 'draft', rev: null });
 eq('아무것도 안 매기고 저장하면 누구의 채점도 아니다', (await getAttempt(r2.id))!.answers_source, null);
 
 section('26. 일괄 공개와 답변 PDF 는 지금 채점을 다시 본다');
@@ -700,6 +700,47 @@ const revived = await retryPhotoReads({ deadline: Date.now() + 120_000, limit: 5
 eq('상한에 걸린 다섯 줄은 건너뛰고 둘을 되살린다', revived, { found: 2, done: 2, failed: 0 });
 eq('새 실패가 채워졌다', (await gradingOf(fresh.id)).score.complete, true);
 eq('멈췄던 읽기도 채워졌다', (await getPhotoRead(stuckAt.id))?.status, 'done');
+
+section('29. 오래된 채점 화면으로는 저장되지 않는다');
+const sRev = id(await createUser({ role: 'student', login_id: 'revcheck', password: 'student-pass', name: '판검사' }));
+await enroll(course2, sRev);
+const rv = await openAttempt(exam5, sRev);
+for (let i = 0; i < 2; i += 1) await addPhoto(rv.id, JPEG);
+replyFor = () => wholePaper;
+await requestPhotoRead(rv.id, { by: 'student', delayMs: 0, schedule: hold });
+await runNext();
+const seen = (await getAttempt(rv.id))!;                 // 화면이 그릴 때 본 판
+const seenAnswers = (await gradingOf(rv.id)).answers;    // 화면에 찍힌 정오 그대로
+ok('사진으로 다 매겨졌다', (await gradingOf(rv.id)).score.complete);
+
+// 튜터가 화면을 열어 둔 사이 학생이 사진을 바꾼다 → 사진으로 매긴 채점이 그 자리에서 사라진다
+await addPhoto(rv.id, JPEG);
+eq('사진 채점이 비워졌다', (await gradingOf(rv.id)).score.graded, 0);
+
+eq('오래된 화면의 저장은 거절한다',
+  await saveGrading({ attemptId: rv.id, answers: seenAnswers, overallComment: '옛 사진으로 매김',
+    status: 'draft', rev: seen.updated_at }), 'STALE');
+eq('오래된 화면의 공개도 거절한다',
+  await saveGrading({ attemptId: rv.id, answers: seenAnswers, overallComment: '옛 사진으로 매김',
+    status: 'published', rev: seen.updated_at }), 'STALE');
+const afterStale = await gradingOf(rv.id);
+eq('아무것도 쓰이지 않았다', [afterStale.score.graded, afterStale.attempt.status, afterStale.attempt.answers_source,
+  afterStale.attempt.overall_comment], [0, 'draft', null, null]);
+
+// 새로 고친 화면 (지금 판) 으로는 저장된다
+const now1 = (await getAttempt(rv.id))!;
+eq('지금 판으로는 저장된다',
+  await saveGrading({ attemptId: rv.id, answers: seenAnswers.slice(0, 3), overallComment: '다시 봤어요',
+    status: 'draft', rev: now1.updated_at }), 'SAVED');
+eq('튜터 채점이 됐다', (await gradingOf(rv.id)).attempt.answers_source, 'tutor');
+eq('같은 판으로 두 번 저장하면 두 번째는 거절한다',
+  await saveGrading({ attemptId: rv.id, answers: seenAnswers.slice(0, 3), overallComment: '또',
+    status: 'draft', rev: now1.updated_at }), 'STALE');
+eq('rev 없이 부르면 예전처럼 저장된다 (0015 앱)',
+  await saveGrading({ attemptId: rv.id, answers: seenAnswers, overallComment: '옛 앱', status: 'draft', rev: null }),
+  'SAVED');
+eq('튜터 채점은 사진이 바뀌어도 그대로',
+  await (async () => { await addPhoto(rv.id, JPEG); return (await gradingOf(rv.id)).score.graded; })(), 30);
 
 model.closeAllConnections();
 await new Promise((resolve) => model.close(resolve));

@@ -223,17 +223,27 @@ export async function listAnswers(attemptId: string): Promise<AnswerRow[]> {
  *
  * 한 문항이라도 매겨 저장하면 튜터 채점이 된다. 그 뒤로는 사진을 다시 읽어도 덮지 않는다.
  */
+/**
+ * 채점을 저장한다.
+ *
+ * rev 는 화면이 그릴 때 본 응시의 updated_at 이다. DB 가 응시를 잠근 뒤 지금 값과 견줘,
+ * 다르면 아무것도 쓰지 않고 'STALE' 을 돌려준다 — 학생이 사진을 바꿔 사진으로 매긴 채점이
+ * 비워졌는데 그 전에 열어 둔 화면으로 저장하면, 사라진 옛 사진의 점수가 되살아나 공개될 수
+ * 있다. 여기서 최신 값을 다시 읽어 넘기면 막는 뜻이 없다 — 화면이 본 값이어야 한다.
+ */
 export async function saveGrading(input: {
   attemptId: string;
   answers: { question_id: string; correct: boolean; chosen: number | null }[];
   overallComment: string | null;
   status: PublishStatus;
-}): Promise<void> {
+  rev: string | null;
+}): Promise<'SAVED' | 'STALE'> {
   const { error } = await db().rpc('save_grading', {
     payload: {
       attempt_id: input.attemptId,
       overall_comment: input.overallComment,
       status: input.status,
+      rev: input.rev,
       answers: input.answers.map((a) => ({
         question_id: a.question_id,
         correct: a.correct,
@@ -242,7 +252,9 @@ export async function saveGrading(input: {
     },
   });
 
+  if (error?.code === 'P0001' && error.message === 'STALE') return 'STALE';
   if (error) throw error;
+  return 'SAVED';
 }
 
 /**

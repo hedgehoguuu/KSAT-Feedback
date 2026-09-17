@@ -54,6 +54,27 @@ function sameSet(a: readonly string[], b: readonly string[]): boolean {
 }
 
 /**
+ * 어디까지 왔나만 본다. 결과를 안 보는 화면(반별 목록)은 사진 id 까지 쥐고 있지 않고
+ * 장수만 세어 두므로, 장수로 답할 수 있는 만큼만 답한다.
+ *
+ * 읽은 결과의 photo_ids 를 '지금 사진' 인 척 넘기면 안 된다. 아직 한 번도 끝나지 않은
+ * 읽기는 그 목록이 비어 있어 — 사진이 멀쩡히 있어도 — 늘 '시작 전' 으로 보인다.
+ */
+export function readProgressOf(
+  read: PhotoReadRow | null,
+  photoCount: number,
+  now: number = Date.now(),
+): ReadView['kind'] {
+  if (!read || read.request_no <= 0) return 'none';
+  // 사진이 없으면 읽을 것도 없다. 사진으로 매긴 채점은 마지막 사진을 지울 때 DB 가 비웠다.
+  if (photoCount === 0) return 'none';
+  if (read.status === 'pending' || read.status === 'running') {
+    return now - Date.parse(read.updated_at) > PHOTO_READ.stuckMs ? 'stuck' : 'reading';
+  }
+  return read.status === 'failed' ? 'failed' : 'done';
+}
+
+/**
  * 지금 사진 목록과 함께 보고 상태를 정한다. now 는 시험에서 시계를 고정하려고 받는다 —
  * 화면은 넘기지 않는다 (그리는 중에 시계를 읽으면 React 가 그리기를 순수하지 않다고 본다).
  */
@@ -62,16 +83,15 @@ export function readViewOf(
   currentPhotoIds: readonly string[],
   now: number = Date.now(),
 ): ReadView {
-  if (!read || read.request_no <= 0) return { kind: 'none' };
-  // 사진이 없으면 읽을 것도 없다. 사진으로 매긴 채점은 마지막 사진을 지울 때 DB 가 비웠다.
-  if (currentPhotoIds.length === 0) return { kind: 'none' };
+  const kind = readProgressOf(read, currentPhotoIds.length, now);
+  if (!read || kind === 'none') return { kind: 'none' };
 
-  if (read.status === 'pending' || read.status === 'running') {
+  if (kind === 'reading' || kind === 'stuck') {
     const since = (read.status === 'running' ? read.started_at : null) ?? read.requested_at;
-    return now - Date.parse(read.updated_at) > PHOTO_READ.stuckMs ? { kind: 'stuck', since } : { kind: 'reading', since };
+    return { kind, since };
   }
 
-  if (read.status === 'failed') return { kind: 'failed', error: read.error ?? 'UNKNOWN', at: read.finished_at };
+  if (kind === 'failed') return { kind: 'failed', error: read.error ?? 'UNKNOWN', at: read.finished_at };
 
   const answers = Array.isArray(read.answers) ? read.answers : [];
   // 지금 없는 사진은 짚어도 소용이 없다

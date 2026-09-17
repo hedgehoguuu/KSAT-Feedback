@@ -230,7 +230,12 @@ export async function startGrading(formData: FormData): Promise<void> {
   redirect(to);
 }
 
-export async function submitGrading(formData: FormData): Promise<void> {
+/**
+ * 채점 한 판을 저장한다. 화면이 그릴 때 본 판(rev)이 아직 최신일 때만 — 그사이 학생이
+ * 사진을 바꿔 사진으로 매긴 채점이 비워졌으면 'STALE' 을 돌려주고 아무것도 쓰지 않는다.
+ * 그때는 화면을 넘기지 않는다. 튜터가 방금 매긴 것을 날리지 않고 안내만 띄운다.
+ */
+export async function submitGrading(_state: 'STALE' | null, formData: FormData): Promise<'STALE' | null> {
   const { attempt } = await assertAttempt(text(formData, 'attempt_id'));
   const questions = await listQuestions(attempt.exam_id);
 
@@ -252,12 +257,14 @@ export async function submitGrading(formData: FormData): Promise<void> {
     .filter((a): a is NonNullable<typeof a> => a !== null);
 
   const status = text(formData, 'status');
-  await saveGrading({
+  const outcome = await saveGrading({
     attemptId: attempt.id,
     answers,
     overallComment: optional(formData, 'overall_comment'),
     status: isPublishStatus(status) ? status : 'draft',
+    rev: optional(formData, 'rev'),
   });
+  if (outcome === 'STALE') return 'STALE';
 
   revalidatePath(`/lms/exams/${attempt.exam_id}`);
   redirect(`/lms/attempts/${attempt.id}?saved=1`);

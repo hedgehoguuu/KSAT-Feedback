@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useActionState, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   KINDS,
   PAPER,
@@ -33,6 +34,10 @@ import { btn, btnGhost, input, label } from './Shell';
  *
  * 사진에서 읽은 답(hints)이 있으면 칸마다 붙인다. 확실히 못 읽은 문항은 노랗게 두르고
  * 읽힌 값을 '넣기' 로 한 번에 넣게 한다 — 저절로 넣지는 않는다. 사람이 사진을 보고 누르게 한다.
+ *
+ * 저장은 화면을 그릴 때 본 판(rev)이 아직 최신일 때만 된다. 그사이 학생이 사진을 바꿔
+ * 사진으로 매긴 채점이 비워졌으면 DB 가 거절한다 — 그때는 화면을 넘기지 않고 안내만 띄운다.
+ * 방금 매긴 것이 그대로 남아 있어야 사진을 다시 보고 무엇을 고칠지 정할 수 있다.
  */
 
 type Mark = '' | 'o' | 'x';
@@ -40,6 +45,7 @@ type Mark = '' | 'o' | 'x';
 export function GradeSheet({
   action,
   attemptId,
+  rev,
   questions,
   initialAnswers,
   initialOverall,
@@ -48,8 +54,10 @@ export function GradeSheet({
   hints = {},
   tutorOwned = false,
 }: {
-  action: (formData: FormData) => Promise<void>;
+  action: (state: 'STALE' | null, formData: FormData) => Promise<'STALE' | null>;
   attemptId: string;
+  /** 이 화면이 본 채점 판 (응시의 updated_at). 저장할 때 DB 가 견준다. */
+  rev: string;
   questions: QuestionRow[];
   initialAnswers: AnswerRow[];
   initialOverall: string;
@@ -72,9 +80,17 @@ export function GradeSheet({
   );
   const [line, setLine] = useState('');
   const [lineNote, setLineNote] = useState<string | null>(null);
+  const [saveError, save, saving] = useActionState(action, null);
+  const router = useRouter();
 
   // 이 화면을 떠나면 '저장 안 한 손질' 도 함께 사라진다.
   useEffect(() => () => setDirty(false), []);
+
+  // 저장이 거절되면 매긴 것이 화면에만 남는다. 다시 '저장 안 한 손질' 로 표시해 둬야
+  // 사진 읽기 감시가 화면을 새로 고쳐 날리지 않는다.
+  useEffect(() => {
+    if (saveError === 'STALE') setDirty(true);
+  }, [saveError]);
 
   const score = useMemo(() => {
     const answers: AnswerRow[] = sorted
@@ -129,8 +145,9 @@ export function GradeSheet({
   const unitBars = barsOf(score.units, classAverages);
 
   return (
-    <form action={action} onSubmit={() => setDirty(false)} className="flex flex-col gap-5">
+    <form action={save} onSubmit={() => setDirty(false)} className="flex flex-col gap-5">
       <input type="hidden" name="attempt_id" value={attemptId} />
+      <input type="hidden" name="rev" value={rev} />
 
       {/* ── 위에 붙어 따라다니는 합계. 스크롤을 내려도 지금 몇 점인지가 안 사라진다. */}
       <div className="glass-bar sticky top-14 z-10 -mx-1 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-xl px-4 py-3">
@@ -152,6 +169,26 @@ export function GradeSheet({
           <p className="text-[13px] font-bold text-mark">틀린 문항 {score.wrongNos.join(', ')}</p>
         ) : null}
       </div>
+
+      {saveError === 'STALE' ? (
+        <div className="rounded-xl bg-mark-soft px-4 py-3 text-[14px] leading-[1.7] text-mark" role="alert">
+          <p className="font-bold">저장하지 않았어요 — 그사이 이 학생의 채점이 바뀌었어요.</p>
+          <p>
+            학생이 시험지 사진을 바꾸면 사진으로 매긴 채점이 비워져요. 지금 저장하면 옛 사진으로 매긴 점수가
+            되살아나요. 매긴 것은 그대로 두었으니, 새로 고쳐 사진과 읽은 답을 확인한 뒤 다시 매겨주세요.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setDirty(false);
+              router.refresh();
+            }}
+            className="mt-2 underline underline-offset-2 font-bold"
+          >
+            새로 고치기 (지금 매긴 것은 사라져요)
+          </button>
+        </div>
+      ) : null}
 
       {missingKey.length > 0 ? (
         <p className="rounded-xl bg-mark-soft px-4 py-3 text-[13px] font-bold leading-[1.6] text-mark">
@@ -266,10 +303,10 @@ export function GradeSheet({
 
       {/* ── 저장. 공개는 따로 눌러야 한다 — 매기다 만 점수가 학생에게 보이면 안 된다. */}
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" name="status" value="draft" className={btnGhost}>
+        <button type="submit" name="status" value="draft" className={btnGhost} disabled={saving}>
           저장만 하기
         </button>
-        <button type="submit" name="status" value="published" className={btn}>
+        <button type="submit" name="status" value="published" className={btn} disabled={saving}>
           저장하고 점수 공개
         </button>
         <p className="text-[13px] text-muted">

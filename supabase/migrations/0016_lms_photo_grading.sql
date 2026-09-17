@@ -16,7 +16,9 @@
 --   4) 늦게 끝난 옛 읽기가 새 결과를 덮지 않는다. 읽기를 부를 때마다 번호(request_no)를
 --      올리고, 끝날 때 그 번호가 아직 최신인지 본다.
 --
--- 잠그는 순서는 모든 함수에서 같다: 회차 → 응시 → 읽기. 순서가 엇갈리면 서로 기다리다 멈춘다.
+-- 잠그는 순서는 모든 함수와 트리거에서 같다: 회차 → 응시 → 읽기 · 답안.
+-- 순서가 엇갈리면 서로 기다리다 한쪽이 죽는다. 답안(lms_answers)을 지우거나 고치기 전에는
+-- 반드시 그 응시 행을 먼저 잠근다 — 여러 응시면 id 순으로.
 --
 -- Supabase → SQL Editor 에 통째로 붙여넣고 Run 한 번. 여러 번 돌려도 안전하다.
 -- 지금 돌고 있는 앱(0015)과도 맞는다 — 먼저 돌리고 배포해도 된다.
@@ -405,9 +407,15 @@ end;
 $$;
 
 -- ----------------------------------------------------------- 11. 채점 저장
--- 0015 와 같고, 채점을 누가 적었는지만 더한다. 튜터가 한 문항이라도 매겨 저장하면 튜터
--- 채점이다 — 사진을 다시 읽어도 덮지 않는다. 아무것도 안 매기고 총평만 저장했으면 누구의
--- 채점도 아니다. 그때는 사진이 오면 채운다.
+-- 0015 와 같고, 둘을 더한다.
+--   · 채점을 누가 적었는지(answers_source). 튜터가 한 문항이라도 매겨 저장하면 튜터 채점이다
+--     — 사진을 다시 읽어도 덮지 않는다. 아무것도 안 매기고 총평만 저장했으면 누구의 채점도
+--     아니다. 그때는 사진이 오면 채운다.
+--   · rev — 화면이 본 응시의 updated_at. 잠근 뒤에 지금 값과 견줘 다르면 STALE 로 멈춘다.
+--     학생이 사진을 바꾸면(4번) 사진으로 매긴 채점이 그 자리에서 비워지고 updated_at 이 오른다.
+--     그걸 보기 전에 열어 둔 화면으로 저장하면 사라진 옛 사진의 점수가 되살아나 공개될 수
+--     있다 — 화면을 지우는 것으로는 못 막는다. 잠근 안에서 봐야 한다.
+--     rev 없이 부르면(0015 의 앱) 예전과 똑같이 돈다.
 create or replace function save_grading(payload jsonb)
 returns void
 language plpgsql
@@ -416,7 +424,9 @@ set search_path = public
 as $$
 declare
   aid      uuid := (payload->>'attempt_id')::uuid;
+  rev      text := nullif(payload->>'rev', '');
   eid      uuid;
+  seen     timestamptz;
   wanted   int  := jsonb_array_length(coalesce(payload->'answers', '[]'::jsonb));
   inserted int;
 begin
@@ -424,9 +434,13 @@ begin
     raise exception 'attempt_id 가 없습니다';
   end if;
 
-  select exam_id into eid from lms_attempts where id = aid for update;
+  select exam_id, updated_at into eid, seen from lms_attempts where id = aid for update;
   if eid is null then
     raise exception '없는 응시입니다: %', aid;
+  end if;
+
+  if rev is not null and seen is distinct from rev::timestamptz then
+    raise exception 'STALE' using errcode = 'P0001', hint = '그사이 이 응시의 채점이 바뀌었어요';
   end if;
 
   delete from lms_answers where attempt_id = aid;
@@ -485,6 +499,12 @@ begin
   if not found then
     raise exception '없는 회차입니다: %', eid;
   end if;
+
+  -- 답안 행을 건드리기 전에 이 회차의 응시를 id 순으로 먼저 잠근다.
+  -- 사진 변경 트리거(4번)는 응시 → 답안 순으로 잠근다. 여기서 답안을 먼저 잠그면(아래 다시
+  -- 매기기) 서로 상대가 쥔 잠금을 기다리다 한쪽이 죽는다 — 정답표 저장이나 학생 사진
+  -- 올리기가 실패한다. 이 회차의 응시 수는 한 반이라 잠깐이다.
+  perform 1 from lms_attempts where exam_id = eid order by id for update;
 
   for r in select * from jsonb_array_elements(coalesce(payload->'rows', '[]'::jsonb))
   loop

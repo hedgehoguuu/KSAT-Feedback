@@ -41,6 +41,7 @@ import {
   WATCH,
   needsRead,
   readDiffers,
+  readProgressOf,
   readViewOf,
   watchDelay,
   watchStep,
@@ -433,6 +434,21 @@ const doneView = readViewOf(readRow({ unreadable: ['p2', 'gone'] }), ['p2', 'p1'
 ok('순서만 바뀐 사진은 낡지 않았다', doneView.kind === 'done' && !doneView.stale);
 eq('흐린 사진은 지금 있는 것만', doneView.kind === 'done' ? doneView.unreadable : null, ['p2']);
 ok('사진이 바뀌면 낡았다', (() => { const v = readViewOf(readRow({}), ['p1', 'p3'], NOW); return v.kind === 'done' && v.stale; })());
+
+// 반별 목록은 사진 id 를 안 쥐고 장수만 센다. 첫 읽기가 끝나기 전에는 결과의 photo_ids 가
+// 비어 있어, 그걸 '지금 사진' 으로 넘기면 읽는 중 · 실패 · 멈춤이 전부 '시작 전' 이 된다.
+const firstRun = (over: Partial<PhotoReadRow>) => readRow({ photo_ids: [], finished_at: null, ...over });
+eq('첫 읽기 — 기다리는 중', readProgressOf(firstRun({ status: 'pending', updated_at: at(60_000) }), 3, NOW), 'reading');
+eq('첫 읽기 — 읽는 중', readProgressOf(firstRun({ status: 'running', updated_at: at(60_000) }), 3, NOW), 'reading');
+eq('첫 읽기 — 실패', readProgressOf(firstRun({ status: 'failed', error: 'TIMEOUT' }), 3, NOW), 'failed');
+eq('첫 읽기 — 멈춤', readProgressOf(firstRun({ status: 'running', updated_at: at(PHOTO_READ.stuckMs + 1) }), 3, NOW), 'stuck');
+eq('읽은 결과를 지금 사진으로 넘기면 놓친다 (하면 안 되는 것)',
+  readViewOf(firstRun({ status: 'failed', error: 'TIMEOUT' }), [], NOW).kind, 'none');
+eq('사진이 0장이면 그대로 시작 전', readProgressOf(firstRun({ status: 'running' }), 0, NOW), 'none');
+eq('부른 적 없으면 시작 전', readProgressOf(readRow({ request_no: 0 }), 3, NOW), 'none');
+eq('끝난 읽기는 done — 사진이 바뀌었는지는 여기서 안 본다', readProgressOf(readRow({}), 5, NOW), 'done');
+eq('두 함수가 같은 답을 한다', readViewOf(readRow({ status: 'pending' }), ['p1', 'p2'], NOW).kind,
+  readProgressOf(readRow({ status: 'pending' }), 2, NOW));
 
 section('다시 읽어야 하나');
 eq('사진이 없으면 아니다', needsRead({ kind: 'none' }, 0), false);

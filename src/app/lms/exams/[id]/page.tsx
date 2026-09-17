@@ -9,7 +9,7 @@ import { requireRole } from '@/lib/lms/auth';
 import { courseVisibleTo } from '@/lib/lms/courses';
 import { examBoard, getExam, type BoardRow } from '@/lib/lms/exams';
 import { photoReadsOf, type PhotoReadRow } from '@/lib/lms/photo-read';
-import { readViewOf } from '@/lib/lms/photo-read-state';
+import { readProgressOf } from '@/lib/lms/photo-read-state';
 import { publishExamGrades, removeExam, startGrading, updateExam } from '../../course-actions';
 
 export const dynamic = 'force-dynamic';
@@ -288,8 +288,9 @@ function StudentLine({
 }) {
   const { attempt, score, submission } = row;
   const auto = attempt?.answers_source === 'photo';
-  // 반 화면에서는 사진이 바뀌었는지까지 보지 않는다 — 읽은 사진 그대로를 지금 사진으로 둔다.
-  const readKind = read ? readViewOf(read, read.photo_ids).kind : 'none';
+  // 반 화면은 읽은 결과를 펴 보지 않는다. 어디까지 왔는지만 — 사진 장수로 안다.
+  // (읽은 결과의 photo_ids 를 넘기면 아직 한 번도 안 끝난 읽기가 다 '시작 전' 이 된다.)
+  const readKind = readProgressOf(read, submission.photos);
 
   const gradeState = !attempt || score.graded === 0
     ? readKind === 'reading'
