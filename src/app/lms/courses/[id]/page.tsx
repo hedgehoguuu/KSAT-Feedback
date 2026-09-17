@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { AreaBars, markWeak } from '@/components/lms/AreaBars';
 import { ConfirmSubmit } from '@/components/lms/ConfirmSubmit';
+import { RateBars, classBarsOf } from '@/components/lms/RateBars';
 import { Card, Empty, Shell, Stat, btn, btnGhost, input, label } from '@/components/lms/Shell';
-import { ELECTIVES, LMS, PUBLISH_STATUS, fmtRate, fmtScore } from '@/config/lms';
+import { EXAM_STATUS, LMS, fmtDay, fmtRate, fmtScore } from '@/config/lms';
 import { requireRole } from '@/lib/lms/auth';
 import { courseVisibleTo } from '@/lib/lms/courses';
 import { courseSummary } from '@/lib/lms/exams';
@@ -24,20 +24,9 @@ export default async function CoursePage({ params, searchParams }: PageProps<'/l
   const enrolledIds = new Set(summary.rows.map((r) => r.student.id));
   const candidates = allStudents.filter((s) => !enrolledIds.has(s.id) && s.status === 'active');
 
-  // 반 누적 영역 평균. 어느 영역이 반 전체의 약점인지가 다음 수업의 재료다.
-  const classBars = markWeak(
-    [...summary.areaAverages.entries()].map(([code, rate]) => {
-      const sample = summary.rows.flatMap((r) => r.areas).filter((a) => a.code === code);
-      return {
-        code,
-        label: sample[0]?.label ?? code,
-        rate,
-        correct: sample.reduce((s, a) => s + a.correct, 0),
-        graded: sample.reduce((s, a) => s + a.graded, 0),
-        count: sample.reduce((s, a) => s + a.count, 0),
-      };
-    }),
-  );
+  // 반 누적 정답률. 어느 단원 · 어느 배점이 반 전체의 약점인지가 다음 수업의 재료다.
+  const unitBars = classBarsOf(summary.rows.map((r) => r.trends.units), summary.partAverages).sort((a, b) => a.rate - b.rate);
+  const pointBars = classBarsOf(summary.rows.map((r) => r.trends.byPoints), summary.partAverages);
 
   return (
     <Shell user={me}>
@@ -86,20 +75,27 @@ export default async function CoursePage({ params, searchParams }: PageProps<'/l
             <input type="hidden" name="course_id" value={course.id} />
             <div className="min-w-52 flex-1">
               <label className={label} htmlFor="title">회차 이름</label>
-              <input id="title" name="title" required placeholder="1주차 · 이감 파이널 3회" className={input} />
+              <input id="title" name="title" required placeholder="3주차 · 강대K 5회" className={input} />
             </div>
             <div>
               <label className={label} htmlFor="exam_date">시험 날짜</label>
               <input id="exam_date" name="exam_date" type="date" className={input} />
+            </div>
+            <div>
+              <label className={label} htmlFor="due_date">답 달 기한 (다음 수업)</label>
+              <input id="due_date" name="due_date" type="date" className={input} />
             </div>
             <button type="submit" className={btn}>회차 만들기</button>
             {error === 'title' ? (
               <p className="text-[13px] text-danger" role="alert">회차 이름을 적어주세요</p>
             ) : null}
           </form>
+          <p className="-mt-2 mb-4 text-[12px] text-muted">
+            답 달 기한을 비우면 시험 날짜 + {LMS.replyDays}일로 잡아요. 학생 화면에 &lsquo;이 날 수업 전까지 답을 받아요&rsquo; 로 보여요.
+          </p>
 
           {summary.exams.length === 0 ? (
-            <Empty>아직 회차가 없어요. 위에서 하나 만들면 문항표부터 만들게 돼요.</Empty>
+            <Empty>아직 회차가 없어요. 위에서 하나 만들면 정답표부터 넣게 돼요.</Empty>
           ) : (
             <ul className="glass-divide flex flex-col">
               {summary.exams.map((exam) => (
@@ -110,11 +106,14 @@ export default async function CoursePage({ params, searchParams }: PageProps<'/l
                         {exam.title}
                         {exam.status === 'draft' ? (
                           <span className="ml-2 rounded-md bg-surface px-1.5 py-0.5 text-[11px] font-bold text-muted">
-                            {PUBLISH_STATUS.draft}
+                            {EXAM_STATUS.draft}
                           </span>
                         ) : null}
                       </p>
-                      <p className="mt-0.5 text-[13px] text-muted">{exam.exam_date ?? '날짜 미정'}</p>
+                      <p className="mt-0.5 text-[13px] text-muted">
+                        {exam.exam_date ? `${fmtDay(exam.exam_date)} 시험` : '날짜 미정'}
+                        {exam.due_date ? ` · 답 달 기한 ${fmtDay(exam.due_date)}` : ''}
+                      </p>
                     </div>
                     <span className="text-[13px] font-bold text-brand">열기 →</span>
                   </Link>
@@ -135,32 +134,31 @@ export default async function CoursePage({ params, searchParams }: PageProps<'/l
                   <tr>
                     <th className="w-12">석차</th>
                     <th>이름</th>
-                    <th>선택</th>
                     <th className="num">평균</th>
                     <th className="num">최근</th>
                     <th className="num">반 평균 대비</th>
                     <th className="num">회차</th>
-                    <th>약한 영역</th>
+                    <th className="num">4점 정답률</th>
+                    <th>약한 단원</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
                   {summary.rows.map((row) => {
-                    const weakest = row.areas.filter((a) => a.graded > 0).slice(0, 2);
+                    const weakest = row.trends.units.slice(0, 2);
+                    const four = row.trends.byPoints.find((t) => t.code === 'p4');
                     const diff = row.taken > 0 ? row.average - summary.average : null;
                     return (
                       <tr key={row.student.id}>
                         <td className="font-bold">{row.rank || '—'}</td>
                         <td className="font-bold">{row.student.name}</td>
-                        <td className="text-muted">
-                          {row.student.profile?.elective ? ELECTIVES[row.student.profile.elective] : '—'}
-                        </td>
                         <td className="num font-bold">{row.taken ? fmtScore(row.average) : '—'}</td>
                         <td className="num">{row.latest !== null ? fmtScore(row.latest) : '—'}</td>
                         <td className={`num ${diff !== null && diff < 0 ? 'text-mark' : 'text-muted'}`}>
                           {diff === null ? '—' : `${diff >= 0 ? '+' : ''}${fmtScore(diff)}`}
                         </td>
                         <td className="num text-muted">{row.taken}</td>
+                        <td className="num text-muted">{four ? fmtRate(four.rate) : '—'}</td>
                         <td className="text-muted">
                           {weakest.length
                             ? weakest.map((a) => `${a.label} ${fmtRate(a.rate)}`).join(' · ')
@@ -184,17 +182,29 @@ export default async function CoursePage({ params, searchParams }: PageProps<'/l
             </div>
           )}
           <p className="mt-3 text-[13px] leading-[1.6] text-muted">
-            평균은 100점 환산이에요 — 회차마다 문항 수와 배점 합이 달라서, 원점수를 그대로 평균 내면
-            쉬웠던 회차를 많이 본 학생이 잘한 것처럼 보여요.
+            채점이 끝난 회차만 평균에 들어가요. 약한 단원은 정답표에 단원을 붙인 문항으로만 세요.
           </p>
         </Card>
 
         {/* ── 반의 약점 */}
-        {classBars.length > 0 ? (
-          <Card title="반 전체 영역별 정답률">
-            <AreaBars rows={classBars} referenceLabel="" />
+        {pointBars.length > 0 ? (
+          <Card title="반 전체 누적 정답률">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div>
+                <p className="mb-2 text-[12px] font-extrabold text-muted">배점별</p>
+                <RateBars rows={pointBars} labelWidth="w-10" referenceLabel="" />
+              </div>
+              <div>
+                <p className="mb-2 text-[12px] font-extrabold text-muted">단원별 · 약한 순</p>
+                {unitBars.length > 0 ? (
+                  <RateBars rows={unitBars} referenceLabel="" />
+                ) : (
+                  <p className="text-[13px] leading-[1.6] text-muted">정답표에 단원을 붙인 회차가 쌓이면 여기에 나와요.</p>
+                )}
+              </div>
+            </div>
             <p className="mt-3 text-[13px] leading-[1.6] text-muted">
-              누적된 모든 회차를 합쳐서 봐요. 여기서 낮은 영역이 다음 수업에서 다룰 것이에요.
+              누적된 모든 회차를 합쳐서 봐요. 여기서 낮은 칸이 다음 수업에서 다룰 것이에요.
             </p>
           </Card>
         ) : null}

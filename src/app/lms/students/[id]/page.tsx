@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation';
 import { IntakeCard } from '@/components/lms/IntakeCard';
 import { Shell } from '@/components/lms/Shell';
 import { StudentReport } from '@/components/lms/StudentReport';
-import { ELECTIVES } from '@/config/lms';
 import { requireRole } from '@/lib/lms/auth';
 import { coursesOfStudent, courseVisibleTo } from '@/lib/lms/courses';
 import { courseSummary, studentHistory } from '@/lib/lms/exams';
@@ -29,7 +28,7 @@ export default async function StudentDetailPage({ params, searchParams }: PagePr
   /**
    * 어느 반의 눈으로 볼 것인가.
    *
-   * 학생이 두 반에 있을 수 있다(국어 반 + 특강). 그때 아무 반이나 골라 '반 평균' 을 그리면
+   * 학생이 두 반에 있을 수 있다(정규반 + 특강). 그때 아무 반이나 골라 '반 평균' 을 그리면
    * 엉뚱한 반의 평균이 기준선이 된다 — 튜터는 자기 반 평균인 줄 알고 읽는다.
    * 그래서 어느 반에서 눌러 들어왔는지를 주소로 받고, 없거나 내 반이 아니면 첫 반으로 둔다.
    */
@@ -60,13 +59,13 @@ export default async function StudentDetailPage({ params, searchParams }: PagePr
         {student.name}
         <span className="ml-2 text-[14px] font-bold text-muted">
           {student.profile?.grade ? `고${student.profile.grade}` : '학년 미정'}
-          {student.profile?.elective ? ` · ${ELECTIVES[student.profile.elective]}` : ''}
           {student.profile?.school ? ` · ${student.profile.school}` : ''}
         </span>
       </h1>
-      {student.profile?.receipt_no ? (
-        <p className="mt-1 text-[13px] text-muted">시험지 피드백 접수번호 {student.profile.receipt_no}</p>
-      ) : null}
+      <p className="mt-1 text-[13px] text-muted">
+        {student.email ? `메일 ${student.email}` : '메일 주소 없음 — 답변 PDF 가 메일로 안 가요'}
+        {student.profile?.receipt_no ? ` · 시험지 피드백 접수번호 ${student.profile.receipt_no}` : ''}
+      </p>
 
       <p className="mt-1 text-[13px] text-muted">
         아직 공개하지 않은 회차도 여기서는 보여요. 학생에게는 공개한 것만 보입니다.
@@ -82,8 +81,8 @@ export default async function StudentDetailPage({ params, searchParams }: PagePr
       <div className="mt-5">
         <StudentReport
           history={history}
-          hrefFor={(attemptId) => `/lms/attempts/${attemptId}`}
-          classAverages={summary.areaAverages}
+          hrefFor={(p) => `/lms/attempts/${p.attempt.id}`}
+          classAverages={summary.partAverages}
           referenceLabel={`${context.name} 평균`}
         />
       </div>

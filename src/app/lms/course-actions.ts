@@ -2,25 +2,41 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { isAreaCode, isElective, isPublishStatus, LMS, passwordProblem, type Elective } from '@/config/lms';
+import {
+  CONCERN,
+  LMS,
+  PAPER,
+  addDays,
+  isPublishStatus,
+  parseAnswer,
+  passwordProblem,
+  unitFits,
+} from '@/config/lms';
 import { assertRole, type SessionUser } from '@/lib/lms/auth';
-import { readQuestionTable, type OcrResult } from '@/lib/lms/ocr';
-import { resetPassword } from '@/lib/lms/users';
 import { courseVisibleTo, enroll, isEnrolled, studentVisibleTo, unenroll, type CourseRow } from '@/lib/lms/courses';
 import {
-  copyQuestionTable,
-  defaultQuestionRows,
   deleteExam,
+  getAttempt,
   getExam,
   listQuestions,
   openAttempt,
-  replaceQuestions,
   publishGradedAttempts,
+  saveAnswerKey,
   saveExam,
   saveGrading,
-  getAttempt,
-  type QuestionInput,
+  type AttemptRow,
+  type ExamRow,
 } from '@/lib/lms/exams';
+import {
+  clearAnswerImage,
+  listConcerns,
+  saveConcernAnswers,
+  sendFeedback,
+  setAnswerImage,
+} from '@/lib/lms/feedback';
+import { readAnswerKey, type OcrResult } from '@/lib/lms/ocr';
+import { readJpeg } from '@/lib/lms/upload';
+import { resetPassword } from '@/lib/lms/users';
 
 /**
  * 반을 가르치는 쪽의 쓰기 전부. 튜터와 관리자가 함께 쓴다.
@@ -38,6 +54,12 @@ function optional(form: FormData, key: string): string | null {
   return v.length > 0 ? v : null;
 }
 
+/** YYYY-MM-DD 만 받는다. 브라우저 date 칸은 이 모양을 보내지만 손으로 바꾼 요청은 아닐 수 있다. */
+function dateOf(form: FormData, key: string): string | null {
+  const v = text(form, key);
+  return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+}
+
 async function assertCourse(courseId: string): Promise<{ user: SessionUser; course: CourseRow }> {
   const user = await assertRole('admin', 'tutor');
   const course = await courseVisibleTo(courseId, user);
@@ -45,14 +67,22 @@ async function assertCourse(courseId: string): Promise<{ user: SessionUser; cour
   return { user, course };
 }
 
-/** 회차를 통해 반을 찾아 확인한다. 문항표·채점이 전부 이 문을 지나간다. */
-async function assertExam(examId: string) {
+/** 회차를 통해 반을 찾아 확인한다. 정답표·채점이 전부 이 문을 지나간다. */
+async function assertExam(examId: string): Promise<{ user: SessionUser; exam: ExamRow; course: CourseRow }> {
   const user = await assertRole('admin', 'tutor');
   const exam = await getExam(examId);
   if (!exam) redirect('/lms/tutor');
   const course = await courseVisibleTo(exam.course_id, user);
   if (!course) redirect('/lms/tutor');
   return { user, exam, course };
+}
+
+/** 응시를 통해 반을 찾아 확인한다. 질문 답변이 전부 이 문을 지나간다. */
+async function assertAttempt(attemptId: string): Promise<{ attempt: AttemptRow; exam: ExamRow; course: CourseRow }> {
+  const attempt = attemptId ? await getAttempt(attemptId) : null;
+  if (!attempt) redirect('/lms/tutor');
+  const { exam, course } = await assertExam(attempt.exam_id);
+  return { attempt, exam, course };
 }
 
 /* ────────────────────────────────────────────────────────── 수강생 */
@@ -90,15 +120,15 @@ export async function createExam(formData: FormData): Promise<void> {
   const title = text(formData, 'title');
   if (!title) redirect(`/lms/courses/${courseId}?error=title`);
 
+  const examDate = dateOf(formData, 'exam_date');
   const examId = await saveExam({
     course_id: courseId,
     title,
-    exam_date: optional(formData, 'exam_date'),
+    exam_date: examDate,
+    // 비워 두면 시험 날 + 7일. 수업이 주 1회라 다음 수업 날이다.
+    due_date: dateOf(formData, 'due_date') ?? (examDate ? addDays(examDate, LMS.replyDays) : null),
     status: 'draft',
   });
-
-  // 45줄을 손으로 채우게 두지 않는다. 통상 배치를 미리 깔고 고칠 것만 고치게 한다.
-  await replaceQuestions(examId, defaultQuestionRows(LMS.defaultQuestionCount));
 
   revalidatePath(`/lms/courses/${courseId}`);
   redirect(`/lms/exams/${examId}/questions?new=1`);
@@ -113,7 +143,8 @@ export async function updateExam(formData: FormData): Promise<void> {
     id: examId,
     course_id: exam.course_id,
     title: text(formData, 'title') || exam.title,
-    exam_date: optional(formData, 'exam_date'),
+    exam_date: dateOf(formData, 'exam_date'),
+    due_date: dateOf(formData, 'due_date'),
     status: isPublishStatus(status) ? status : exam.status,
   });
 
@@ -130,66 +161,53 @@ export async function removeExam(formData: FormData): Promise<void> {
   redirect(`/lms/courses/${exam.course_id}`);
 }
 
-/* ────────────────────────────────────────────────────────── 문항표 */
+/* ────────────────────────────────────────────────────────── 정답표 */
 
 /**
- * 문항표 저장.
+ * 정답표 저장. 칸 이름은 `answer_{번호}` · `unit_{번호}` 다 — 번호가 곧 문항이라 줄이 밀릴 일이 없다.
  *
- * 칸 이름에 번호를 붙이지 않고 같은 이름을 반복해서 쓴다 — FormData.getAll() 이
- * 문서에 놓인 순서를 그대로 지키기 때문에, 줄을 중간에 넣거나 지워도 번호가 꼬이지 않는다.
+ * 적어 둔 값이 그 번호에 올 수 없는 답이면(5지선다에 7) 저장하지 않고 돌려보낸다.
+ * 그 칸만 빼고 저장하면 튜터는 저장된 줄 알고, 그 문항은 '정답 없음' 으로 채점에서 헛돈다.
  */
-export async function saveQuestionTable(formData: FormData): Promise<void> {
+export async function saveAnswerKeyForm(formData: FormData): Promise<void> {
   const examId = text(formData, 'exam_id');
   await assertExam(examId);
 
-  const nos = formData.getAll('no').map((v) => Number(String(v)));
-  const areas = formData.getAll('area_code').map((v) => String(v));
-  const points = formData.getAll('points').map((v) => Number(String(v)));
-  const answers = formData.getAll('answer').map((v) => String(v).trim());
-  const passages = formData.getAll('passage').map((v) => String(v).trim());
+  const bad: number[] = [];
+  const key = PAPER.map((q) => {
+    const raw = text(formData, `answer_${q.no}`);
+    const answer = parseAnswer(q.no, raw);
+    if (raw && answer === null) bad.push(q.no);
+    const unit = text(formData, `unit_${q.no}`);
+    return { no: q.no, answer, unit_code: unitFits(q.no, unit) ? unit : null };
+  });
+  if (bad.length > 0) redirect(`/lms/exams/${examId}/questions?error=answer&nos=${bad.join(',')}`);
 
-  const rows: QuestionInput[] = [];
-  const seen = new Set<string>();
-  // 선택과목 두 벌 때문에 줄 수가 문항 수보다 많다. 상한도 그만큼 넉넉히 본다.
-  const limit = LMS.maxQuestionCount * 2;
-  for (let i = 0; i < nos.length && i < limit; i += 1) {
-    const no = nos[i];
-    if (!Number.isInteger(no) || no < 1 || no > LMS.maxQuestionCount) continue;
-    if (!isAreaCode(areas[i] ?? '')) continue;
-
-    /**
-     * 같은 번호라도 영역이 다르면 다른 문항이다 — 35번 화작과 35번 언매는 함께 있어야 한다.
-     * 번호와 영역이 둘 다 같은 줄만 실수로 보고 먼저 적힌 것을 남긴다.
-     */
-    const key = `${no}|${areas[i]}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-
-    const answer = Number(answers[i]);
-    rows.push({
-      no,
-      area_code: areas[i],
-      points: Number.isFinite(points[i]) && points[i] >= 0 ? points[i] : 0,
-      answer: Number.isInteger(answer) && answer >= 1 && answer <= 5 ? answer : null,
-      passage: passages[i] || null,
-    });
-  }
-
-  await replaceQuestions(examId, rows);
+  const regraded = await saveAnswerKey(examId, key);
   revalidatePath(`/lms/exams/${examId}`);
-  redirect(`/lms/exams/${examId}/questions?saved=1`);
+  redirect(`/lms/exams/${examId}/questions?saved=1&regraded=${regraded}`);
 }
 
-export async function reseedQuestionTable(formData: FormData): Promise<void> {
+/**
+ * 정답표 사진을 읽어 초안을 돌려준다. **저장하지 않는다** — 칸에 채워 넣기만 하고,
+ * 튜터가 눈으로 보고 저장을 눌러야 DB 로 간다. 사진도 서버에 남기지 않는다.
+ */
+export async function extractAnswerKey(formData: FormData): Promise<OcrResult> {
   const examId = text(formData, 'exam_id');
   await assertExam(examId);
 
-  const count = Math.min(Math.max(Number(text(formData, 'count')) || LMS.defaultQuestionCount, 1), LMS.maxQuestionCount);
-  // 반에 화작·언매가 섞여 있으면 둘 다 고른다. 하나도 안 고르면 공통만 깐다.
-  const electives = formData.getAll('elective').map(String).filter(isElective);
+  const files = formData.getAll('photo').filter((f): f is File => f instanceof File && f.size > 0);
+  if (files.length === 0) return { ok: false, reason: 'NO_IMAGE' };
 
-  await replaceQuestions(examId, defaultQuestionRows(count, electives));
-  redirect(`/lms/exams/${examId}/questions?seeded=1`);
+  // 한 번에 너무 많이 보내면 느리기만 하고 정확해지지 않는다. 정답표는 대개 한두 장이다.
+  const images = await Promise.all(
+    files.slice(0, 4).map(async (file) => ({
+      media_type: file.type || 'image/jpeg',
+      data: Buffer.from(await file.arrayBuffer()).toString('base64'),
+    })),
+  );
+
+  return readAnswerKey(images);
 }
 
 /* ────────────────────────────────────────────────────────────── 채점 */
@@ -207,88 +225,42 @@ export async function startGrading(formData: FormData): Promise<void> {
   if (!studentId || !(await isEnrolled(course.id, studentId))) redirect(`/lms/exams/${examId}`);
 
   const attempt = await openAttempt(examId, studentId);
-  redirect(`/lms/attempts/${attempt.id}`);
+  const to = text(formData, 'to') === 'feedback' ? `/lms/attempts/${attempt.id}/feedback` : `/lms/attempts/${attempt.id}`;
+  redirect(to);
 }
 
 export async function submitGrading(formData: FormData): Promise<void> {
-  const attemptId = text(formData, 'attempt_id');
-  const attempt = await getAttempt(attemptId);
-  if (!attempt) redirect('/lms/tutor');
-  await assertExam(attempt.exam_id);
-
+  const { attempt } = await assertAttempt(text(formData, 'attempt_id'));
   const questions = await listQuestions(attempt.exam_id);
 
   /**
-   * O 도 X 도 안 고른 문항은 행을 만들지 않는다. '틀림' 과 '아직 안 매김' 은 다르다 —
-   * 섞으면 채점을 하다 만 회차가 0점으로 보인다.
+   * 문항마다 O/X 와 학생이 적은 답을 받는다.
+   *
+   * O/X 를 안 골랐어도 학생 답이 있고 정답이 있으면 그 둘로 매긴다 — 화면도 그렇게 보여 준다.
+   * 둘 다 없으면 행을 만들지 않는다. '틀림' 과 '아직 안 매김' 은 다르다 — 섞으면
+   * 채점을 하다 만 회차가 0점으로 보인다.
    */
   const answers = questions
     .map((q) => {
-      const mark = String(formData.get(`mark_${q.id}`) ?? '');
-      if (mark !== 'o' && mark !== 'x') return null;
-      const chosen = Number(String(formData.get(`chosen_${q.id}`) ?? ''));
-      return {
-        question_id: q.id,
-        correct: mark === 'o',
-        chosen: Number.isInteger(chosen) && chosen >= 1 && chosen <= 5 ? chosen : null,
-      };
+      const chosen = parseAnswer(q.no, text(formData, `chosen_${q.id}`));
+      const mark = text(formData, `mark_${q.id}`);
+      const correct =
+        mark === 'o' ? true : mark === 'x' ? false : chosen !== null && q.answer !== null ? chosen === q.answer : null;
+      return correct === null ? null : { question_id: q.id, correct, chosen };
     })
     .filter((a): a is NonNullable<typeof a> => a !== null);
 
-  const areaComments = [...new Set(questions.map((q) => q.area_code))].map((area_code) => ({
-    area_code,
-    comment: String(formData.get(`comment_${area_code}`) ?? ''),
-  }));
-
   const status = text(formData, 'status');
-  const elective = text(formData, 'elective');
-
   await saveGrading({
-    attemptId,
-    elective: isElective(elective) ? (elective as Elective) : null,
+    attemptId: attempt.id,
     answers,
-    areaComments,
     overallComment: optional(formData, 'overall_comment'),
     status: isPublishStatus(status) ? status : 'draft',
   });
 
   revalidatePath(`/lms/exams/${attempt.exam_id}`);
-  redirect(`/lms/attempts/${attemptId}?saved=1`);
+  redirect(`/lms/attempts/${attempt.id}?saved=1`);
 }
-
-/* ────────────────────────────────────────────────── 문항표 사진에서 읽기 */
-
-/**
- * 시험지 정답표·배점표 사진을 읽어 문항표 초안을 돌려준다. **저장하지 않는다** —
- * 편집기에 채워 넣기만 하고, 튜터가 눈으로 보고 저장을 눌러야 DB 로 간다.
- * 잘못 읽은 값이 조용히 저장되는 것이 이 기능에서 가장 나쁜 일이다.
- *
- * 사진은 서버에 남기지 않는다. 읽고 나면 그대로 버린다.
- */
-export async function extractQuestionTable(formData: FormData): Promise<OcrResult> {
-  const examId = text(formData, 'exam_id');
-  await assertExam(examId);
-
-  const count = Math.min(
-    Math.max(Number(text(formData, 'count')) || LMS.defaultQuestionCount, 1),
-    LMS.maxQuestionCount,
-  );
-
-  const files = formData.getAll('photo').filter((f): f is File => f instanceof File && f.size > 0);
-  if (files.length === 0) return { ok: false, reason: 'NO_IMAGE' };
-
-  // 한 번에 너무 많이 보내면 느리기만 하고 정확해지지 않는다. 정답표는 대개 한두 장이다.
-  const images = await Promise.all(
-    files.slice(0, 4).map(async (file) => ({
-      media_type: file.type || 'image/jpeg',
-      data: Buffer.from(await file.arrayBuffer()).toString('base64'),
-    })),
-  );
-
-  return readQuestionTable(images, count);
-}
-
-/* ─────────────────────────────────────────────── 되풀이를 줄여 주는 것들 */
 
 /** 채점이 끝난 학생을 한 번에 공개한다. 매기다 만 응시는 건드리지 않는다. */
 export async function publishExamGrades(formData: FormData): Promise<void> {
@@ -301,22 +273,69 @@ export async function publishExamGrades(formData: FormData): Promise<void> {
   redirect(`/lms/exams/${examId}?published=${published}&skipped=${skipped}`);
 }
 
-/** 다른 회차의 문항표를 그대로 가져온다. 정답은 빼고 온다. */
-export async function copyQuestionsFrom(formData: FormData): Promise<void> {
-  const examId = text(formData, 'exam_id');
-  const { course } = await assertExam(examId);
+/* ──────────────────────────────────────────────────────── 질문에 답하기 */
 
-  const fromId = text(formData, 'from_exam_id');
-  if (!fromId || fromId === examId) redirect(`/lms/exams/${examId}/questions`);
+/**
+ * 답을 저장한다. `intent=send` 면 저장한 다음 답변 PDF 를 만들어 보낸다.
+ *
+ * 저장과 보내기를 한 번에 하는 이유: 마지막 답을 쓰고 '보내기' 만 누르면 그 답이 저장되기
+ * 전의 상태로 PDF 가 나간다. 튜터는 방금 쓴 답이 들어갔다고 믿는다.
+ */
+export async function saveFeedbackAnswers(formData: FormData): Promise<void> {
+  const { attempt } = await assertAttempt(text(formData, 'attempt_id'));
+  const base = `/lms/attempts/${attempt.id}/feedback`;
 
-  // 가져오는 쪽도 같은 반이어야 한다. 남의 반 문항표를 id 로 끌어오지 못하게.
-  const source = await getExam(fromId);
-  if (!source || source.course_id !== course.id) redirect(`/lms/exams/${examId}/questions`);
+  const concerns = await listConcerns(attempt.id);
+  const answers = concerns
+    .filter((c) => formData.has(`answer_${c.id}`))
+    .map((c) => ({ id: c.id, answer: String(formData.get(`answer_${c.id}`) ?? '').replace(/\r\n?/g, '\n').trim() }));
 
-  const copied = await copyQuestionTable(fromId, examId);
-  revalidatePath(`/lms/exams/${examId}`);
-  redirect(`/lms/exams/${examId}/questions?copied=${copied}`);
+  if (answers.some((a) => Array.from(a.answer).length > CONCERN.maxAnswer)) redirect(`${base}?error=long`);
+  if (answers.length > 0) await saveConcernAnswers(attempt.id, answers);
+
+  revalidatePath(base);
+  revalidatePath(`/lms/exams/${attempt.exam_id}`);
+  if (text(formData, 'intent') !== 'send') redirect(`${base}?saved=1`);
+
+  const outcome = await sendFeedback(attempt.id);
+  if (!outcome.ok) {
+    const missing = outcome.missing?.length ? `&missing=${outcome.missing.join(',')}` : '';
+    redirect(`${base}?error=${outcome.reason}${missing}`);
+  }
+
+  revalidatePath('/lms/tutor');
+  redirect(`${base}?sent=1&mail=${outcome.mail.status}${outcome.published ? '&published=1' : ''}`);
 }
+
+export type UploadResult = { ok: true } | { ok: false; reason: string };
+
+/** 손으로 쓴 풀이 사진을 붙인다. 브라우저가 줄여서 한 장씩 보낸다. */
+export async function uploadAnswerImage(formData: FormData): Promise<UploadResult> {
+  const { attempt } = await assertAttempt(text(formData, 'attempt_id'));
+
+  const image = await readJpeg(formData.get('photo'));
+  if (!image.ok) return image;
+
+  const done = await setAnswerImage(attempt.id, text(formData, 'concern_id'), image.bytes);
+  if (done === 'NOT_FOUND') return { ok: false, reason: 'NOT_FOUND' };
+
+  revalidatePath(`/lms/attempts/${attempt.id}/feedback`);
+  return { ok: true };
+}
+
+/**
+ * 풀이 사진을 뗀다. 폼 제출로 하지 않는다 — 그러면 옆 칸에 쓰던 답이 저장 없이 날아간다.
+ * 브라우저 부품이 불러서 그 자리만 고친다.
+ */
+export async function removeAnswerImage(formData: FormData): Promise<UploadResult> {
+  const { attempt } = await assertAttempt(text(formData, 'attempt_id'));
+  await clearAnswerImage(attempt.id, text(formData, 'concern_id'));
+
+  revalidatePath(`/lms/attempts/${attempt.id}/feedback`);
+  return { ok: true };
+}
+
+/* ─────────────────────────────────────────────── 되풀이를 줄여 주는 것들 */
 
 /**
  * 튜터가 자기 반 학생의 비밀번호를 새로 발급한다.

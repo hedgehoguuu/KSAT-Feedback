@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { AccountForm } from '@/components/lms/AccountForm';
 import { Card, Empty, Shell } from '@/components/lms/Shell';
-import { ELECTIVES, LMS, ROLES, USER_STATUS, type Role } from '@/config/lms';
+import { LMS, ROLES, USER_STATUS, type Role } from '@/config/lms';
 import { requireRole } from '@/lib/lms/auth';
 import { listStudents, listUsers, type StudentRow } from '@/lib/lms/users';
 import { createAccount } from './actions';
@@ -22,7 +22,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<'/lms/a
   const me = await requireRole('admin');
   const { error, made, changed } = await searchParams;
 
-  // 학생은 학년·선택과목까지 한 줄에 보여야 해서 프로필까지 함께 읽는다.
+  // 학생은 학년·학교까지 한 줄에 보여야 해서 프로필까지 함께 읽는다.
   const [students, admins, tutors] = await Promise.all([
     listStudents(),
     listUsers('admin'),
@@ -71,7 +71,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<'/lms/a
                     <tr>
                       <th>이름</th>
                       <th>아이디</th>
-                      {role === 'student' ? <th>학년 · 선택</th> : null}
+                      {role === 'student' ? <th>학년 · 학교</th> : null}
                       {role === 'student' ? <th>접수번호</th> : null}
                       <th>연락처</th>
                       <th>상태</th>
@@ -88,13 +88,19 @@ export default async function AdminUsersPage({ searchParams }: PageProps<'/lms/a
                           {role === 'student' ? (
                             <td className="text-muted">
                               {profile?.grade ? `고${profile.grade}` : '—'}
-                              {profile?.elective ? ` · ${ELECTIVES[profile.elective]}` : ''}
+                              {profile?.school ? ` · ${profile.school}` : ''}
                             </td>
                           ) : null}
                           {role === 'student' ? (
                             <td className="text-muted">{profile?.receipt_no ?? '—'}</td>
                           ) : null}
-                          <td className="text-muted">{u.phone ?? '—'}</td>
+                          <td className="text-muted">
+                            {u.phone ?? '—'}
+                            {/* 학생 메일이 없으면 답변 PDF 가 메일로 못 간다. 여기서 먼저 보이게 한다. */}
+                            {role === 'student' && !u.email ? (
+                              <span className="ml-1 text-[12px] font-bold text-mark">· 메일 없음</span>
+                            ) : null}
+                          </td>
                           <td className={u.status === 'active' ? 'text-muted' : 'font-bold text-danger'}>
                             {USER_STATUS[u.status]}
                             {u.must_change_password ? (

@@ -35,7 +35,7 @@ export default async function LmsLogin({ searchParams }: PageProps<'/lms/login'>
 
       <h1 className="text-[24px] font-bold leading-[1.35]">성적 관리</h1>
       <p className="mt-2 text-[14px] leading-[1.6] text-muted">
-        수업에서 본 시험의 점수와 피드백을 보는 곳이에요.
+        수학 실전 모의고사의 점수를 보고, 시험 뒤에 질문을 올려 답을 받는 곳이에요.
       </p>
 
       {created ? (

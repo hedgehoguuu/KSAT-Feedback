@@ -1,73 +1,66 @@
-import { AREAS, LMS, layoutAreaFor } from '@/config/lms';
+import { PAPER, isQuestionNo, isValidAnswer, unitFits } from '@/config/lms';
 
 /**
  * 모델이 준 것을 우리 표 모양으로 다듬는 부분.
  *
  * 실제로 부르는 쪽(ocr.ts)과 떼어 뒀다. 거기는 API 키가 있어야 돌지만 여기는 순수 계산이라,
  * 키 없이도 그대로 불러 확인할 수 있다. 그리고 여기가 진짜 방어선이다 —
- * 구조화 출력이 보장하는 것은 키와 자료형까지고, 값이 목록 안에 있는지는 여기서 본다.
+ * 구조화 출력이 보장하는 것은 키와 자료형까지고, 값이 범위 안에 있는지는 여기서 본다.
  */
 
 export type OcrRow = {
   no: number;
-  area_code: string;
-  points: number;
   answer: number | null;
-  passage: string | null;
-  /** 영역을 사진에서 못 읽어 통상 배치로 채운 줄. 화면이 이걸 표시한다. */
-  areaGuessed: boolean;
+  /** 사진에 단원이 보였을 때만. 번호에 맞지 않는 단원(공통 문항에 미적분 단원)은 버린다. */
+  unit_code: string | null;
 };
 
 export type OcrResult =
-  | { ok: true; rows: OcrRow[]; note: string; guessedCount: number }
+  | {
+      ok: true;
+      rows: OcrRow[];
+      note: string;
+      /** 정답을 못 읽은 번호. 화면이 이 번호들을 따로 짚어 준다. */
+      unread: number[];
+      /** 같은 번호에 서로 다른 답이 온 번호. 어느 쪽도 믿지 않고 비웠다. */
+      conflicts: number[];
+    }
   | { ok: false; reason: string };
 
+type Extracted = { no: number; answer: number | null; unit_code: string | null };
+
 /**
- * 모델이 준 것을 우리 표 모양으로 다듬는다.
+ * 모델이 준 것을 거른다.
  *
- * API 호출과 떼어 둔 이유: 여기가 실제로 틀릴 수 있는 곳이다. 범위 밖 번호, 못 읽은 영역,
- * 같은 문항이 두 번 온 경우 — 모델이 무엇을 주든 이 함수를 지나면 저장할 수 있는 모양이어야 한다.
- * 떼어 두면 키 없이도 확인할 수 있다.
+ *   · 1–30 이 아닌 번호는 버린다.
+ *   · 5지선다에 6, 단답형에 1000 처럼 그 번호에 올 수 없는 답은 비운다.
+ *   · 같은 번호가 두 번 오면 — 답이 같으면 하나로, 다르면 **비운다**. 둘 중 하나를 고르면
+ *     틀린 쪽을 고른 날 조용히 틀린 채점이 된다. 비워 두면 최소한 빈 칸이 보인다.
  */
-export function normalizeExtracted(
-  questions: {
-    no: number;
-    area_code: string | null;
-    points: number | null;
-    answer: number | null;
-    passage: string | null;
-  }[],
-): OcrRow[] {
-  const rows: OcrRow[] = [];
-  const seen = new Set<string>();
+export function normalizeExtracted(questions: Extracted[]): {
+  rows: OcrRow[];
+  unread: number[];
+  conflicts: number[];
+} {
+  const byNo = new Map<number, OcrRow>();
+  const conflicts = new Set<number>();
 
   for (const q of questions) {
-    if (!Number.isInteger(q.no) || q.no < 1 || q.no > LMS.maxQuestionCount) continue;
+    if (!isQuestionNo(q.no)) continue;
+    const answer = isValidAnswer(q.no, q.answer) ? q.answer : null;
+    const unit_code = unitFits(q.no, q.unit_code) ? q.unit_code : null;
 
-    // 모델이 목록에 없는 코드를 지어낼 수도 있다. 그때도 못 읽은 것으로 친다.
-    const known = q.area_code && AREAS.some((a) => a.code === q.area_code) ? q.area_code : null;
-    // 못 읽은 영역은 통상 배치로 메운다. 메웠다는 사실을 줄마다 들고 간다.
-    const areaGuessed = !known;
-    const area_code = known ?? layoutAreaFor(q.no) ?? AREAS[0].code;
-
-    // 같은 번호라도 영역이 다르면 다른 문항이다 (35번 화작 · 35번 언매).
-    const key = `${q.no}|${area_code}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-
-    rows.push({
-      no: q.no,
-      area_code,
-      points: typeof q.points === 'number' && Number.isFinite(q.points) && q.points >= 0 ? q.points : 2,
-      answer:
-        typeof q.answer === 'number' && Number.isInteger(q.answer) && q.answer >= 1 && q.answer <= 5
-          ? q.answer
-          : null,
-      passage: q.passage?.trim() || null,
-      areaGuessed,
-    });
+    const seen = byNo.get(q.no);
+    if (!seen) {
+      byNo.set(q.no, { no: q.no, answer, unit_code });
+      continue;
+    }
+    if (seen.answer !== null && answer !== null && seen.answer !== answer) conflicts.add(q.no);
+    seen.answer = conflicts.has(q.no) ? null : (seen.answer ?? answer);
+    seen.unit_code = seen.unit_code ?? unit_code;
   }
 
-  return rows.sort((a, b) => a.no - b.no || a.area_code.localeCompare(b.area_code));
+  const rows = [...byNo.values()].sort((a, b) => a.no - b.no);
+  const unread = PAPER.map((p) => p.no).filter((no) => (byNo.get(no)?.answer ?? null) === null);
+  return { rows, unread, conflicts: [...conflicts].sort((a, b) => a - b) };
 }
-

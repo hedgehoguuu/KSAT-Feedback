@@ -31,7 +31,7 @@ export default async function AdminCoursesPage({ searchParams }: PageProps<'/lms
           <form action={saveCourseAction} className="flex flex-wrap items-end gap-3">
             <div className="min-w-52 flex-1">
               <label className={label} htmlFor="name">반 이름</label>
-              <input id="name" name="name" required placeholder="목요일 19시 국어 관찰반" className={input} />
+              <input id="name" name="name" required placeholder="목요일 19시 수학 실모반" className={input} />
             </div>
             <div className="min-w-40">
               <label className={label} htmlFor="tutor_id">담당 튜터</label>
@@ -94,7 +94,7 @@ export default async function AdminCoursesPage({ searchParams }: PageProps<'/lms
                     <input type="hidden" name="id" value={c.id} />
                     <ConfirmSubmit
                       className={btnDanger}
-                      message={`'${c.name}' 반을 지웁니다.\n\n시험 회차 ${c.examCount}개와 그 안의 모든 채점 결과가 함께 사라지고 되돌릴 수 없어요.\n학생 계정은 남습니다.\n\n수업이 끝난 반이라면 지우지 말고 '종료'로 바꾸세요.`}
+                      message={`'${c.name}' 반을 지웁니다.\n\n시험 회차 ${c.examCount}개와 그 안의 채점 · 시험지 사진 · 질문과 답변이 함께 사라지고 되돌릴 수 없어요.\n학생 계정은 남습니다.\n\n수업이 끝난 반이라면 지우지 말고 '종료'로 바꾸세요.`}
                     >
                       지우기
                     </ConfirmSubmit>
@@ -104,7 +104,7 @@ export default async function AdminCoursesPage({ searchParams }: PageProps<'/lms
             </ul>
           )}
           <p className="mt-4 text-[13px] leading-[1.6] text-muted">
-            반을 지우면 그 반의 시험 회차와 채점 결과가 함께 사라져요. 학생 계정은 남아요.
+            반을 지우면 그 반의 시험 회차 · 채점 · 시험지 사진 · 질문과 답변이 함께 사라져요. 학생 계정은 남아요.
             수업이 끝난 반은 지우지 말고 <span className="font-bold">종료</span>로 바꿔주세요.
           </p>
         </Card>

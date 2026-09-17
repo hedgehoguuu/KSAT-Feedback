@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ConfirmSubmit } from '@/components/lms/ConfirmSubmit';
 import { Card, Shell, btn, btnDanger, btnGhost, input, label } from '@/components/lms/Shell';
-import { ELECTIVES, ELECTIVE_LIST, LMS, ROLES } from '@/config/lms';
+import { LMS, ROLES } from '@/config/lms';
 import { requireRole } from '@/lib/lms/auth';
 import { getStudent, getUser } from '@/lib/lms/users';
 import { deleteAccount, resetAccountPassword, setAccountStatus, updateAccount } from '../../actions';
@@ -73,11 +73,14 @@ export default async function AccountDetailPage({ params, searchParams }: PagePr
               <div>
                 <label className={label} htmlFor="email">이메일</label>
                 <input id="email" name="email" type="email" defaultValue={user.email ?? ''} className={input} />
+                <p className="mt-1 text-[12px] text-muted">
+                  {user.role === 'student' ? '답변 PDF 가 이 주소로 가요' : user.role === 'tutor' ? '학생이 답장하면 이 주소로 와요' : '선택'}
+                </p>
               </div>
             </div>
 
             {user.role === 'student' ? (
-              <div className="glass-inset grid gap-3 rounded-xl p-3 sm:grid-cols-5">
+              <div className="glass-inset grid gap-3 rounded-xl p-3 sm:grid-cols-4">
                 <div>
                   <label className={label} htmlFor="grade">학년</label>
                   <select id="grade" name="grade" defaultValue={profile?.grade ?? ''} className={input}>
@@ -86,17 +89,6 @@ export default async function AccountDetailPage({ params, searchParams }: PagePr
                     <option value="2">고2</option>
                     <option value="3">고3</option>
                   </select>
-                </div>
-                <div>
-                  <label className={label} htmlFor="elective">선택과목</label>
-                  <select id="elective" name="elective" defaultValue={profile?.elective ?? ''} className={input}>
-                    <option value="">—</option>
-                    {ELECTIVE_LIST.map((e) => (
-                      <option key={e} value={e}>{ELECTIVES[e]}</option>
-                    ))}
-                  </select>
-                  {/* 바꿔도 이미 매긴 회차의 채점은 그대로다 — 응시할 때의 선택과목을 따로 적어 뒀다. */}
-                  <p className="mt-1 text-[12px] text-muted">지난 회차 채점은 그대로예요</p>
                 </div>
                 <div>
                   <label className={label} htmlFor="school">학교</label>
@@ -122,7 +114,7 @@ export default async function AccountDetailPage({ params, searchParams }: PagePr
                     className={input}
                   />
                 </div>
-                <div className="sm:col-span-5">
+                <div className="sm:col-span-4">
                   <label className={label} htmlFor="memo">메모</label>
                   <input id="memo" name="memo" defaultValue={profile?.memo ?? ''} className={input} />
                 </div>
@@ -174,7 +166,7 @@ export default async function AccountDetailPage({ params, searchParams }: PagePr
                 disabled={user.id === me.id}
                 message={
                   user.role === 'student'
-                    ? `${user.name} 학생의 계정을 지웁니다.\n\n이 학생의 모든 응시 기록 · 점수 · 피드백이 함께 사라지고 되돌릴 수 없어요.\n\n로그인만 막으려면 '정지시키기'를 쓰세요.`
+                    ? `${user.name} 학생의 계정을 지웁니다.\n\n이 학생의 모든 응시 기록 · 점수 · 시험지 사진 · 질문과 답변 PDF 가 함께 사라지고 되돌릴 수 없어요.\n\n로그인만 막으려면 '정지시키기'를 쓰세요.`
                     : `${user.name} 님의 계정을 지웁니다.\n\n되돌릴 수 없어요. 로그인만 막으려면 '정지시키기'를 쓰세요.`
                 }
               >
@@ -183,8 +175,8 @@ export default async function AccountDetailPage({ params, searchParams }: PagePr
             </form>
           </div>
           <p className="mt-3 text-[13px] leading-[1.6] text-muted">
-            정지시키면 로그인만 막히고 성적은 그대로 남아요. 지우면 이 학생의 응시 기록과 피드백이
-            함께 사라지고 되돌릴 수 없어요 — 대개는 정지가 맞아요.
+            정지시키면 로그인만 막히고 성적은 그대로 남아요. 지우면 이 학생의 응시 기록 · 시험지 사진 ·
+            질문과 답변이 함께 사라지고 되돌릴 수 없어요 — 대개는 정지가 맞아요.
           </p>
         </Card>
       </div>

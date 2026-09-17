@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { AREAS, ELECTIVES, fmtScore } from '@/config/lms';
+import { SECTIONS, SECTION_LIST, UNITS, fmtScore } from '@/config/lms';
 import { currentUser } from '@/lib/lms/auth';
 import { courseVisibleTo } from '@/lib/lms/courses';
 import { courseSummary } from '@/lib/lms/exams';
@@ -34,34 +34,42 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const summary = await courseSummary(id);
 
+  // 칸은 고정 순서다: 공통 · 미적분 → 2 · 3 · 4점 → 단원. 학생마다 칸이 달라지면 엑셀에서 못 이어 붙인다.
+  const parts = [
+    ...SECTION_LIST.map((s) => ({ code: s, label: SECTIONS[s] })),
+    ...[2, 3, 4].map((p) => ({ code: `p${p}`, label: `${p}점` })),
+    ...UNITS.map((u) => ({ code: u.code, label: u.label })),
+  ];
+
   const header = [
-    '석차', '이름', '아이디', '학년', '선택과목', '학교', '학부모 연락처',
-    '본 회차', '평균(100점 환산)', '최근(100점 환산)', '반 평균 대비',
-    ...AREAS.map((a) => `${a.label} 정답률`),
-    ...AREAS.map((a) => `${a.label} 맞음/매김`),
+    '석차', '이름', '아이디', '메일', '학년', '학교', '학부모 연락처',
+    '본 회차', '평균', '최근', '반 평균 대비',
+    ...parts.map((p) => `${p.label} 정답률`),
+    ...parts.map((p) => `${p.label} 맞음/매김`),
   ];
 
   const rows = summary.rows.map((row) => {
     const profile = row.student.profile;
-    const areaOf = (code: string) => row.areas.find((a) => a.code === code);
+    const all = [...row.trends.sections, ...row.trends.byPoints, ...row.trends.units];
+    const partOf = (code: string) => all.find((t) => t.code === code);
     return [
       row.rank || '',
       row.student.name,
       row.student.login_id,
+      row.student.email ?? '',
       profile?.grade ? `고${profile.grade}` : '',
-      profile?.elective ? ELECTIVES[profile.elective] : '',
       profile?.school ?? '',
       profile?.parent_phone ?? '',
       row.taken,
       row.taken ? fmtScore(row.average) : '',
       row.latest !== null ? fmtScore(row.latest) : '',
       row.taken ? fmtScore(row.average - summary.average) : '',
-      ...AREAS.map((a) => {
-        const found = areaOf(a.code);
+      ...parts.map((p) => {
+        const found = partOf(p.code);
         return found && found.graded > 0 ? `${Math.round(found.rate * 100)}%` : '';
       }),
-      ...AREAS.map((a) => {
-        const found = areaOf(a.code);
+      ...parts.map((p) => {
+        const found = partOf(p.code);
         return found && found.graded > 0 ? `${found.correct}/${found.graded}` : '';
       }),
     ];

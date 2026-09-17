@@ -95,7 +95,8 @@ export async function findIntake(receiptNo: string | null | undefined): Promise<
           })),
       };
     })
-    .sort((a, b) => a.label.localeCompare(b.label, 'ko'));
+    // 수업이 수학이라 수학 고민을 맨 앞에 둔다. 나머지는 이름순.
+    .sort((a, b) => Number(b.code === 'math') - Number(a.code === 'math') || a.label.localeCompare(b.label, 'ko'));
 
   return {
     receiptNo: row.receipt_no,

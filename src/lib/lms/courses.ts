@@ -1,6 +1,7 @@
 import 'server-only';
 import type { CourseStatus } from '@/config/lms';
 import { db, inChunks, must, one, rows } from './db';
+import { removeFilesOfExams } from './files';
 import { getUser, listStudents, type StudentRow } from './users';
 
 export type CourseRow = {
@@ -100,7 +101,10 @@ export async function saveCourse(input: {
 }
 
 export async function deleteCourse(id: string): Promise<void> {
-  // 반을 지우면 그 반의 회차·문항표·응시가 함께 사라진다(cascade). 학생 계정은 남는다.
+  // 반을 지우면 그 반의 회차·문항표·응시·질문이 함께 사라진다(cascade). 학생 계정은 남는다.
+  // 시험지 사진과 답변 PDF 는 DB 가 안 지워 주므로 먼저 지운다 (lib/lms/files.ts).
+  const exams = await rows<{ id: string }>(db().from('lms_exams').select('id').eq('course_id', id));
+  await removeFilesOfExams(exams.map((e) => e.id));
   await must(db().from('lms_courses').delete().eq('id', id));
 }
 

@@ -2,14 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import {
-  isCourseStatus,
-  isElective,
-  isRole,
-  loginIdProblem,
-  passwordProblem,
-  type Elective,
-} from '@/config/lms';
+import { isCourseStatus, isRole, loginIdProblem, passwordProblem } from '@/config/lms';
 import { assertRole } from '@/lib/lms/auth';
 import { deleteCourse, saveCourse } from '@/lib/lms/courses';
 import {
@@ -28,11 +21,6 @@ function text(form: FormData, key: string): string {
 function optional(form: FormData, key: string): string | null {
   const v = text(form, key);
   return v.length > 0 ? v : null;
-}
-
-function electiveOf(form: FormData): Elective | null {
-  const v = text(form, 'elective');
-  return isElective(v) ? v : null;
 }
 
 function gradeOf(form: FormData): number | null {
@@ -67,7 +55,6 @@ export async function createAccount(formData: FormData): Promise<void> {
         ? {
             grade: gradeOf(formData),
             school: optional(formData, 'school'),
-            elective: electiveOf(formData),
             parent_phone: optional(formData, 'parent_phone'),
             receipt_no: optional(formData, 'receipt_no'),
           }
@@ -97,7 +84,6 @@ export async function updateAccount(formData: FormData): Promise<void> {
     await upsertStudentProfile(id, {
       grade: gradeOf(formData),
       school: optional(formData, 'school'),
-      elective: electiveOf(formData),
       parent_phone: optional(formData, 'parent_phone'),
       receipt_no: optional(formData, 'receipt_no'),
       memo: optional(formData, 'memo'),

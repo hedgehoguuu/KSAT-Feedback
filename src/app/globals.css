@@ -424,7 +424,7 @@ body:has(.lms-page) .field {
   font-weight: 700;
 }
 /* 막대. 끝만 둥글고 바닥은 각지다 — 시작선이 어디인지 흐려지면 길이를 못 읽는다.
-   영역별 정답률 막대(AreaBars)는 SVG 가 아니라 HTML 이다. fill 만 적어 두면 HTML 에는 아무것도
+   정답률 막대(RateBars)는 SVG 가 아니라 HTML 이다. fill 만 적어 두면 HTML 에는 아무것도
    칠해지지 않아 막대가 통째로 사라진다(실제로 그랬다). 두 쪽 다 칠한다. */
 .chart-bar {
   fill: var(--brand);

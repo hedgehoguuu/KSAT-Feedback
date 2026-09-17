@@ -1,7 +1,8 @@
 import 'server-only';
-import { isElective, isRole, type Elective, type Role, type UserStatus } from '@/config/lms';
+import { isRole, type Role, type UserStatus } from '@/config/lms';
 import { hashPassword } from './password';
 import { db, inChunks, must, one, rows } from './db';
+import { filesOfAttempts, removeFiles } from './files';
 
 export type UserRow = {
   id: string;
@@ -20,7 +21,6 @@ export type StudentProfile = {
   user_id: string;
   grade: number | null;
   school: string | null;
-  elective: Elective | null;
   parent_phone: string | null;
   receipt_no: string | null;
   memo: string | null;
@@ -29,7 +29,7 @@ export type StudentProfile = {
 export type StudentRow = UserRow & { profile: StudentProfile | null };
 
 const USER_COLS = 'id, role, login_id, name, phone, email, status, must_change_password, last_login_at, created_at';
-const PROFILE_COLS = 'user_id, grade, school, elective, parent_phone, receipt_no, memo';
+const PROFILE_COLS = 'user_id, grade, school, parent_phone, receipt_no, memo';
 
 /** 계정이 한 개도 없으면 첫 관리자를 만들 수 있는 상태다 (/lms/setup). */
 export async function userCount(): Promise<number> {
@@ -159,7 +159,6 @@ export async function upsertStudentProfile(
         user_id: userId,
         grade: profile.grade ?? null,
         school: profile.school ?? null,
-        elective: profile.elective && isElective(profile.elective) ? profile.elective : null,
         parent_phone: profile.parent_phone ?? null,
         receipt_no: profile.receipt_no ?? null,
         memo: profile.memo ?? null,
@@ -217,10 +216,16 @@ export async function changeOwnPassword(id: string, password: string): Promise<v
 }
 
 /**
- * 계정을 지운다. 학생을 지우면 그 학생의 응시·정오·코멘트가 함께 사라진다(cascade).
+ * 계정을 지운다. 학생을 지우면 그 학생의 응시·정오·질문·사진이 함께 사라진다(cascade).
  * 튜터는 반이 걸려 있으면 DB 가 막는다(on delete restrict) — 반을 먼저 옮겨야 한다.
+ *
+ * 저장소의 사진과 PDF 는 DB 가 지워 주지 않아서 줄보다 먼저 지운다. 그게 실패하면
+ * 계정도 지우지 않고 던진다 — 계정만 사라지고 시험지 사진이 주인 없이 남는 것이 더 나쁘다.
  */
 export async function deleteUser(id: string): Promise<'OK' | 'IN_USE'> {
+  const attempts = await rows<{ id: string }>(db().from('lms_attempts').select('id').eq('student_id', id));
+  await removeFiles(await filesOfAttempts(attempts.map((a) => a.id)));
+
   const { error } = await db().from('lms_users').delete().eq('id', id);
   // 반이 걸린 튜터. `on delete restrict` 의 거절은 Postgres 17 까지 23503(foreign_key_violation),
   // 18 부터 23001(restrict_violation)이다. 한쪽만 보면 DB 를 올리는 날 안내 대신 '잠시 문제가 생겼어요' 가 뜬다.

@@ -48,12 +48,22 @@ const GUIDE: { key: string; label: string; how: string }[] = [
     how: 'Supabase > SQL Editor 에서 0014_lock_rpc.sql 전체를 붙여넣고 Run',
   },
   {
+    key: 'lmsMath',
+    label: '수학 수업 표 (성적 관리)',
+    how: 'Supabase > SQL Editor 에서 0015_lms_math.sql 전체를 붙여넣고 Run. 국어 기록은 lms_legacy_* 표로 옮겨져요',
+  },
+  {
+    key: 'lmsBucket',
+    label: '시험지 사진 · 답변 PDF 저장소',
+    how: '같은 0015_lms_math.sql 을 실행하면 만들어져요',
+  },
+  {
     key: 'adminPassword',
     label: '관리자 잠금',
     how: 'Vercel 환경변수에 ADMIN_PASSWORD 를 아무 긴 문자열로 넣고 다시 배포',
   },
   { key: 'notion', label: 'Notion 자동 등록', how: 'Vercel 환경변수에 NOTION_TOKEN 과 NOTION_DATABASE_ID 넣기' },
-  { key: 'mail', label: '접수 확인 메일', how: 'Vercel 환경변수에 GMAIL_USER 와 GMAIL_APP_PASSWORD 넣기 (구글 앱 비밀번호)' },
+  { key: 'mail', label: '메일 (접수 확인 · 답변 PDF)', how: 'Vercel 환경변수에 GMAIL_USER 와 GMAIL_APP_PASSWORD 넣기 (구글 앱 비밀번호)' },
   { key: 'workerSecret', label: '재처리 주소 잠금', how: 'Vercel 환경변수에 WORKER_SECRET 을 아무 긴 문자열로 넣기' },
   { key: 'cronSecret', label: '매일 자동 정리', how: 'Vercel 환경변수에 CRON_SECRET 을 WORKER_SECRET 과 같은 값으로 넣고 다시 배포' },
 ];

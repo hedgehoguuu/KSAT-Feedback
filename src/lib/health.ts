@@ -45,6 +45,8 @@ export async function getHealth(): Promise<Health> {
     rawScore: { ok: false, detail: '아직 확인 못 했어요' },
     applyAlert: { ok: false, detail: '아직 확인 못 했어요' },
     rpcLocked: { ok: false, detail: '아직 확인 못 했어요' },
+    lmsMath: { ok: false, detail: '아직 확인 못 했어요' },
+    lmsBucket: { ok: false, detail: '아직 확인 못 했어요' },
     bucket: { ok: false, detail: '아직 확인 못 했어요' },
     workerSchema: { ok: false, detail: '아직 확인 못 했어요' },
     classSchema: { ok: false, detail: '아직 확인 못 했어요' },
@@ -58,8 +60,8 @@ export async function getHealth(): Promise<Health> {
     mail: {
       ok: mailConfigured(),
       detail: mailConfigured()
-        ? `${process.env.GMAIL_USER} 로 접수 확인 메일이 나가요`
-        : 'GMAIL_USER / GMAIL_APP_PASSWORD 가 없어요. 접수 확인 메일이 안 나가요',
+        ? `${process.env.GMAIL_USER} 로 접수 확인 메일과 LMS 답변 PDF 가 나가요`
+        : 'GMAIL_USER / GMAIL_APP_PASSWORD 가 없어요. 접수 확인 메일도, LMS 답변 PDF 메일도 안 나가요',
     },
     workerSecret: {
       ok: Boolean(process.env.WORKER_SECRET),
@@ -83,7 +85,7 @@ export async function getHealth(): Promise<Health> {
 
   const db = supabaseAdmin();
   if (!db) {
-    for (const key of ['connection', 'tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
+    for (const key of ['connection', 'tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'lmsMath', 'lmsBucket', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
       checks[key] = { ok: false, detail: 'Supabase 연결 전이라 확인할 수 없어요' };
     }
     return {
@@ -102,7 +104,7 @@ export async function getHealth(): Promise<Health> {
     const detail = sqlNotRun
       ? 'SQL 을 아직 실행하지 않았어요. supabase/migrations/0001_init.sql 을 SQL Editor 에서 실행해주세요'
       : '확인하지 못했어요';
-    for (const key of ['tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
+    for (const key of ['tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'lmsMath', 'lmsBucket', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
       checks[key] = { ok: false, detail };
     }
     return {
@@ -130,6 +132,8 @@ export async function getHealth(): Promise<Health> {
     apply_alert?: boolean;
     alert_failed_count?: number;
     rpc_locked?: boolean;
+    lms_math?: boolean;
+    lms_bucket?: boolean;
   };
 
   checks.connection = { ok: true, detail: 'Supabase 에 정상적으로 닿았어요' };
@@ -180,6 +184,19 @@ export async function getHealth(): Promise<Health> {
         : status.rpc_locked === false
           ? '공개 키로도 부를 수 있는 서버 전용 함수가 있어요. 0014_lock_rpc.sql 을 실행해주세요'
           : '아직 잠그지 않았어요. 0014_lock_rpc.sql 을 실행해주세요',
+  };
+  // 0015 를 안 돌리면 LMS 가 국어 모양의 표를 보고 멈춘다 — 정답표 · 채점 · 질문 저장이 전부 실패한다.
+  checks.lmsMath = {
+    ok: status.lms_math === true,
+    detail: status.lms_math
+      ? '수학 수업 표(정답표 · 시험지 사진 · 질문과 답)가 있어요'
+      : '수학 수업 표가 없어요. 0015_lms_math.sql 을 실행해주세요',
+  };
+  checks.lmsBucket = {
+    ok: status.lms_bucket === true,
+    detail: status.lms_bucket
+      ? '비공개 버킷 lms-files 가 있어요'
+      : '버킷 lms-files 가 없거나 공개 상태예요. 0015_lms_math.sql 을 실행해주세요',
   };
   checks.workerSchema = {
     ok: Boolean(status.worker_schema),

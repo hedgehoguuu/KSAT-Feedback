@@ -1,23 +1,32 @@
-// 문항 정오 → 영역별 점수. 순수 계산만 있고 DB 도 요청도 안 만진다.
+// 문항 정오 → 점수. 순수 계산만 있고 DB 도 요청도 안 만진다.
 //
 // 이 파일이 따로 있는 이유: 같은 계산을 튜터 화면(채점 중 실시간 합계), 반 대시보드
-// (학생 비교), 학생 화면(누적 추이)이 전부 필요로 한다. 세 군데에서 따로 더하면
-// 언젠가 세 숫자가 서로 달라진다.
+// (학생 비교), 학생 화면(누적 추이), 답변 PDF 가 전부 필요로 한다. 네 군데에서 따로 더하면
+// 언젠가 네 숫자가 서로 달라진다.
 
-import { AREAS, AREA_GROUPS, type AreaGroup, type Elective } from '@/config/lms';
+import {
+  SECTIONS,
+  SECTION_LIST,
+  UNITS,
+  findUnit,
+  sectionOf,
+  type Section,
+  type UnitGroup,
+} from '@/config/lms';
 
 export type QuestionRow = {
   id: string;
   no: number;
-  area_code: string;
+  /** 회차를 만들 때 시험지 모양에서 베껴 둔 배점. 틀이 바뀌어도 지난 회차 점수가 안 변한다. */
   points: number;
   answer: number | null;
-  passage: string | null;
+  unit_code: string | null;
 };
 
 export type AnswerRow = {
   question_id: string;
   correct: boolean;
+  /** 학생이 적은 답. O/X 만 찍었으면 비어 있다. */
   chosen: number | null;
 };
 
@@ -36,113 +45,99 @@ export type Tally = {
   rate: number;
 };
 
-export type AreaTally = Tally & { code: string; label: string; group: AreaGroup };
-export type GroupTally = Tally & { group: AreaGroup; label: string; areas: AreaTally[] };
+/** 점수를 쪼개 보는 한 칸. 공통/미적분 · 단원 · 배점이 모두 이 모양이다. */
+export type Part = Tally & { code: string; label: string };
+
+export type SectionPart = Part & { section: Section };
+export type UnitPart = Part & { group: UnitGroup };
+export type PointsPart = Part & { points: number };
 
 export type AttemptScore = Tally & {
-  areas: AreaTally[];
-  groups: GroupTally[];
+  /** 공통 · 미적분 */
+  sections: SectionPart[];
+  /** 단원을 붙인 문항만. 교과서 순서. */
+  units: UnitPart[];
+  /** 2점 · 3점 · 4점 */
+  byPoints: PointsPart[];
+  /** 단원을 안 붙인 문항 수. 단원 집계가 전체가 아니라는 것을 화면이 말할 때 쓴다. */
+  untagged: number;
   /** 틀린 문항 번호 (오름차순) */
   wrongNos: number[];
   /** 문항표의 모든 문항에 정오가 매겨졌는가 */
   complete: boolean;
 };
 
-const EMPTY: Tally = { total: 0, earned: 0, count: 0, correct: 0, graded: 0, rate: 0 };
+const empty = (): Tally => ({ total: 0, earned: 0, count: 0, correct: 0, graded: 0, rate: 0 });
 
 function rateOf(t: { correct: number; graded: number }): number {
   return t.graded > 0 ? t.correct / t.graded : 0;
 }
 
-/**
- * 이 학생이 풀어야 하는 문항만 남긴다.
- *
- * 선택과목이 다른 문항은 '틀린' 게 아니라 '없는' 문항이다. 화작 학생의 만점을
- * 언매 11문항까지 넣어 세면 100점을 받아도 78점으로 보인다.
- * 선택과목을 아직 안 정한 학생은 공통(독서·문학)만 센다.
- */
-export function questionsFor(questions: QuestionRow[], elective: Elective | null): QuestionRow[] {
-  const mine = new Set(
-    AREAS.filter((a) => !a.elective || a.elective === elective).map((a) => a.code),
-  );
-  return questions.filter((q) => mine.has(q.area_code));
+/** 문항 하나를 칸에 더한다. marked 가 없으면 '아직 안 매김' 이지 오답이 아니다. */
+function add(bucket: Tally, points: number, marked: AnswerRow | undefined): void {
+  bucket.total += points;
+  bucket.count += 1;
+  if (!marked) return;
+  bucket.graded += 1;
+  if (marked.correct) {
+    bucket.earned += points;
+    bucket.correct += 1;
+  }
 }
 
+export const pointsCode = (points: number) => `p${points}`;
+
 /** 한 학생의 한 회차. answers 에 없는 문항은 '아직 안 매김' 이지 오답이 아니다. */
-export function scoreAttempt(
-  questions: QuestionRow[],
-  answers: AnswerRow[],
-  elective: Elective | null,
-): AttemptScore {
-  const mine = questionsFor(questions, elective);
+export function scoreAttempt(questions: QuestionRow[], answers: AnswerRow[]): AttemptScore {
   const byQuestion = new Map(answers.map((a) => [a.question_id, a]));
 
-  const areaMap = new Map<string, AreaTally>();
+  const overall = empty();
+  const sections = new Map<Section, SectionPart>();
+  const units = new Map<string, UnitPart>();
+  const points = new Map<number, PointsPart>();
   const wrongNos: number[] = [];
-  const overall: Tally = { ...EMPTY };
+  let untagged = 0;
 
-  for (const q of mine) {
-    const area = AREAS.find((a) => a.code === q.area_code);
-    let bucket = areaMap.get(q.area_code);
-    if (!bucket) {
-      bucket = {
-        ...EMPTY,
-        code: q.area_code,
-        label: area?.label ?? q.area_code,
-        group: area?.group ?? 'reading',
-      };
-      areaMap.set(q.area_code, bucket);
-    }
-
-    const points = Number(q.points) || 0;
-    bucket.total += points;
-    bucket.count += 1;
-    overall.total += points;
-    overall.count += 1;
-
+  for (const q of [...questions].sort((a, b) => a.no - b.no)) {
+    const value = Number(q.points) || 0;
     const marked = byQuestion.get(q.id);
-    if (!marked) continue;
 
-    bucket.graded += 1;
-    overall.graded += 1;
-    if (marked.correct) {
-      bucket.earned += points;
-      bucket.correct += 1;
-      overall.earned += points;
-      overall.correct += 1;
-    } else {
-      wrongNos.push(q.no);
+    add(overall, value, marked);
+    if (marked && !marked.correct) wrongNos.push(q.no);
+
+    const section = sectionOf(q.no);
+    if (!sections.has(section)) {
+      sections.set(section, { ...empty(), code: section, label: SECTIONS[section], section });
     }
+    add(sections.get(section)!, value, marked);
+
+    const unit = findUnit(q.unit_code);
+    if (unit) {
+      if (!units.has(unit.code)) {
+        units.set(unit.code, { ...empty(), code: unit.code, label: unit.label, group: unit.group });
+      }
+      add(units.get(unit.code)!, value, marked);
+    } else {
+      untagged += 1;
+    }
+
+    if (!points.has(value)) {
+      points.set(value, { ...empty(), code: pointsCode(value), label: `${value}점`, points: value });
+    }
+    add(points.get(value)!, value, marked);
   }
 
-  // 영역 순서는 AREAS 순서(시험지에 나오는 순서)를 따른다. 문항표 입력 순서가 아니다.
-  const areas = AREAS.map((a) => areaMap.get(a.code)).filter((a): a is AreaTally => Boolean(a));
-  for (const a of areas) a.rate = rateOf(a);
-  overall.rate = rateOf(overall);
-
-  const groups: GroupTally[] = (Object.keys(AREA_GROUPS) as AreaGroup[])
-    .map((group) => {
-      const inGroup = areas.filter((a) => a.group === group);
-      const sum = inGroup.reduce<Tally>(
-        (acc, a) => ({
-          total: acc.total + a.total,
-          earned: acc.earned + a.earned,
-          count: acc.count + a.count,
-          correct: acc.correct + a.correct,
-          graded: acc.graded + a.graded,
-          rate: 0,
-        }),
-        { ...EMPTY },
-      );
-      return { ...sum, rate: rateOf(sum), group, label: AREA_GROUPS[group], areas: inGroup };
-    })
-    .filter((g) => g.areas.length > 0);
+  const finish = <T extends Tally>(list: T[]): T[] => list.map((t) => ({ ...t, rate: rateOf(t) }));
 
   return {
     ...overall,
-    areas,
-    groups,
-    wrongNos: wrongNos.sort((a, b) => a - b),
+    rate: rateOf(overall),
+    // 순서는 시험지 · 교과서 순서를 따른다. 문항표에 적힌 순서가 아니다.
+    sections: finish(SECTION_LIST.map((s) => sections.get(s)).filter((s): s is SectionPart => Boolean(s))),
+    units: finish(UNITS.map((u) => units.get(u.code)).filter((u): u is UnitPart => Boolean(u))),
+    byPoints: finish([...points.values()].sort((a, b) => a.points - b.points)),
+    untagged,
+    wrongNos,
     complete: overall.count > 0 && overall.graded === overall.count,
   };
 }
@@ -153,7 +148,7 @@ export type Standing = {
   studentId: string;
   name: string;
   score: AttemptScore;
-  /** 동점은 같은 등수, 다음 등수는 건너뛴다 (1, 2, 2, 4). */
+  /** 동점은 같은 등수, 다음 등수는 건너뛴다 (1, 2, 2, 4). 채점이 안 끝났으면 0. */
   rank: number;
   /** 반 평균과의 차이 (점). 음수면 평균 아래. */
   vsAverage: number;
@@ -165,10 +160,27 @@ export type CourseStats = {
   average: number;
   highest: number;
   lowest: number;
-  /** 영역 코드 → 반 평균 정답률 */
-  areaAverages: Map<string, number>;
+  /** 칸 코드(공통 · 단원 · 배점) → 반 평균 정답률 */
+  partAverages: Map<string, number>;
   standings: Standing[];
 };
+
+/** 한 점수의 모든 칸. 반 평균을 낼 때 코드로 한데 모은다. */
+export function partsOf(score: AttemptScore): Part[] {
+  return [...score.sections, ...score.units, ...score.byPoints];
+}
+
+/** 칸 코드마다 정답률의 평균. 매긴 문항이 없는 칸은 세지 않는다. */
+export function averageRates(scores: AttemptScore[]): Map<string, number> {
+  const acc = new Map<string, number[]>();
+  for (const score of scores) {
+    for (const part of partsOf(score)) {
+      if (part.graded === 0) continue;
+      acc.set(part.code, [...(acc.get(part.code) ?? []), part.rate]);
+    }
+  }
+  return new Map([...acc].map(([code, rates]) => [code, rates.reduce((a, b) => a + b, 0) / rates.length]));
+}
 
 /**
  * 한 회차의 반 전체 성적. 채점이 끝난(complete) 응시만 평균·석차에 넣는다.
@@ -192,15 +204,6 @@ export function courseStats(
     );
   });
 
-  const areaAverages = new Map<string, number>();
-  for (const area of AREAS) {
-    const rates = done
-      .map((e) => e.score.areas.find((a) => a.code === area.code))
-      .filter((a): a is AreaTally => Boolean(a) && a!.graded > 0)
-      .map((a) => a.rate);
-    if (rates.length) areaAverages.set(area.code, rates.reduce((a, b) => a + b, 0) / rates.length);
-  }
-
   const standings: Standing[] = entries
     .map((e) => ({
       studentId: e.studentId,
@@ -217,58 +220,47 @@ export function courseStats(
     average,
     highest: scores.length ? Math.max(...scores) : 0,
     lowest: scores.length ? Math.min(...scores) : 0,
-    areaAverages,
+    partAverages: averageRates(done.map((e) => e.score)),
     standings,
   };
 }
 
 /* ─────────────────────────────────────────────────── 한 학생의 누적 */
 
-export type TrendPoint = {
-  attemptId: string;
-  examTitle: string;
-  examDate: string | null;
-  earned: number;
-  total: number;
-  rate: number;
-  areaRates: Map<string, number>;
-};
-
 /**
- * 영역별 강약. 누적된 회차 전체에서 정답률이 낮은 순으로 준다.
- * 문항이 적은 영역(독서론 3문항)은 한 문항만 틀려도 33%가 되므로,
- * 화면에서 문항 수를 같이 보여줘야 오해가 없다.
+ * 여러 회차를 합친 칸 하나. 문항이 적은 칸(2점은 한 회차에 3문항)은 한 문항만 틀려도
+ * 33%가 되므로, 화면에서 문항 수를 같이 보여줘야 오해가 없다.
  */
-export type AreaTrend = {
-  code: string;
-  label: string;
-  group: AreaGroup;
-  count: number;
-  correct: number;
-  graded: number;
-  rate: number;
+export type Trend = { code: string; label: string; count: number; correct: number; graded: number; rate: number };
+
+export type Trends = {
+  sections: Trend[];
+  /** 약한 순. 가장 먼저 볼 것이 맨 위에 온다. */
+  units: Trend[];
+  byPoints: Trend[];
 };
 
-export function areaTrends(points: { score: AttemptScore }[]): AreaTrend[] {
-  const acc = new Map<string, AreaTrend>();
-  for (const p of points) {
-    for (const a of p.score.areas) {
-      const cur = acc.get(a.code) ?? {
-        code: a.code,
-        label: a.label,
-        group: a.group,
-        count: 0,
-        correct: 0,
-        graded: 0,
-        rate: 0,
-      };
-      cur.count += a.count;
-      cur.correct += a.correct;
-      cur.graded += a.graded;
-      acc.set(a.code, cur);
+function accumulate(lists: Part[][]): Trend[] {
+  const acc = new Map<string, Trend>();
+  for (const list of lists) {
+    for (const p of list) {
+      const cur = acc.get(p.code) ?? { code: p.code, label: p.label, count: 0, correct: 0, graded: 0, rate: 0 };
+      cur.count += p.count;
+      cur.correct += p.correct;
+      cur.graded += p.graded;
+      acc.set(p.code, cur);
     }
   }
-  const out = [...acc.values()].filter((a) => a.graded > 0);
-  for (const a of out) a.rate = a.correct / a.graded;
-  return out.sort((a, b) => a.rate - b.rate);
+  return [...acc.values()]
+    .filter((t) => t.graded > 0)
+    .map((t) => ({ ...t, rate: t.correct / t.graded }));
+}
+
+export function trendsOf(points: { score: AttemptScore }[]): Trends {
+  const pointsOrder = (t: Trend) => Number(t.code.slice(1));
+  return {
+    sections: accumulate(points.map((p) => p.score.sections)),
+    units: accumulate(points.map((p) => p.score.units)).sort((a, b) => a.rate - b.rate),
+    byPoints: accumulate(points.map((p) => p.score.byPoints)).sort((a, b) => pointsOrder(a) - pointsOrder(b)),
+  };
 }

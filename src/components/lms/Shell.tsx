@@ -10,7 +10,7 @@ const NAV: Record<Role, { href: string; label: string }[]> = {
     { href: '/lms/admin/courses', label: '반' },
   ],
   tutor: [{ href: '/lms/tutor', label: '내 반' }],
-  student: [{ href: '/lms/me', label: '내 성적' }],
+  student: [{ href: '/lms/me', label: '내 시험' }],
 };
 
 export function Shell({
