@@ -423,18 +423,24 @@ body:has(.lms-page) .field {
   font-size: 12px;
   font-weight: 700;
 }
-/* 막대. 끝만 둥글고 바닥은 각지다 — 시작선이 어디인지 흐려지면 길이를 못 읽는다. */
+/* 막대. 끝만 둥글고 바닥은 각지다 — 시작선이 어디인지 흐려지면 길이를 못 읽는다.
+   영역별 정답률 막대(AreaBars)는 SVG 가 아니라 HTML 이다. fill 만 적어 두면 HTML 에는 아무것도
+   칠해지지 않아 막대가 통째로 사라진다(실제로 그랬다). 두 쪽 다 칠한다. */
 .chart-bar {
   fill: var(--brand);
+  background-color: var(--brand);
 }
 .chart-bar-weak {
   fill: var(--mark);
+  background-color: var(--mark);
 }
 .chart-track {
   fill: rgb(17 24 39 / 0.06);
+  background-color: rgb(17 24 39 / 0.06);
 }
 /* 반 평균 눈금. 두 번째 계열이 아니라 기준선이라 회색 실선으로 짧게만 긋는다. */
 .chart-ref {
   stroke: var(--muted);
   stroke-width: 2;
+  background-color: var(--muted);
 }
