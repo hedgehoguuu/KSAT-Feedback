@@ -222,7 +222,9 @@ export async function changeOwnPassword(id: string, password: string): Promise<v
  */
 export async function deleteUser(id: string): Promise<'OK' | 'IN_USE'> {
   const { error } = await db().from('lms_users').delete().eq('id', id);
-  if (error?.code === '23503') return 'IN_USE';
+  // 반이 걸린 튜터. `on delete restrict` 의 거절은 Postgres 17 까지 23503(foreign_key_violation),
+  // 18 부터 23001(restrict_violation)이다. 한쪽만 보면 DB 를 올리는 날 안내 대신 '잠시 문제가 생겼어요' 가 뜬다.
+  if (error?.code === '23001' || error?.code === '23503') return 'IN_USE';
   if (error) throw error;
   return 'OK';
 }
