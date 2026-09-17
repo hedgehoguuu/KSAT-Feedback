@@ -7,12 +7,15 @@
  * 틀린 줄 모르는 것들이다.
  */
 import { readFileSync } from 'node:fs';
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { PDFDocument } from 'pdf-lib';
 import {
   CONCERN,
   FULL_SCORE,
   LMS,
   PAPER,
+  PHOTO_READ,
   QUESTION_COUNT,
   addDays,
   concernOrder,
@@ -33,10 +36,21 @@ import {
   unitsFor,
 } from '../src/config/lms.ts';
 import { hashPassword, verifyPassword } from '../src/lib/lms/password.ts';
-import { normalizeExtracted } from '../src/lib/lms/ocr-rows.ts';
+import { READ_NOTES, mergeStudentReads, normalizeExtracted, readSummary, type ReadBatch } from '../src/lib/lms/ocr-rows.ts';
+import {
+  WATCH,
+  needsRead,
+  readDiffers,
+  readViewOf,
+  watchDelay,
+  watchStep,
+  type PhotoReadRow,
+} from '../src/lib/lms/photo-read-state.ts';
+import { callTimeoutMs, canWaitFor, retryWaitMs, shouldRetry } from '../src/lib/lms/retry.ts';
 import { parseAnswerLine } from '../src/lib/lms/answer-line.ts';
 import { courseStats, scoreAttempt, trendsOf, type AnswerRow, type QuestionRow } from '../src/lib/lms/score.ts';
 import { cleanConcerns, progressOf } from '../src/lib/lms/feedback.ts';
+import { readStudentAnswers } from '../src/lib/lms/ocr.ts';
 import { renderFeedbackPdf, type FeedbackDoc } from '../src/lib/lms/pdf/feedback-pdf.ts';
 import { fitText, wrapText } from '../src/lib/lms/pdf/wrap.ts';
 import { inChunks } from '../src/lib/lms/db.ts';
@@ -345,5 +359,233 @@ try {
   pageThrew = true;
 }
 ok('못 읽으면 빈 목록이 아니라 던진다', pageThrew);
+
+/* ─────────────────────────────────────────────── 사진으로 자동 채점 (0016) */
+
+section('학생 시험지에서 읽은 답 합치기');
+const batch = (offset: number, count: number, answers: ReadBatch['answers'], unreadable: number[] = []): ReadBatch =>
+  ({ offset, count, answers, unreadable_photos: unreadable });
+const ans = (no: number, answer: number | null, sure = true, note: string | null = null) => ({ no, answer, sure, note });
+const byNoOf = <T extends { no: number }>(list: T[]) => new Map(list.map((a) => [a.no, a]));
+
+const one = mergeStudentReads([batch(0, 4, [ans(1, 3), ans(16, 12), ans(21, null)])]);
+eq('늘 1–30 번 한 벌', one.answers.map((a) => a.no), PAPER.map((q) => q.no));
+const oneBy = byNoOf(one.answers);
+eq('확실한 답은 그대로', [oneBy.get(1), oneBy.get(16)], [ans(1, 3), ans(16, 12)]);
+eq('확실한 빈칸은 빈칸 · 확실', oneBy.get(21), ans(21, null));
+eq('안 보인 번호는 찾지 못함', oneBy.get(2), ans(2, null, false, READ_NOTES.missing));
+eq('0번 · 31번 · 2.5번은 버린다',
+  mergeStudentReads([batch(0, 1, [ans(0, 1), ans(31, 1), ans(2.5, 1)])]).answers.filter((a) => a.sure).length, 0);
+eq('5지선다에 7이면 못 읽은 것', byNoOf(mergeStudentReads([batch(0, 1, [ans(3, 7)])]).answers).get(3),
+  ans(3, null, false, READ_NOTES.invalid(7)));
+eq('단답형 1000 도 못 읽은 것', byNoOf(mergeStudentReads([batch(0, 1, [ans(17, 1000)])]).answers).get(17)?.answer, null);
+
+const clashRead = byNoOf(mergeStudentReads([
+  batch(0, 4, [ans(5, 3)]),
+  batch(4, 4, [ans(5, 4)]),
+  batch(8, 4, [ans(5, 3)]),
+]).answers);
+eq('사진마다 답이 다르면 비우고 확인', clashRead.get(5), ans(5, null, false, READ_NOTES.conflict(3, 4)));
+
+const blankThenValue = byNoOf(mergeStudentReads([batch(0, 1, [ans(21, null)]), batch(1, 1, [ans(21, 17)])]).answers);
+eq('문제지는 빈칸 · 답안지에 답이면 답', blankThenValue.get(21), ans(21, 17));
+const blankThenBlur = byNoOf(mergeStudentReads([batch(0, 1, [ans(22, null)]), batch(1, 1, [ans(22, null, false, '흐림')])]).answers);
+eq('확실한 빈칸 + 못 읽음 = 확인', blankThenBlur.get(22), ans(22, null, false, '흐림'));
+const sureAndNot = byNoOf(mergeStudentReads([batch(0, 1, [ans(8, 5, false, '?')]), batch(1, 1, [ans(8, 5)])]).answers);
+eq('같은 답이면 한쪽만 확실해도 확실', sureAndNot.get(8), ans(8, 5));
+const bothUnsure = byNoOf(mergeStudentReads([batch(0, 1, [ans(8, 5, false, '②?')]), batch(1, 1, [ans(8, 5, false, '④?')])]).answers);
+eq('둘 다 애매하면 확인 (앞의 이유)', bothUnsure.get(8), ans(8, 5, false, '②?'));
+
+const oddFirst = byNoOf(mergeStudentReads([batch(0, 1, [ans(12, 9)]), batch(1, 1, [ans(12, 2)])]).answers).get(12);
+const oddLast = byNoOf(mergeStudentReads([batch(0, 1, [ans(12, 2)]), batch(1, 1, [ans(12, 9)])]).answers).get(12);
+eq('올 수 없는 답이 섞이면 답은 쓰되 확인', oddFirst, ans(12, 2, false, READ_NOTES.mixed(9)));
+eq('읽힌 순서가 달라도 같다', oddLast, oddFirst);
+
+eq('흐린 사진 번호는 전체 순번으로', mergeStudentReads([
+  batch(0, 4, [], [2]),
+  batch(4, 4, [], [1, 4, 5, 0]),
+]).unreadable, [1, 4, 7]);
+const longNote = byNoOf(mergeStudentReads([batch(0, 1, [ans(9, null, false, `  ${'가'.repeat(200)}\n줄  `)])]).answers).get(9)!;
+ok('이유는 한 줄 · 80자 안', Array.from(longNote.note!).length <= 80 && !longNote.note!.includes('\n'), longNote.note);
+eq('확실한 줄에는 이유를 안 붙인다', byNoOf(mergeStudentReads([batch(0, 1, [ans(4, 4, true, '잘 보임')])]).answers).get(4)?.note, null);
+
+const summary = readSummary(mergeStudentReads([batch(0, 4, [ans(1, 3), ans(2, null), ans(3, 1, false, '?')])]).answers);
+eq('요약 — 확실 2 · 빈칸 1', [summary.sure, summary.blanks], [2, [2]]);
+ok('요약 — 확인할 번호에 3번과 안 보인 번호', summary.check.includes(3) && summary.check.includes(30) && !summary.check.includes(1));
+
+section('사진 읽기 상태');
+const NOW = Date.parse('2026-09-18T03:00:00Z');
+const at = (msAgo: number) => new Date(NOW - msAgo).toISOString();
+const readRow = (over: Partial<PhotoReadRow>): PhotoReadRow => ({
+  attempt_id: 'a', request_no: 1, status: 'done', requested_at: at(60_000), started_at: at(50_000),
+  finished_at: at(10_000), photo_ids: ['p1', 'p2'], answers: one.answers, unreadable: [], note: null,
+  error: null, runs: 1, updated_at: at(10_000), ...over,
+});
+eq('읽기가 없으면 none', readViewOf(null, ['p1'], NOW).kind, 'none');
+eq('부른 적 없는 줄도 none', readViewOf(readRow({ request_no: 0 }), ['p1'], NOW).kind, 'none');
+eq('사진이 없으면 읽을 것도 없다 (실패여도)', readViewOf(readRow({ status: 'failed', error: 'TIMEOUT' }), [], NOW).kind, 'none');
+eq('기다리는 중은 reading', readViewOf(readRow({ status: 'pending', updated_at: at(60_000) }), ['p1'], NOW).kind, 'reading');
+eq('딱 10분까지는 reading', readViewOf(readRow({ status: 'running', updated_at: at(PHOTO_READ.stuckMs) }), ['p1'], NOW).kind, 'reading');
+eq('10분이 넘으면 stuck', readViewOf(readRow({ status: 'running', updated_at: at(PHOTO_READ.stuckMs + 1) }), ['p1'], NOW).kind, 'stuck');
+const failedView = readViewOf(readRow({ status: 'failed', error: null }), ['p1'], NOW);
+eq('실패 이유가 비었으면 UNKNOWN', failedView.kind === 'failed' ? failedView.error : null, 'UNKNOWN');
+const doneView = readViewOf(readRow({ unreadable: ['p2', 'gone'] }), ['p2', 'p1'], NOW);
+ok('순서만 바뀐 사진은 낡지 않았다', doneView.kind === 'done' && !doneView.stale);
+eq('흐린 사진은 지금 있는 것만', doneView.kind === 'done' ? doneView.unreadable : null, ['p2']);
+ok('사진이 바뀌면 낡았다', (() => { const v = readViewOf(readRow({}), ['p1', 'p3'], NOW); return v.kind === 'done' && v.stale; })());
+
+section('다시 읽어야 하나');
+eq('사진이 없으면 아니다', needsRead({ kind: 'none' }, 0), false);
+eq('읽는 중이면 아니다', needsRead({ kind: 'reading', since: at(0) }, 3), false);
+eq('다 읽었고 그대로면 아니다', needsRead(doneView, 2), false);
+eq('사진이 바뀌었으면 그렇다', needsRead({ ...(doneView as Extract<typeof doneView, { kind: 'done' }>), stale: true }, 2), true);
+eq('실패 · 멈춤 · 처음이면 그렇다',
+  [needsRead({ kind: 'failed', error: 'X', at: null }, 1), needsRead({ kind: 'stuck', since: at(0) }, 1), needsRead({ kind: 'none' }, 1)],
+  [true, true, true]);
+
+section('튜터 채점과 읽은 답 견주기');
+const readForDiff = [ans(1, 3), ans(2, 5), ans(3, null), ans(4, 2, false), ans(5, 4)];
+eq('같으면 없음', readDiffers([ans(1, 3)], [{ no: 1, chosen: 3, correct: true }]), []);
+eq('학생 답이 다르면 짚는다', readDiffers(readForDiff, [
+  { no: 1, chosen: 3, correct: true },
+  { no: 2, chosen: 1, correct: false },
+  { no: 3, chosen: null, correct: false },
+  { no: 4, chosen: 1, correct: false },
+  { no: 5, chosen: null, correct: true },
+]), [2]);
+eq('빈칸으로 읽혔는데 O 면 짚는다', readDiffers([ans(3, null)], [{ no: 3, chosen: null, correct: true }]), [3]);
+eq('튜터가 안 매긴 문항은 짚는다', readDiffers([ans(6, 1)], []), [6]);
+
+section('재시도 시간 — 전체 마감을 넘지 않는다');
+const headersOf = (h: Record<string, string>) => ({ get: (k: string) => h[k] ?? null });
+eq('429 · 500 · 529 · 끊김은 다시', [
+  shouldRetry({ status: 429 }), shouldRetry({ status: 500 }), shouldRetry({ status: 529 }), shouldRetry({ connection: true }),
+], [true, true, true, true]);
+eq('400 · 401 · 413 은 다시 안 함', [shouldRetry({ status: 400 }), shouldRetry({ status: 401 }), shouldRetry({ status: 413 })], [false, false, false]);
+eq('서버가 하지 말라면 안 함', shouldRetry({ status: 503, headers: headersOf({ 'x-should-retry': 'false' }) }), false);
+eq('서버가 하라면 함', shouldRetry({ status: 400, headers: headersOf({ 'x-should-retry': 'true' }) }), true);
+eq('retry-after-ms 를 따른다', retryWaitMs({ headers: headersOf({ 'retry-after-ms': '250' }) }, 0), 250);
+eq('retry-after 초를 따른다', retryWaitMs({ headers: headersOf({ 'retry-after': '30' }) }, 0), 30_000);
+eq('retry-after 날짜를 따른다',
+  retryWaitMs({ headers: headersOf({ 'retry-after': new Date(NOW + 3_000).toUTCString() }) }, 0, NOW), 3_000);
+eq('말이 없으면 0.5초부터 두 배, 8초까지', [0, 1, 2, 3, 4, 5].map((n) => retryWaitMs({ status: 503 }, n)),
+  [500, 1_000, 2_000, 4_000, 8_000, 8_000]);
+const budget = { reserveMs: 1_000, minCallMs: 2_000, maxCallMs: 5_000 };
+eq('요청 시간은 상한까지', callTimeoutMs(10_000, 0, budget), 5_000);
+eq('남은 만큼만 준다', callTimeoutMs(10_000, 7_000, budget), 2_000);
+eq('모자라면 보내지 않는다', callTimeoutMs(10_000, 7_500, budget), null);
+eq('기다려도 한 번 더 보낼 수 있으면 기다린다', canWaitFor(10_000, 0, 3_000, budget), true);
+eq('기다리면 마감을 넘으면 안 기다린다', canWaitFor(10_000, 0, 8_000, budget), false);
+
+section('화면이 읽기를 기다리는 법 — 멈춤을 놓치지 않는다');
+ok('서버가 멈춤이라 하는 때보다 오래 지켜본다', WATCH.giveUpMs > PHOTO_READ.stuckMs + PHOTO_READ.quietMs);
+eq('8분 4초에 아직 읽는 중이면 계속 묻는다', watchStep('reading', 8 * 60_000 + 4_000), 'wait');
+eq('못 물었으면 계속 묻는다', watchStep(undefined, 60_000), 'wait');
+eq('끝 · 실패 · 멈춤 · 없음이면 새로 그린다',
+  ['done', 'failed', 'stuck', 'none'].map((k) => watchStep(k, 1_000)), ['refresh', 'refresh', 'refresh', 'refresh']);
+eq('오래 기다렸으면 새로 그린다', watchStep('reading', WATCH.giveUpMs), 'refresh');
+eq('처음엔 자주, 나중엔 드물게', [watchDelay(0), watchDelay(WATCH.slowAfterMs)], [WATCH.everyMs, WATCH.slowEveryMs]);
+
+// 가짜 시계: 사진을 올리고 30초 뒤 읽기가 시작됐는데 서버에서 끊겼다. 화면이 새로 그릴 때
+// 서버는 반드시 '멈춤' 이라고 답해야 '다시 읽기' 가 나온다.
+{
+  const start = NOW;
+  const died: PhotoReadRow = readRow({ status: 'running', updated_at: new Date(start + PHOTO_READ.quietMs).toISOString() });
+  let t = 0;
+  let decided: 'wait' | 'refresh' = 'wait';
+  let kind = 'reading';
+  let polls = 0;
+  while (decided === 'wait' && polls < 10_000) {
+    t += watchDelay(t);
+    polls += 1;
+    kind = readViewOf(died, ['p1', 'p2'], start + t).kind;
+    decided = watchStep(kind, t);
+  }
+  ok('끊긴 읽기 — 화면이 새로 그리는 때 서버는 멈춤이라 답한다', decided === 'refresh' && readViewOf(died, ['p1', 'p2'], start + t).kind === 'stuck', { t, kind });
+  ok('11분 안팎에서 새로 그린다', t <= WATCH.giveUpMs + WATCH.slowEveryMs, t);
+  ok('묻는 횟수가 과하지 않다', polls < 80, polls);
+}
+
+section('사진 읽기 요청 — 마감 시각 안에서만 (가짜 모델 서버)');
+{
+  type Reply = { kind: 'hang' } | { kind: 'status'; status: number; headers?: Record<string, string> } | { kind: 'ok'; body: unknown };
+  let script: Reply[] = [];
+  let calls = 0;
+  const server = http.createServer((req, res) => {
+    req.resume();
+    req.on('end', () => {
+      calls += 1;
+      const reply = script.length > 1 ? script.shift()! : script[0];
+      if (reply.kind === 'hang') return;
+      if (reply.kind === 'status') {
+        res.writeHead(reply.status, { 'content-type': 'application/json', ...reply.headers });
+        res.end(JSON.stringify({ type: 'error', error: { type: 'overloaded_error', message: 'busy' } }));
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({
+        id: 'msg_test', type: 'message', role: 'assistant', model: 'claude-opus-5',
+        content: [{ type: 'text', text: JSON.stringify(reply.body) }],
+        stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 },
+      }));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = (server.address() as AddressInfo).port;
+  const savedKey = process.env.ANTHROPIC_API_KEY;
+  const savedUrl = process.env.ANTHROPIC_BASE_URL;
+  process.env.ANTHROPIC_API_KEY = 'test-key';
+  // 클라이언트는 부를 때마다 새로 만들어져 이 값을 읽는다 (ocr.ts).
+  process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${port}`;
+
+  const img = { media_type: 'image/jpeg', data: Buffer.from('fake').toString('base64') };
+  const fast = { minCallMs: 100, reserveMs: 100, callTimeoutMs: 5_000, maxRetries: 2 };
+  const good = { answers: [{ no: 1, answer: 3, sure: true, note: null }], unreadable_photos: [], note: '' };
+  const run = async (replies: Reply[], budgetMs: number, images = [img]) => {
+    script = replies;
+    calls = 0;
+    const started = Date.now();
+    const result = await readStudentAnswers(images, { ...fast, deadline: started + budgetMs });
+    return { result, calls, ms: Date.now() - started };
+  };
+  const reasonOf = (r: Awaited<ReturnType<typeof readStudentAnswers>>) => (r.ok ? 'OK' : r.reason);
+
+  const longWait = await run([{ kind: 'status', status: 429, headers: { 'retry-after': '30' } }], 1_500);
+  eq('30초 기다리라면 기다리지 않고 멈춘다', [reasonOf(longWait.result), longWait.calls], ['RATE_LIMIT', 1]);
+  ok('곧바로 끝난다', longWait.ms < 1_000, longWait.ms);
+
+  const hang = await run([{ kind: 'hang' }], 1_200);
+  eq('응답이 없으면 시간 초과 · 한 번만', [reasonOf(hang.result), hang.calls], ['TIMEOUT', 1]);
+  ok('마감 전에 끝난다', hang.ms <= 1_200, hang.ms);
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  eq('끝난 뒤에 더 부르지 않는다', calls, 1);
+
+  const flaky = await run([
+    { kind: 'status', status: 503, headers: { 'retry-after-ms': '10' } },
+    { kind: 'status', status: 529, headers: { 'retry-after-ms': '10' } },
+    { kind: 'ok', body: good },
+  ], 3_000);
+  eq('두 번 실패해도 세 번째에 읽는다', [reasonOf(flaky.result), flaky.calls], ['OK', 3]);
+
+  const down = await run([{ kind: 'status', status: 503, headers: { 'retry-after-ms': '10' } }], 3_000);
+  eq('계속 실패하면 세 번에서 멈춘다', [reasonOf(down.result), down.calls], ['API_ERROR', 3]);
+
+  const refuseRetry = await run([{ kind: 'status', status: 503, headers: { 'x-should-retry': 'false' } }], 3_000);
+  eq('서버가 하지 말라면 한 번만', [reasonOf(refuseRetry.result), refuseRetry.calls], ['API_ERROR', 1]);
+
+  const tooLate = await run([{ kind: 'ok', body: good }], 150);
+  eq('남은 시간이 모자라면 보내지도 않는다', [reasonOf(tooLate.result), tooLate.calls], ['TIMEOUT', 0]);
+
+  const twoChunks = await run([{ kind: 'status', status: 400 }], 3_000, [img, img, img, img, img]);
+  ok('한 요청이 실패하면 전체가 실패 · 나머지는 새로 안 보낸다',
+    reasonOf(twoChunks.result) === 'API_ERROR' && twoChunks.calls <= 2, { reason: reasonOf(twoChunks.result), calls: twoChunks.calls });
+
+  server.closeAllConnections();
+  await new Promise((resolve) => server.close(resolve));
+  if (savedKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+  else process.env.ANTHROPIC_API_KEY = savedKey;
+  if (savedUrl === undefined) delete process.env.ANTHROPIC_BASE_URL;
+  else process.env.ANTHROPIC_BASE_URL = savedUrl;
+}
 
 done();

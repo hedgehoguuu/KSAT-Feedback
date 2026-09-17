@@ -8,6 +8,8 @@ import { seoulDate, seoulStamp } from '@/lib/kst';
 import { requireRole } from '@/lib/lms/auth';
 import { courseVisibleTo } from '@/lib/lms/courses';
 import { examBoard, getExam, type BoardRow } from '@/lib/lms/exams';
+import { photoReadsOf, type PhotoReadRow } from '@/lib/lms/photo-read';
+import { readViewOf } from '@/lib/lms/photo-read-state';
 import { publishExamGrades, removeExam, startGrading, updateExam } from '../../course-actions';
 
 export const dynamic = 'force-dynamic';
@@ -23,10 +25,15 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
   if (!course) notFound();
 
   const board = await examBoard(exam);
+  const reads = await photoReadsOf(board.rows.flatMap((r) => (r.attempt ? [r.attempt.id] : [])));
   const { questions } = board;
   const keyed = questions.filter((q) => q.answer !== null).length;
   const tagged = questions.filter((q) => q.unit_code).length;
   const gradedCount = board.rows.filter((r) => r.score.complete).length;
+  // 사진으로 다 매겨졌지만 튜터가 아직 열어 보지 않은 학생. 일괄 공개 전에 한 번 묻는다.
+  const unreviewed = board.rows.filter(
+    (r) => r.attempt?.answers_source === 'photo' && r.attempt.status !== 'published' && r.score.complete,
+  ).length;
   const submittedCount = board.rows.filter((r) => r.attempt?.submitted_at).length;
   const sentCount = board.rows.filter((r) => r.attempt?.feedback_ready_at).length;
   const today = seoulDate();
@@ -141,9 +148,19 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
           action={
             <form action={publishExamGrades}>
               <input type="hidden" name="exam_id" value={exam.id} />
-              <button type="submit" className={btnGhost} disabled={gradedCount === 0}>
-                채점 끝난 {gradedCount}명 점수 공개
-              </button>
+              {unreviewed > 0 ? (
+                <ConfirmSubmit
+                  className={btnGhost}
+                  disabled={gradedCount === 0}
+                  message={`채점 끝난 ${gradedCount}명 중 ${unreviewed}명은 사진으로 자동 채점한 뒤 아직 직접 확인하지 않았어요.\n\n사진에서 확실히 읽힌 답만 매긴 것이지만, 잘못 읽었을 수 있어요. 그대로 공개할까요?`}
+                >
+                  채점 끝난 {gradedCount}명 점수 공개
+                </ConfirmSubmit>
+              ) : (
+                <button type="submit" className={btnGhost} disabled={gradedCount === 0}>
+                  채점 끝난 {gradedCount}명 점수 공개
+                </button>
+              )}
             </form>
           }
         >
@@ -174,6 +191,7 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
                     <StudentLine
                       key={row.student.id}
                       row={row}
+                      read={row.attempt ? (reads.get(row.attempt.id) ?? null) : null}
                       rank={board.stats.standings.find((s) => s.studentId === row.student.id)?.rank ?? 0}
                       examId={exam.id}
                       canGrade={questions.length > 0}
@@ -184,8 +202,9 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
             </div>
           )}
           <p className="mt-3 text-[13px] leading-[1.6] text-muted">
-            학생이 올린 질문에 답을 다 달고 보내면 답변 PDF 가 학생 메일로 가요. 채점이 끝났으면 점수도 PDF 에 들어가고,
-            그때 학생 화면에도 점수가 열려요.
+            학생이 시험지 사진을 올리면 사진에서 학생 답을 읽어 채점을 채워요(&lsquo;자동&rsquo;). 확실히 읽힌 문항만 매기고,
+            애매한 문항은 &lsquo;확인&rsquo; 으로 남겨요. 학생이 올린 질문에 답을 다 달고 보내면 답변 PDF 가 학생 메일로 가요.
+            채점이 끝났으면 점수도 PDF 에 들어가고, 그때 학생 화면에도 점수가 열려요.
           </p>
         </Card>
 
@@ -256,23 +275,36 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
 
 function StudentLine({
   row,
+  read,
   rank,
   examId,
   canGrade,
 }: {
   row: BoardRow;
+  read: PhotoReadRow | null;
   rank: number;
   examId: string;
   canGrade: boolean;
 }) {
   const { attempt, score, submission } = row;
+  const auto = attempt?.answers_source === 'photo';
+  // 반 화면에서는 사진이 바뀌었는지까지 보지 않는다 — 읽은 사진 그대로를 지금 사진으로 둔다.
+  const readKind = read ? readViewOf(read, read.photo_ids).kind : 'none';
+
   const gradeState = !attempt || score.graded === 0
-    ? '시작 전'
+    ? readKind === 'reading'
+      ? '사진 읽는 중'
+      : '시작 전'
     : !score.complete
-      ? `매기는 중 ${score.graded}/${score.count}`
+      ? auto
+        ? `자동 · 확인 ${score.count - score.graded}`
+        : `매기는 중 ${score.graded}/${score.count}`
       : attempt.status === 'published'
         ? '공개함'
-        : '끝 · 비공개';
+        : auto
+          ? '자동 · 끝 · 비공개'
+          : '끝 · 비공개';
+  const readProblem = readKind === 'failed' ? '사진 읽기 실패' : readKind === 'stuck' ? '사진 읽기 멈춤' : null;
 
   const concernState = !attempt || submission.concerns === 0
     ? submission.photos > 0
@@ -305,7 +337,10 @@ function StudentLine({
       <td className={score.wrongNos.length > 0 ? 'text-mark' : 'text-muted'}>
         {score.graded > 0 ? score.wrongNos.join(', ') || '없음' : '—'}
       </td>
-      <td className="text-muted">{gradeState}</td>
+      <td className={auto && !score.complete ? 'font-bold text-check' : 'text-muted'}>
+        {gradeState}
+        {readProblem ? <span className="ml-1 font-bold text-danger">· {readProblem}</span> : null}
+      </td>
       <td
         className={
           attempt?.submitted_at && !attempt.feedback_ready_at && submission.answered < submission.concerns

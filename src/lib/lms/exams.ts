@@ -41,13 +41,20 @@ export type AttemptRow = {
   mailed_at: string | null;
   mailed_to: string | null;
   mail_error: string | null;
+  /**
+   * 채점을 누가 적었나 (0016). photo = 사진 읽기가 채움 · tutor = 튜터가 저장함 · null = 아직.
+   * 사진 읽기는 튜터 채점을 덮지 않는다.
+   */
+  answers_source: AnswersSource | null;
 };
+
+export type AnswersSource = 'photo' | 'tutor';
 
 const EXAM_COLS = 'id, course_id, title, exam_date, due_date, status, created_at';
 const QUESTION_COLS = 'id, no, points, answer, unit_code';
 // 한 덩어리로 적는다. 문자열을 더해 만들면 supabase-js 가 열 목록을 못 읽어 타입이 오류로 바뀐다.
 export const ATTEMPT_COLS =
-  'id, exam_id, student_id, overall_comment, status, updated_at, submitted_at, feedback_path, feedback_ready_at, mailed_at, mailed_to, mail_error';
+  'id, exam_id, student_id, overall_comment, status, updated_at, submitted_at, feedback_path, feedback_ready_at, mailed_at, mailed_to, mail_error, answers_source';
 
 /* ─────────────────────────────────────────────────────────── 시험 회차 */
 
@@ -208,11 +215,13 @@ export async function listAnswers(attemptId: string): Promise<AnswerRow[]> {
 }
 
 /**
- * 채점 한 판을 통째로 저장한다 (0012 → 0015 save_grading).
+ * 채점 한 판을 통째로 저장한다 (0012 → 0015 → 0016 save_grading).
  *
  * plpgsql 함수는 통째로 한 트랜잭션이라 중간에 실패하면 전부 되돌아간다. 예전에 요청 네
  * 번으로 나눠 하다가 82점 · 정오 45개가 0점 · 0개가 되고도 '저장했어요' 라고 말한 적이 있다.
  * 그래서 error 를 반드시 던진다 — 저장이 안 됐는데 됐다고 말하는 것이 가장 나쁘다.
+ *
+ * 한 문항이라도 매겨 저장하면 튜터 채점이 된다. 그 뒤로는 사진을 다시 읽어도 덮지 않는다.
  */
 export async function saveGrading(input: {
   attemptId: string;
@@ -241,6 +250,10 @@ export async function saveGrading(input: {
  *
  * **채점이 끝난 것만** 공개한다. 매기다 만 응시가 섞여 들어가면 학생이 반쪽짜리 점수를
  * 보게 된다. 몇 명이 공개됐고 몇 명이 남았는지 돌려준다.
+ *
+ * 화면이 본 '채점 끝' 을 그대로 믿지 않는다. 그사이 학생이 사진을 바꾸면 사진으로 매긴 채점이
+ * 비워진다 (0016). 그래서 DB 가 응시를 잠근 채로 지금도 다 매겨져 있는지 다시 보고 공개한다
+ * (publish_grades).
  */
 export async function publishGradedAttempts(
   exam: ExamRow,
@@ -250,18 +263,15 @@ export async function publishGradedAttempts(
   const ready = board.rows
     .filter((r) => r.attempt && r.score.complete && r.attempt.status !== 'published')
     .map((r) => r.attempt!.id);
-  const skipped = board.rows.filter((r) => !r.attempt || !r.score.complete).length;
+  const unfinished = board.rows.filter((r) => !r.attempt || !r.score.complete).length;
+  if (ready.length === 0) return { published: 0, skipped: unfinished };
 
-  if (ready.length > 0) {
-    await must(
-      db()
-        .from('lms_attempts')
-        .update({ status: 'published', updated_at: new Date().toISOString() })
-        .in('id', ready),
-    );
-  }
-
-  return { published: ready.length, skipped };
+  const { data, error } = await db().rpc('publish_grades', {
+    payload: { exam_id: exam.id, attempt_ids: ready },
+  });
+  if (error) throw error;
+  const published = Number(data ?? 0);
+  return { published, skipped: unfinished + (ready.length - published) };
 }
 
 /* ────────────────────────────────────────────────── 화면이 통째로 쓰는 것 */

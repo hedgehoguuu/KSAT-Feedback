@@ -17,6 +17,8 @@
  * 무료 프로젝트를 하나 더 만들어 마이그레이션만 돌려 두고 쓰면 된다.
  * 메일 환경변수(GMAIL_*)는 지우고 돈다 — 시험이 학생에게 진짜 메일을 보내면 안 된다.
  */
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { section, ok, eq, done } from './assert.ts';
 
 /* ─────────────────────────────────────────────── 운영 DB 를 지우지 않게 */
@@ -66,7 +68,10 @@ const { addPhoto, listPhotos, movePhoto, removePhoto, saveConcerns, listConcerns
 const { LMS_BUCKET, getFile } = await import('../src/lib/lms/files.ts');
 const { verifyPassword } = await import('../src/lib/lms/password.ts');
 const { db } = await import('../src/lib/lms/db.ts');
-const { PAPER } = await import('../src/config/lms.ts');
+const { PAPER, PHOTO_READ } = await import('../src/config/lms.ts');
+const { requestPhotoRead, runPhotoRead, getPhotoRead, applyPhotoRead, ensurePhotoRead, retryPhotoReads } =
+  await import('../src/lib/lms/photo-read.ts');
+const { readViewOf } = await import('../src/lib/lms/photo-read-state.ts');
 
 /* ─────────────────────────────────────────────────────────── 비우기 */
 
@@ -83,7 +88,7 @@ async function wipeBucket(prefix = 'attempts'): Promise<void> {
 await wipeBucket();
 
 // 사람을 지우면 반·회차·응시·정오·질문이 연쇄로 따라 사라진다 (0008 · 0015 의 on delete cascade).
-for (const table of ['lms_concerns', 'lms_attempt_photos', 'lms_answers', 'lms_attempts', 'lms_exam_questions',
+for (const table of ['lms_concerns', 'lms_photo_reads', 'lms_attempt_photos', 'lms_answers', 'lms_attempts', 'lms_exam_questions',
                      'lms_exams', 'lms_enrollments', 'lms_courses', 'lms_students', 'lms_users']) {
   const { error } = await db().from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
   // 기본키가 id 가 아닌 표(정오·수강·학생)는 위가 안 먹으므로 한 번 더 넓게 지운다.
@@ -416,5 +421,287 @@ ok('남은 사진 파일이 있다', await fileExists(kept.storage_path));
 await deleteCourse(courseId);
 ok('반을 지우면 시험지 사진도 사라진다', !(await fileExists(kept.storage_path)));
 ok('응시도 사라진다', (await findAttempt(examId, students[0].id)) === null);
+
+/* ═══════════════════════════════════════════ 사진으로 자동 채점 (0016) */
+
+// 모델은 가짜다 — 이 시험이 돈을 쓰거나 밖으로 나가면 안 된다. 요청 모양과 흐름만 본다.
+// 사진 몇 번째부터 몇 장을 받았는지(offset · count)에 따라 답을 정한다.
+type ModelReply =
+  | { kind: 'read'; answers: { no: number; answer: number | null; sure: boolean; note: string | null }[]; unreadable?: number[] }
+  | { kind: 'refuse' }
+  | { kind: 'status'; status: number; headers?: Record<string, string> }
+  | { kind: 'hang' };
+let replyFor: (offset: number, count: number) => ModelReply = () => ({ kind: 'read', answers: [] });
+const modelCalls: { offset: number; count: number; body: Record<string, unknown>; headers: http.IncomingHttpHeaders }[] = [];
+const model = http.createServer(async (req, res) => {
+  const chunks: Buffer[] = [];
+  for await (const c of req) chunks.push(c as Buffer);
+  const body = JSON.parse(Buffer.concat(chunks).toString());
+  const content = body.messages[0].content as { type: string; text?: string }[];
+  const count = content.filter((c) => c.type === 'image').length;
+  const label = content.find((c) => c.type === 'text' && /(\d+)번째/.test(c.text ?? ''));
+  const offset = label ? Number(/(\d+)번째/.exec(label.text!)![1]) - 1 : 0;
+  modelCalls.push({ offset, count, body, headers: req.headers });
+
+  const reply = replyFor(offset, count);
+  if (reply.kind === 'hang') return;
+  if (reply.kind === 'status') {
+    res.writeHead(reply.status, { 'content-type': 'application/json', ...reply.headers });
+    res.end(JSON.stringify({ type: 'error', error: { type: 'rate_limit_error', message: 'slow down' } }));
+    return;
+  }
+  const base = { id: 'msg_test', type: 'message', role: 'assistant', model: 'claude-opus-5', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } };
+  const message = reply.kind === 'refuse'
+    ? { ...base, content: [], stop_reason: 'refusal', stop_details: { type: 'refusal', category: null, explanation: null } }
+    : { ...base, stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ answers: reply.answers, unreadable_photos: reply.unreadable ?? [], note: '가짜 모델' }) }] };
+  res.writeHead(200, { 'content-type': 'application/json' });
+  res.end(JSON.stringify(message));
+});
+await new Promise<void>((resolve) => model.listen(0, '127.0.0.1', resolve));
+process.env.ANTHROPIC_API_KEY = 'test-key';
+process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(model.address() as AddressInfo).port}`;
+
+// 뒤에서 도는 일을 줄 세워 두고 시험이 하나씩 돌린다 (앱에서는 after() 가 돌린다).
+const later: (() => Promise<unknown>)[] = [];
+const hold = (task: () => Promise<unknown>) => { later.push(task); };
+const runNext = async () => await later.shift()!();
+const span = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+const sure = (nos: number[]) => nos.map((no) => ({ no, answer: KEY[no - 1], sure: true, note: null }));
+const photoIdsOf = async (attemptId: string) => (await listPhotos(attemptId)).map((p) => p.id);
+const gradingOf = async (attemptId: string) => (await loadGrading(attemptId))!;
+const noOfQ = async (examId_: string) => new Map((await listQuestions(examId_)).map((q) => [q.id, q.no]));
+
+// 첫 시험지: 앞 네 장에 1–15번, 다섯째 장에 16–30번. 다섯째 장은 흐리다고 한다.
+const firstPaper = (offset: number): ModelReply => offset === 0
+  ? { kind: 'read', answers: [...sure(span(1, 15)).filter((a) => a.no !== 12), { no: 12, answer: 2, sure: false, note: '②와 ③ 둘 다 표시' }] }
+  : { kind: 'read', unreadable: [1], answers: [
+      { no: 5, answer: 4, sure: true, note: null },                  // 앞 장에서는 1 — 엇갈린다
+      { no: 16, answer: 99, sure: true, note: null },                // 틀린 답
+      ...sure(span(17, 20)),
+      { no: 21, answer: null, sure: true, note: null },              // 확실한 빈칸
+      { no: 22, answer: null, sure: false, note: '흐림' },
+      ...sure(span(23, 29)),
+      { no: 30, answer: 125, sure: true, note: null },               // 이 회차는 아직 30번 정답이 없다
+    ] };
+const wholePaper: ModelReply = { kind: 'read', answers: sure(span(1, 30)) };
+
+section('21. 사진으로 자동 채점 — 확실한 것만 매긴다 (0016)');
+await enroll(course2, students[1].id);
+const exam5 = await saveExam({ course_id: course2, title: '특강 2회', exam_date: '2026-09-21', due_date: null, status: 'published' });
+await saveAnswerKey(exam5, PAPER.map((q) => ({ no: q.no, answer: q.no === 30 ? null : KEY[q.no - 1], unit_code: null })));
+const r1 = await openAttempt(exam5, students[0].id);
+for (let i = 0; i < 5; i += 1) await addPhoto(r1.id, JPEG);
+replyFor = firstPaper;
+
+eq('학생 쪽에서 부른다', await requestPhotoRead(r1.id, { by: 'student', delayMs: 0, schedule: hold }), 'QUEUED');
+eq('기다림으로 적힌다', (await getPhotoRead(r1.id))?.status, 'pending');
+eq('읽기 한 판', await runNext(), 'DONE');
+eq('사진 다섯 장은 요청 두 번 (넷 + 하나)', modelCalls.map((c) => [c.offset, c.count]), [[0, 4], [4, 1]]);
+const firstCall = modelCalls[0];
+eq('요청 모양 — 모델 · 거절 대비 · 생각 · 구조화 출력',
+  [firstCall.body.model, firstCall.body.fallbacks, (firstCall.body.thinking as { type: string }).type,
+   (firstCall.body.output_config as { effort: string; format: { type: string } }).effort,
+   (firstCall.body.output_config as { format: { type: string } }).format.type],
+  ['claude-opus-5', 'default', 'adaptive', 'medium', 'json_schema']);
+ok('거절 대비 베타 머리글', String(firstCall.headers['anthropic-beta'] ?? '').includes('server-side-fallback-2026-07-01'));
+const read1 = (await getPhotoRead(r1.id))!;
+eq('다 읽었고 모델은 한 판', [read1.status, read1.runs], ['done', 1]);
+eq('흐린 사진은 다섯째 장', read1.unreadable, [(await photoIdsOf(r1.id))[4]]);
+const g1 = await gradingOf(r1.id);
+eq('사진으로 채운 채점', g1.attempt.answers_source, 'photo');
+eq('확실하고 정답이 있는 26문항만 매긴다', g1.score.graded, 26);
+eq('틀린 것은 16번(99) · 21번(빈칸)', g1.score.wrongNos, [16, 21]);
+const nos5 = await noOfQ(exam5);
+const markedNos = g1.answers.map((a) => nos5.get(a.question_id)).sort((a, b) => a! - b!);
+ok('애매한 12 · 엇갈린 5 · 흐린 22 · 정답 없는 30 은 비운다', [5, 12, 22, 30].every((n) => !markedNos.includes(n)), markedNos);
+eq('학생 답도 적힌다 (1번 3 · 21번 빈칸)',
+  [1, 21].map((n) => g1.answers.find((a) => nos5.get(a.question_id) === n)?.chosen), [3, null]);
+eq('아직 비공개', g1.attempt.status, 'draft');
+
+section('22. 사진이 바뀌면 옛 사진의 채점은 그 자리에서 사라진다');
+await addPhoto(r1.id, JPEG);
+const g2 = await gradingOf(r1.id);
+eq('사진을 더하면 사진 채점이 비워진다', [g2.score.graded, g2.attempt.answers_source], [0, null]);
+const staleView = readViewOf(await getPhotoRead(r1.id), await photoIdsOf(r1.id));
+ok('읽기는 낡은 것으로 보인다', staleView.kind === 'done' && staleView.stale);
+eq('낡은 읽기는 옮기지 않는다', await applyPhotoRead(r1.id, false), -1);
+eq('튜터가 눌러도 낡은 읽기는 안 옮긴다', await applyPhotoRead(r1.id, true), -1);
+await saveAnswerKey(exam5, PAPER.map((q) => ({ no: q.no, answer: KEY[q.no - 1], unit_code: null })));
+eq('정답표를 고쳐도 낡은 읽기로 채우지 않는다', (await gradingOf(r1.id)).score.graded, 0);
+
+eq('다시 부른다', await requestPhotoRead(r1.id, { by: 'student', delayMs: 0, schedule: hold }), 'QUEUED');
+eq('다시 읽는다', await runNext(), 'DONE');
+eq('새 사진까지 읽어 채운다 (30번 정답이 생겨 27문항)', (await gradingOf(r1.id)).score.graded, 27);
+
+section('23. 늦게 끝난 옛 읽기는 버린다');
+const callsBefore = modelCalls.length;
+await requestPhotoRead(r1.id, { by: 'student', delayMs: 0, schedule: hold });
+await requestPhotoRead(r1.id, { by: 'student', delayMs: 0, schedule: hold });
+eq('앞의 읽기는 시작도 안 한다', await runNext(), 'SKIPPED');
+eq('뒤의 읽기가 돈다', await runNext(), 'DONE');
+eq('모델은 뒤의 읽기만 불렀다 (요청 두 번)', modelCalls.length - callsBefore, 2);
+
+// 읽는 도중 사진이 바뀐다: 시작한 뒤 한 장을 지우고, 옛 사진 목록으로 마친다.
+const before = await photoIdsOf(r1.id);
+const { data: reqC } = await db().rpc('request_photo_read', { payload: { attempt_id: r1.id, max_runs: null } });
+eq('시작', (await db().rpc('claim_photo_read', { payload: { attempt_id: r1.id, request_no: reqC } })).data, true);
+ok('지운다', await removePhoto(r1.id, before[5]));
+eq('지우는 순간 사진 채점이 비워진다', (await gradingOf(r1.id)).score.graded, 0);
+const finished = await db().rpc('finish_photo_read', { payload: {
+  attempt_id: r1.id, request_no: reqC, photo_ids: before, answers: read1.answers, unreadable: [], note: '' } });
+eq('읽는 사이 사진이 바뀌면 결과를 버린다', finished.data, 'CHANGED');
+const changed = (await getPhotoRead(r1.id))!;
+eq('실패(PHOTOS_CHANGED)로 적힌다', [changed.status, changed.error], ['failed', 'PHOTOS_CHANGED']);
+eq('채점은 여전히 비어 있다', (await gradingOf(r1.id)).score.graded, 0);
+eq('제출하면 다시 읽기를 부른다', await ensurePhotoRead(r1.id, hold), 'QUEUED');
+eq('읽는다', await runNext(), 'DONE');
+eq('다섯 장으로 다시 채운다', (await gradingOf(r1.id)).score.graded, 27);
+eq('이미 새 읽기가 있으면 제출해도 안 부른다', await ensurePhotoRead(r1.id, hold), 'FRESH');
+
+section('24. 횟수 상한 — 부르기만 막고, 옛 채점은 그래도 비운다');
+await db().from('lms_photo_reads').update({ runs: PHOTO_READ.maxStudentRuns - 1 }).eq('attempt_id', r1.id);
+const { data: lastAllowed } = await db().rpc('request_photo_read', { payload: { attempt_id: r1.id, max_runs: PHOTO_READ.maxStudentRuns } });
+ok('마지막 허용 읽기', Number(lastAllowed) > 0);
+await db().rpc('claim_photo_read', { payload: { attempt_id: r1.id, request_no: lastAllowed } });
+const duringIds = await photoIdsOf(r1.id);
+await addPhoto(r1.id, JPEG);
+eq('학생 쪽은 상한에 걸린다', await requestPhotoRead(r1.id, { by: 'student', delayMs: 0, schedule: hold }), 'CAPPED');
+eq('그래도 옛 사진 채점은 비워졌다', (await gradingOf(r1.id)).score.graded, 0);
+eq('번호가 안 올라도 옛 결과는 버린다', (await db().rpc('finish_photo_read', { payload: {
+  attempt_id: r1.id, request_no: lastAllowed, photo_ids: duringIds, answers: read1.answers, unreadable: [], note: '' } })).data, 'CHANGED');
+eq('채점은 비어 있다', (await gradingOf(r1.id)).score.graded, 0);
+eq('튜터는 상한과 상관없이 부른다', await requestPhotoRead(r1.id, { by: 'tutor', schedule: hold }), 'QUEUED');
+eq('읽는다', await runNext(), 'DONE');
+eq('여섯 장으로 채운다', (await gradingOf(r1.id)).score.graded, 27);
+
+section('25. 튜터가 매긴 채점과 공개한 점수는 덮지 않는다');
+const g25 = await gradingOf(r1.id);
+const q5 = (await listQuestions(exam5)).find((q) => q.no === 5)!;
+await saveGrading({ attemptId: r1.id, overallComment: '사진 보고 확인함', status: 'draft',
+  answers: [...g25.answers, { question_id: q5.id, correct: true, chosen: 1 }] });
+eq('튜터 채점이 된다', (await gradingOf(r1.id)).attempt.answers_source, 'tutor');
+await requestPhotoRead(r1.id, { by: 'tutor', schedule: hold });
+await runNext();
+eq('다시 읽어도 튜터 채점은 그대로', (await gradingOf(r1.id)).score.graded, 28);
+eq('튜터가 누르면 읽은 답으로 다시 매긴다', await applyPhotoRead(r1.id, true), 27);
+const g25b = await gradingOf(r1.id);
+eq('다시 사진 채점 · 총평은 그대로', [g25b.attempt.answers_source, g25b.attempt.overall_comment], ['photo', '사진 보고 확인함']);
+await saveGrading({ attemptId: r1.id, answers: g25b.answers, overallComment: '공개', status: 'published' });
+eq('공개한 응시는 튜터가 눌러도 안 바꾼다', await applyPhotoRead(r1.id, true), -1);
+const photosOfR1 = await photoIdsOf(r1.id);
+await removePhoto(r1.id, photosOfR1[photosOfR1.length - 1]);
+eq('공개한 뒤에는 사진을 바꿔도 점수가 그대로', (await gradingOf(r1.id)).score.graded, 27);
+
+const r2 = await openAttempt(exam5, students[1].id);
+await saveGrading({ attemptId: r2.id, answers: [], overallComment: '먼저 적은 총평', status: 'draft' });
+eq('아무것도 안 매기고 저장하면 누구의 채점도 아니다', (await getAttempt(r2.id))!.answers_source, null);
+
+section('26. 일괄 공개와 답변 PDF 는 지금 채점을 다시 본다');
+for (let i = 0; i < 2; i += 1) await addPhoto(r2.id, JPEG);
+replyFor = () => wholePaper;
+await requestPhotoRead(r2.id, { by: 'student', delayMs: 0, schedule: hold });
+await runNext();
+ok('나은은 사진만으로 다 매겨졌다', (await gradingOf(r2.id)).score.complete);
+// 화면이 '채점 끝' 을 본 뒤 학생이 사진을 바꾼다
+await addPhoto(r2.id, JPEG);
+eq('그사이 비워진 채점은 공개하지 않는다',
+  (await db().rpc('publish_grades', { payload: { exam_id: exam5, attempt_ids: [r2.id] } })).data, 0);
+eq('비공개 그대로', (await getAttempt(r2.id))!.status, 'draft');
+await requestPhotoRead(r2.id, { by: 'student', delayMs: 0, schedule: hold });
+await runNext();
+
+await saveConcerns(r2.id, [{ question_no: 0, body: '시간 배분' }], true);
+const r2Concern = (await listConcerns(r2.id))[0];
+await saveConcernAnswers(r2.id, [{ id: r2Concern.id, answer: '1–20번에 45분' }]);
+const snapshot = await listAnswers(r2.id);
+await addPhoto(r2.id, JPEG);
+const regraded = await db().rpc('mark_feedback_ready', { payload: {
+  attempt_id: r2.id, path: 'attempts/x/feedback-0.pdf', concern_ids: [r2Concern.id], publish: true, answers: snapshot } });
+eq('PDF 를 만든 뒤 채점이 바뀌면 보내지 않는다', regraded.error?.message, 'REGRADED');
+eq('보냄으로 표시되지 않았다', (await getAttempt(r2.id))!.feedback_ready_at, null);
+await requestPhotoRead(r2.id, { by: 'student', delayMs: 0, schedule: hold });
+await runNext();
+const sentWithScore = await sendFeedback(r2.id);
+eq('그대로면 보내면서 점수를 연다', sentWithScore.ok && sentWithScore.published, true);
+eq('공개됐다', (await getAttempt(r2.id))!.status, 'published');
+
+const r1Board = await publishGradedAttempts((await listExams(course2)).find((e) => e.id === exam5)!);
+eq('다 공개돼 새로 공개할 것이 없다', r1Board.published, 0);
+
+section('27. 실패는 적고, 마감 시각을 넘기지 않는다');
+const r3Student = id(await createUser({ role: 'student', login_id: 'rahee', password: 'student-pass', name: '라희' }));
+await enroll(course2, r3Student);
+const r3 = await openAttempt(exam5, r3Student);
+await addPhoto(r3.id, JPEG);
+replyFor = () => ({ kind: 'refuse' });
+await requestPhotoRead(r3.id, { by: 'tutor', schedule: hold });
+eq('거절되면 실패', await runNext(), 'FAILED');
+eq('이유가 적힌다 (거절)', (await getPhotoRead(r3.id))?.error, 'REFUSED');
+
+replyFor = () => ({ kind: 'status', status: 429, headers: { 'retry-after-ms': '1' } });
+const beforeLimit = modelCalls.length;
+await requestPhotoRead(r3.id, { by: 'tutor', schedule: hold });
+eq('요청이 몰리면 실패', await runNext(), 'FAILED');
+eq('두 번 더 보내 보고 멈춘다', modelCalls.length - beforeLimit, 1 + PHOTO_READ.maxRetries);
+eq('이유가 적힌다 (요청 몰림)', (await getPhotoRead(r3.id))?.error, 'RATE_LIMIT');
+
+replyFor = () => ({ kind: 'hang' });
+const { data: hangReq } = await db().rpc('request_photo_read', { payload: { attempt_id: r3.id, max_runs: null } });
+const hangStart = Date.now();
+const hung = await runPhotoRead(r3.id, Number(hangReq), {
+  deadline: hangStart + 1_500,
+  timing: { minCallMs: 100, reserveMs: 150, callTimeoutMs: 5_000, maxRetries: 2 },
+});
+const hangMs = Date.now() - hangStart;
+eq('응답이 없으면 마감에 실패로 끝난다', [hung, (await getPhotoRead(r3.id))?.error], ['FAILED', 'TIMEOUT']);
+ok('마감 전에 적는다', hangMs < 1_500, hangMs);
+
+// 사진을 다 지우면 모델을 부르지 않는다
+const runsBeforeEmpty = (await getPhotoRead(r3.id))!.runs;
+const r3Photos = await listPhotos(r3.id);
+for (const p of r3Photos) await removePhoto(r3.id, p.id);
+const emptied = (await getPhotoRead(r3.id))!;
+eq('마지막 사진을 지우면 읽기 기록이 빈 결과로 닫힌다', [emptied.status, emptied.error, emptied.photo_ids], ['done', null, []]);
+eq('모델을 부른 횟수는 그대로 (지웠다 올려 상한을 못 푼다)', emptied.runs, runsBeforeEmpty);
+const beforeEmpty = modelCalls.length;
+eq('사진이 없으면 부르지 않는다', await requestPhotoRead(r3.id, { by: 'tutor', schedule: hold }), 'EMPTY');
+eq('모델도 안 불렀다', modelCalls.length, beforeEmpty);
+eq('상태도 읽을 것 없음', readViewOf(await getPhotoRead(r3.id), []).kind, 'none');
+
+section('28. 매일 새벽 되살리기 — 상한에 걸린 줄에 밀리지 않는다');
+replyFor = () => wholePaper;
+const hours = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+for (let i = 0; i < 5; i += 1) {
+  const sid = id(await createUser({ role: 'student', login_id: `stuck${i}`, password: 'student-pass', name: `오래${i}` }));
+  await enroll(course2, sid);
+  const at_ = await openAttempt(exam5, sid);
+  await addPhoto(at_.id, JPEG);
+  const { data: n } = await db().rpc('request_photo_read', { payload: { attempt_id: at_.id, max_runs: null } });
+  await db().rpc('fail_photo_read', { payload: { attempt_id: at_.id, request_no: n, error: 'RATE_LIMIT' } });
+  await db().from('lms_photo_reads').update({ runs: PHOTO_READ.maxRetryRuns, updated_at: hours(10 - i) }).eq('attempt_id', at_.id);
+}
+const freshSid = id(await createUser({ role: 'student', login_id: 'fresh1', password: 'student-pass', name: '새로' }));
+await enroll(course2, freshSid);
+const fresh = await openAttempt(exam5, freshSid);
+await addPhoto(fresh.id, JPEG);
+const { data: freshReq } = await db().rpc('request_photo_read', { payload: { attempt_id: fresh.id, max_runs: null } });
+await db().rpc('fail_photo_read', { payload: { attempt_id: fresh.id, request_no: freshReq, error: 'RATE_LIMIT' } });
+await db().from('lms_photo_reads').update({ runs: 1, updated_at: hours(1) }).eq('attempt_id', fresh.id);
+
+const stuckSid = id(await createUser({ role: 'student', login_id: 'stuck-run', password: 'student-pass', name: '멈춤' }));
+await enroll(course2, stuckSid);
+const stuckAt = await openAttempt(exam5, stuckSid);
+await addPhoto(stuckAt.id, JPEG);
+const { data: stuckReq } = await db().rpc('request_photo_read', { payload: { attempt_id: stuckAt.id, max_runs: null } });
+await db().rpc('claim_photo_read', { payload: { attempt_id: stuckAt.id, request_no: stuckReq } });
+await db().from('lms_photo_reads').update({ updated_at: new Date(Date.now() - PHOTO_READ.stuckMs - 60_000).toISOString() }).eq('attempt_id', stuckAt.id);
+
+const revived = await retryPhotoReads({ deadline: Date.now() + 120_000, limit: 5, runMs: 1_000 });
+eq('상한에 걸린 다섯 줄은 건너뛰고 둘을 되살린다', revived, { found: 2, done: 2, failed: 0 });
+eq('새 실패가 채워졌다', (await gradingOf(fresh.id)).score.complete, true);
+eq('멈췄던 읽기도 채워졌다', (await getPhotoRead(stuckAt.id))?.status, 'done');
+
+model.closeAllConnections();
+await new Promise((resolve) => model.close(resolve));
 
 done();

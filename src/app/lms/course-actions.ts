@@ -35,6 +35,7 @@ import {
   setAnswerImage,
 } from '@/lib/lms/feedback';
 import { readAnswerKey, type OcrResult } from '@/lib/lms/ocr';
+import { applyPhotoRead, requestPhotoRead } from '@/lib/lms/photo-read';
 import { readJpeg } from '@/lib/lms/upload';
 import { resetPassword } from '@/lib/lms/users';
 
@@ -260,6 +261,30 @@ export async function submitGrading(formData: FormData): Promise<void> {
 
   revalidatePath(`/lms/exams/${attempt.exam_id}`);
   redirect(`/lms/attempts/${attempt.id}?saved=1`);
+}
+
+/**
+ * 학생 시험지 사진을 지금 다시 읽는다. 기다리지 않고 바로 읽고, 학생 쪽 횟수 상한도 없다.
+ * 읽기는 응답을 보낸 뒤 뒤에서 돈다 — 채점 화면이 끝날 때까지 상태를 보여 준다.
+ */
+export async function rereadPhotos(formData: FormData): Promise<void> {
+  const { attempt } = await assertAttempt(text(formData, 'attempt_id'));
+  const outcome = await requestPhotoRead(attempt.id, { by: 'tutor' });
+
+  revalidatePath(`/lms/exams/${attempt.exam_id}`);
+  redirect(`/lms/attempts/${attempt.id}?read=${outcome === 'QUEUED' ? 'queued' : 'off'}`);
+}
+
+/**
+ * 사진에서 읽은 답으로 채점을 다시 채운다. 튜터가 매긴 채점도 덮는다 — 화면이 한 번 묻는다.
+ * 총평은 그대로 둔다. 점수를 공개한 응시는 DB 가 막는다.
+ */
+export async function applyPhotoReadForm(formData: FormData): Promise<void> {
+  const { attempt } = await assertAttempt(text(formData, 'attempt_id'));
+  const graded = await applyPhotoRead(attempt.id, true);
+
+  revalidatePath(`/lms/exams/${attempt.exam_id}`);
+  redirect(`/lms/attempts/${attempt.id}?read=${graded >= 0 ? 'applied' : 'kept'}`);
 }
 
 /** 채점이 끝난 학생을 한 번에 공개한다. 매기다 만 응시는 건드리지 않는다. */

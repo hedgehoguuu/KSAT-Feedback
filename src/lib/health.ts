@@ -47,6 +47,7 @@ export async function getHealth(): Promise<Health> {
     rpcLocked: { ok: false, detail: '아직 확인 못 했어요' },
     lmsMath: { ok: false, detail: '아직 확인 못 했어요' },
     lmsBucket: { ok: false, detail: '아직 확인 못 했어요' },
+    lmsPhotoRead: { ok: false, detail: '아직 확인 못 했어요' },
     bucket: { ok: false, detail: '아직 확인 못 했어요' },
     workerSchema: { ok: false, detail: '아직 확인 못 했어요' },
     classSchema: { ok: false, detail: '아직 확인 못 했어요' },
@@ -62,6 +63,12 @@ export async function getHealth(): Promise<Health> {
       detail: mailConfigured()
         ? `${process.env.GMAIL_USER} 로 접수 확인 메일과 LMS 답변 PDF 가 나가요`
         : 'GMAIL_USER / GMAIL_APP_PASSWORD 가 없어요. 접수 확인 메일도, LMS 답변 PDF 메일도 안 나가요',
+    },
+    photoRead: {
+      ok: Boolean(process.env.ANTHROPIC_API_KEY),
+      detail: process.env.ANTHROPIC_API_KEY
+        ? '학생 시험지 사진에서 답을 읽어 채점을 채워요 (정답표 사진 읽기도 돼요)'
+        : 'ANTHROPIC_API_KEY 가 없어요. 사진 자동 채점과 정답표 사진 읽기가 꺼져 있어요 — 손으로 매기는 것은 그대로 돼요',
     },
     workerSecret: {
       ok: Boolean(process.env.WORKER_SECRET),
@@ -85,7 +92,7 @@ export async function getHealth(): Promise<Health> {
 
   const db = supabaseAdmin();
   if (!db) {
-    for (const key of ['connection', 'tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'lmsMath', 'lmsBucket', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
+    for (const key of ['connection', 'tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'lmsMath', 'lmsBucket', 'lmsPhotoRead', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
       checks[key] = { ok: false, detail: 'Supabase 연결 전이라 확인할 수 없어요' };
     }
     return {
@@ -104,7 +111,7 @@ export async function getHealth(): Promise<Health> {
     const detail = sqlNotRun
       ? 'SQL 을 아직 실행하지 않았어요. supabase/migrations/0001_init.sql 을 SQL Editor 에서 실행해주세요'
       : '확인하지 못했어요';
-    for (const key of ['tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'lmsMath', 'lmsBucket', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
+    for (const key of ['tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'lmsMath', 'lmsBucket', 'lmsPhotoRead', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
       checks[key] = { ok: false, detail };
     }
     return {
@@ -134,6 +141,7 @@ export async function getHealth(): Promise<Health> {
     rpc_locked?: boolean;
     lms_math?: boolean;
     lms_bucket?: boolean;
+    lms_photo_read?: boolean;
   };
 
   checks.connection = { ok: true, detail: 'Supabase 에 정상적으로 닿았어요' };
@@ -197,6 +205,13 @@ export async function getHealth(): Promise<Health> {
     detail: status.lms_bucket
       ? '비공개 버킷 lms-files 가 있어요'
       : '버킷 lms-files 가 없거나 공개 상태예요. 0015_lms_math.sql 을 실행해주세요',
+  };
+  // 0016 을 안 돌리면 사진을 올릴 때마다 읽기를 부르다 실패한다 — 사진 저장은 되지만 자동 채점이 안 된다.
+  checks.lmsPhotoRead = {
+    ok: status.lms_photo_read === true,
+    detail: status.lms_photo_read
+      ? '사진 자동 채점 표와 함수가 있어요'
+      : '사진 자동 채점 표가 없어요. 0016_lms_photo_grading.sql 을 실행해주세요',
   };
   checks.workerSchema = {
     ok: Boolean(status.worker_schema),

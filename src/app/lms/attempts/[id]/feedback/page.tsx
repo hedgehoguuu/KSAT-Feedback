@@ -17,6 +17,7 @@ export const dynamic = 'force-dynamic';
 const ERRORS: Record<string, string> = {
   UNANSWERED: '아직 답을 안 단 질문이 있어 보내지 않았어요.',
   CHANGED: '그사이 학생이 질문을 바꿨어요. 새 질문을 확인하고 다시 보내주세요.',
+  REGRADED: '보내는 사이 채점이 바뀌었어요(학생이 사진을 바꾸면 사진으로 매긴 채점이 비워져요). 점수를 확인하고 다시 보내주세요.',
   NO_CONCERNS: '학생 질문이 하나도 없어 보낼 것이 없어요.',
   NOT_FOUND: '이 응시를 찾지 못했어요.',
   long: `답이 너무 길어요. 한 질문에 ${CONCERN.maxAnswer}자까지예요.`,
@@ -165,6 +166,14 @@ export default async function FeedbackPage({ params, searchParams }: PageProps<'
                 <span className="text-muted">
                   — {fmtScore(score.earned)}점 · 틀린 문항 {score.wrongNos.join(', ') || '없음'}.
                   {attempt.status !== 'published' ? ' 보내면 학생 화면에도 점수가 열려요.' : ''}
+                  {attempt.answers_source === 'photo' && attempt.status !== 'published' ? (
+                    <span className="font-bold text-check">
+                      {' '}사진으로 자동 채점한 점수예요 —{' '}
+                      <Link href={`/lms/attempts/${attempt.id}`} className="underline underline-offset-2">
+                        채점 화면에서 확인하기
+                      </Link>
+                    </span>
+                  ) : null}
                 </span>
               ) : (
                 <span className="text-mark">

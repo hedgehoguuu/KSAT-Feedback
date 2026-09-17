@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   KINDS,
   PAPER,
@@ -14,7 +14,9 @@ import {
   unitLabel,
 } from '@/config/lms';
 import { parseAnswerLine } from '@/lib/lms/answer-line';
+import type { ReadAnswer } from '@/lib/lms/ocr-rows';
 import { scoreAttempt, type AnswerRow, type QuestionRow } from '@/lib/lms/score';
+import { setDirty } from './dirty';
 import { RateBars, barsOf } from './RateBars';
 import { btn, btnGhost, input, label } from './Shell';
 
@@ -28,6 +30,9 @@ import { btn, btnGhost, input, label } from './Shell';
  * 합계는 저장하고 나서 보여주지 않고 찍는 즉시 위에서 움직인다 — 틀린 개수를 세다가
  * 잘못 눌렀다는 걸 그 자리에서 알아야 하기 때문이다. 그 계산은 서버가 쓰는 함수
  * (lib/lms/score.ts)를 그대로 부른다. 두 벌로 만들면 화면의 숫자와 저장된 숫자가 달라진다.
+ *
+ * 사진에서 읽은 답(hints)이 있으면 칸마다 붙인다. 확실히 못 읽은 문항은 노랗게 두르고
+ * 읽힌 값을 '넣기' 로 한 번에 넣게 한다 — 저절로 넣지는 않는다. 사람이 사진을 보고 누르게 한다.
  */
 
 type Mark = '' | 'o' | 'x';
@@ -40,6 +45,8 @@ export function GradeSheet({
   initialOverall,
   initialStatus,
   classAverages,
+  hints = {},
+  tutorOwned = false,
 }: {
   action: (formData: FormData) => Promise<void>;
   attemptId: string;
@@ -49,6 +56,10 @@ export function GradeSheet({
   initialStatus: 'draft' | 'published';
   /** 칸 코드(배점 · 단원) → 반 평균 정답률. 막대 옆 눈금으로 그린다. */
   classAverages: Record<string, number>;
+  /** 문항 id → 사진에서 읽은 답 */
+  hints?: Record<string, ReadAnswer>;
+  /** 지금 채점을 튜터가 직접 매겼다. 사진과 다른 칸에 읽힌 값을 옅게 적어 준다. */
+  tutorOwned?: boolean;
 }) {
   const sorted = useMemo(() => [...questions].sort((a, b) => a.no - b.no), [questions]);
   const [marks, setMarks] = useState<Record<string, Mark>>(() =>
@@ -61,6 +72,9 @@ export function GradeSheet({
   );
   const [line, setLine] = useState('');
   const [lineNote, setLineNote] = useState<string | null>(null);
+
+  // 이 화면을 떠나면 '저장 안 한 손질' 도 함께 사라진다.
+  useEffect(() => () => setDirty(false), []);
 
   const score = useMemo(() => {
     const answers: AnswerRow[] = sorted
@@ -77,6 +91,7 @@ export function GradeSheet({
 
   /** 학생 답을 적으면 정답과 맞춰 본다. 정답이 없거나 답이 맞지 않는 값이면 O/X 는 그대로 둔다. */
   function writeAnswer(q: QuestionRow, raw: string) {
+    setDirty(true);
     setChosen((prev) => ({ ...prev, [q.id]: raw }));
     const value = parseAnswer(q.no, raw);
     if (value !== null && q.answer !== null) {
@@ -100,6 +115,7 @@ export function GradeSheet({
       // '-' 로 비운 칸은 학생이 안 쓴 답이다 — 틀린 것으로 매긴다.
       nextMarks[q.id] = value !== null && value === q.answer ? 'o' : 'x';
     }
+    setDirty(true);
     setChosen(nextChosen);
     setMarks(nextMarks);
 
@@ -113,7 +129,7 @@ export function GradeSheet({
   const unitBars = barsOf(score.units, classAverages);
 
   return (
-    <form action={action} className="flex flex-col gap-5">
+    <form action={action} onSubmit={() => setDirty(false)} className="flex flex-col gap-5">
       <input type="hidden" name="attempt_id" value={attemptId} />
 
       {/* ── 위에 붙어 따라다니는 합계. 스크롤을 내려도 지금 몇 점인지가 안 사라진다. */}
@@ -189,7 +205,12 @@ export function GradeSheet({
                     q={q}
                     mark={marks[q.id] ?? ''}
                     chosen={chosen[q.id] ?? ''}
-                    onMark={(m) => setMarks((prev) => ({ ...prev, [q.id]: m }))}
+                    hint={hints[q.id]}
+                    tutorOwned={tutorOwned}
+                    onMark={(m) => {
+                      setDirty(true);
+                      setMarks((prev) => ({ ...prev, [q.id]: m }));
+                    }}
                     onChosen={(raw) => writeAnswer(q, raw)}
                   />
                 ))}
@@ -236,6 +257,7 @@ export function GradeSheet({
           id="overall_comment"
           name="overall_comment"
           defaultValue={initialOverall}
+          onChange={() => setDirty(true)}
           rows={5}
           placeholder="이번 회차 전체에 대해. 학생이 그대로 읽고, 답변 PDF 에도 들어가요."
           className="w-full rounded-xl border border-line bg-white/70 px-3 py-2 text-[15px] leading-[1.7] outline-none focus:border-brand"
@@ -262,21 +284,33 @@ function Cell({
   q,
   mark,
   chosen,
+  hint,
+  tutorOwned,
   onMark,
   onChosen,
 }: {
   q: QuestionRow;
   mark: Mark;
   chosen: string;
+  hint: ReadAnswer | undefined;
+  tutorOwned: boolean;
   onMark: (mark: Mark) => void;
   onChosen: (raw: string) => void;
 }) {
   const paper = paperQuestion(q.no);
   const bad = chosen.trim() !== '' && parseAnswer(q.no, chosen) === null;
 
+  // 사진에서 확실히 못 읽은 문항. 아직 아무도 안 매겼으면 노랗게 두른다.
+  const unsure = Boolean(hint && !hint.sure);
+  const typed = parseAnswer(q.no, chosen);
+  // 튜터가 직접 매긴 채점에서 사진과 다른 칸
+  const differs =
+    Boolean(hint?.sure) && tutorOwned && (hint!.answer === null ? typed !== null : typed !== null && typed !== hint!.answer);
+  const ring = mark === 'x' ? 'ring-2 ring-mark/40' : unsure && mark === '' ? 'ring-2 ring-check/60' : '';
+
   return (
     <li
-      className={`glass-inset flex w-[124px] flex-col gap-1.5 rounded-xl p-2 ${mark === 'x' ? 'ring-2 ring-mark/40' : ''}`}
+      className={`glass-inset flex w-[124px] flex-col gap-1.5 rounded-xl p-2 ${ring}`}
       title={q.unit_code ? unitLabel(q.unit_code) : undefined}
     >
       <div className="flex items-baseline justify-between">
@@ -325,6 +359,29 @@ function Cell({
           </button>
         ))}
       </div>
+
+      {unsure && hint ? (
+        <div
+          className="flex min-h-6 items-center justify-between gap-1 rounded-md bg-check-soft px-1.5 text-[11px] font-bold text-check"
+          title={hint.note ?? undefined}
+        >
+          <span className="truncate">사진 {hint.answer !== null ? `${fmtAnswer(q.no, hint.answer)}?` : '확인'}</span>
+          {hint.answer !== null && typed !== hint.answer ? (
+            <button
+              type="button"
+              onClick={() => onChosen(String(hint.answer))}
+              aria-label={`${q.no}번에 사진에서 읽힌 ${hint.answer} 넣기`}
+              className="shrink-0 underline underline-offset-2"
+            >
+              넣기
+            </button>
+          ) : null}
+        </div>
+      ) : differs && hint ? (
+        <p className="text-[11px] text-muted" title="사진에서 읽힌 답">
+          사진 {hint.answer === null ? '빈칸' : fmtAnswer(q.no, hint.answer)}
+        </p>
+      ) : null}
     </li>
   );
 }

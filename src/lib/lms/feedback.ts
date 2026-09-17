@@ -16,6 +16,7 @@ import { getFile, paths, putFile, removeFiles, removeFilesQuietly } from './file
 import { sendFeedbackMail } from './mail';
 import { renderFeedbackPdf, type FeedbackDoc } from './pdf/feedback-pdf';
 import { loadFonts } from './pdf/fonts';
+import type { AnswerRow } from './score';
 import { getUser, type StudentRow, type UserRow } from './users';
 
 /**
@@ -86,6 +87,9 @@ export async function listPhotos(attemptId: string): Promise<PhotoRow[]> {
 /**
  * 사진 한 장을 올린다. 파일을 먼저 올리고 줄을 만든다 — 줄을 못 만들면 파일을 도로 지운다.
  * 그러지 않으면 어디에도 안 보이는 시험지 사진이 저장소에 남는다.
+ *
+ * 줄이 생기는 순간 DB 가 사진으로 매긴 채점을 비운다 (0016 트리거). 새 사진까지 읽은 결과로
+ * 다시 채우는 것은 사진 읽기(photo-read.ts)의 몫이다.
  */
 export async function addPhoto(attemptId: string, bytes: Uint8Array): Promise<PhotoRow | 'TOO_MANY'> {
   const existing = await listPhotos(attemptId);
@@ -108,7 +112,10 @@ export async function addPhoto(attemptId: string, bytes: Uint8Array): Promise<Ph
   }
 }
 
-/** 사진을 지운다. 이 응시의 사진이 아니면 아무것도 안 한다. 파일을 먼저 지운다. */
+/**
+ * 사진을 지운다. 이 응시의 사진이 아니면 아무것도 안 한다. 파일을 먼저 지운다.
+ * 줄이 지워지는 순간 DB 가 사진으로 매긴 채점을 비운다 (0016 트리거).
+ */
 export async function removePhoto(attemptId: string, photoId: string): Promise<boolean> {
   const photo = await one<PhotoRow>(
     db().from('lms_attempt_photos').select(PHOTO_COLS).eq('id', photoId).eq('attempt_id', attemptId).maybeSingle(),
@@ -263,6 +270,8 @@ export async function clearAnswerImage(attemptId: string, concernId: string): Pr
 export type BuiltFeedback = {
   doc: FeedbackDoc;
   attempt: AttemptRow;
+  /** PDF 를 만들 때 읽은 정오. 보낼 때 DB 가 지금 정오와 견준다 (0016 mark_feedback_ready). */
+  answers: AnswerRow[];
   exam: ExamRow;
   course: CourseRow;
   student: StudentRow;
@@ -340,7 +349,7 @@ export async function buildFeedback(attemptId: string): Promise<BuiltFeedback | 
     overallComment: attempt.overall_comment,
   };
 
-  return { doc, attempt, exam, course, student, tutor, concerns, scored };
+  return { doc, attempt, answers, exam, course, student, tutor, concerns, scored };
 }
 
 export async function renderFeedback(built: BuiltFeedback): Promise<Uint8Array> {
@@ -353,11 +362,13 @@ export type MailOutcome =
   | { status: 'NOT_CONFIGURED' }
   | { status: 'FAILED'; error: string };
 
+export type SendRefusal = 'NOT_FOUND' | 'NO_CONCERNS' | 'UNANSWERED' | 'CHANGED' | 'REGRADED';
+
 export type SendOutcome =
   | { ok: true; mail: MailOutcome; published: boolean }
-  | { ok: false; reason: 'NOT_FOUND' | 'NO_CONCERNS' | 'UNANSWERED' | 'CHANGED'; missing?: number[] };
+  | { ok: false; reason: SendRefusal; missing?: number[] };
 
-const READY_REFUSALS = new Set(['NO_CONCERNS', 'UNANSWERED', 'CHANGED']);
+const READY_REFUSALS = new Set<string>(['NO_CONCERNS', 'UNANSWERED', 'CHANGED', 'REGRADED']);
 
 /**
  * 답이 다 달렸으면 PDF 를 만들어 보낸다. 이미 보낸 것을 고쳐 다시 보낼 때도 같은 길이다.
@@ -365,9 +376,10 @@ const READY_REFUSALS = new Set(['NO_CONCERNS', 'UNANSWERED', 'CHANGED']);
  *   1) 다 달렸는지 본다 (화면에서도 막지만 여기서 다시)
  *   2) PDF 를 만들어 새 이름으로 올린다
  *   3) DB 가 같은 잠금 안에서 한 번 더 확인하고 '보냄' 으로 표시한다 — 여기서 거절되면
- *      올린 PDF 를 지우고 멈춘다
- *   4) 채점이 끝났으면 점수도 학생에게 연다 — PDF 에 이미 점수가 들어 있다
- *   5) 메일을 보내고, 결과를 응시 행에 적는다. 메일이 안 가도 학생은 화면에서 받는다.
+ *      올린 PDF 를 지우고 멈춘다. PDF 에 점수가 들어갔으면 같은 잠금 안에서 두 가지를 더 한다:
+ *      PDF 를 만들 때 읽은 정오가 지금도 같은지 보고(학생이 그사이 사진을 바꾸면 사진 채점이
+ *      비워진다 — 그러면 REGRADED 로 멈춘다), 같으면 점수를 학생에게 연다.
+ *   4) 메일을 보내고, 결과를 응시 행에 적는다. 메일이 안 가도 학생은 화면에서 받는다.
  */
 export async function sendFeedback(attemptId: string): Promise<SendOutcome> {
   const built = await buildFeedback(attemptId);
@@ -381,13 +393,23 @@ export async function sendFeedback(attemptId: string): Promise<SendOutcome> {
   const path = paths.feedback(attemptId);
   await putFile(path, pdf, 'application/pdf');
 
+  const publish = built.scored && built.attempt.status !== 'published';
   const { error } = await db().rpc('mark_feedback_ready', {
-    payload: { attempt_id: attemptId, path, concern_ids: built.concerns.map((c) => c.id) },
+    payload: {
+      attempt_id: attemptId,
+      path,
+      concern_ids: built.concerns.map((c) => c.id),
+      publish,
+      // DB 가 같은 모양으로 다시 줄 세워 견준다. 여기서의 순서는 상관없다.
+      answers: publish
+        ? built.answers.map((a) => ({ question_id: a.question_id, correct: a.correct, chosen: a.chosen }))
+        : [],
+    },
   });
   if (error) {
     await removeFilesQuietly([path]);
     if (error.code === 'P0001' && READY_REFUSALS.has(error.message)) {
-      return { ok: false, reason: error.message as 'NO_CONCERNS' | 'UNANSWERED' | 'CHANGED' };
+      return { ok: false, reason: error.message as SendRefusal };
     }
     throw error;
   }
@@ -397,20 +419,9 @@ export async function sendFeedback(attemptId: string): Promise<SendOutcome> {
     await removeFilesQuietly([built.attempt.feedback_path]);
   }
 
-  let published = false;
-  if (built.scored && built.attempt.status !== 'published') {
-    await must(
-      db()
-        .from('lms_attempts')
-        .update({ status: 'published', updated_at: new Date().toISOString() })
-        .eq('id', attemptId),
-    );
-    published = true;
-  }
-
   const mail = await mailFeedback(built, pdf);
   await recordMail(attemptId, mail);
-  return { ok: true, mail, published };
+  return { ok: true, mail, published: publish };
 }
 
 async function mailFeedback(built: BuiltFeedback, pdf: Uint8Array): Promise<MailOutcome> {

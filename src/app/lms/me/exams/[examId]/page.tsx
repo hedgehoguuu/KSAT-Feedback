@@ -11,9 +11,13 @@ import { getCourse, isEnrolled } from '@/lib/lms/courses';
 import { findAttempt, getExam, loadGrading } from '@/lib/lms/exams';
 import { isAnswered, listConcerns, listPhotos } from '@/lib/lms/feedback';
 import { signedUrls } from '@/lib/lms/files';
+import { getPhotoRead, photoReadConfigured } from '@/lib/lms/photo-read';
+import { readViewOf } from '@/lib/lms/photo-read-state';
 import { movePaperPhoto, removePaperPhoto, saveMyConcerns, uploadPaperPhoto } from '../../../student-actions';
 
 export const dynamic = 'force-dynamic';
+// 사진을 올리면 이 화면의 서버 함수가 응답을 보낸 뒤 사진을 읽는다(자동 채점). 그 시간까지 준다.
+export const maxDuration = 300;
 
 const ERRORS: Record<string, string> = {
   locked: '선생님이 이미 답을 보낸 시험이라 더는 고칠 수 없어요.',
@@ -36,9 +40,11 @@ export default async function MyExamPage({ params, searchParams }: PageProps<'/l
   if (!exam || exam.status !== 'published' || !(await isEnrolled(exam.course_id, me.id))) notFound();
 
   const [course, attempt] = await Promise.all([getCourse(exam.course_id), findAttempt(exam.id, me.id)]);
-  const [photos, concerns] = attempt
-    ? await Promise.all([listPhotos(attempt.id), listConcerns(attempt.id)])
-    : [[], []];
+  const [photos, concerns, read] = attempt
+    ? await Promise.all([listPhotos(attempt.id), listConcerns(attempt.id), getPhotoRead(attempt.id)])
+    : [[], [], null];
+  // 학생에게는 읽은 답을 보이지 않는다. 다시 찍어야 할 사진이 있는지만 알린다.
+  const readView = readViewOf(read, photos.map((p) => p.id));
 
   const locked = Boolean(attempt?.feedback_ready_at);
   const grading = attempt?.status === 'published' ? await loadGrading(attempt.id) : null;
@@ -149,10 +155,15 @@ export default async function MyExamPage({ params, searchParams }: PageProps<'/l
             upload={uploadPaperPhoto}
             remove={removePaperPhoto}
             move={movePaperPhoto}
+            reading={readView.kind === 'reading'}
+            unreadable={readView.kind === 'done' ? readView.unreadable : []}
           />
           {!locked ? (
             <p className="mt-3 text-[12px] leading-[1.6] text-muted">
               {LMS.maxPhotos}장까지 올릴 수 있어요. 사진은 나와 선생님만 볼 수 있어요.
+              {photoReadConfigured()
+                ? ' 채점을 돕기 위해 AI(Claude)가 사진에서 내가 고른 답을 읽어요. 답안지(OMR)나 답을 모아 적은 종이가 있으면 같이 찍어주세요.'
+                : ''}
             </p>
           ) : null}
         </Card>

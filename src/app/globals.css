@@ -15,6 +15,9 @@
   /* 빨간펜. 강조에만 쓴다 — 파랑은 누르는 것(버튼·링크), 빨강은 '여기를 보라'. */
   --mark: #e5342b;
   --mark-soft: #fdeceb;
+  /* 형광펜. 사진에서 확실히 못 읽어 사람이 봐야 하는 문항 — 틀린 것(빨강)과 섞이지 않게 따로 둔다. */
+  --check: #b45309;
+  --check-soft: #fef3c7;
 
   /* ── 유리 (Liquid Glass) ──────────────────────────────────────────────
      애플의 그 재질을 웹에서 낼 수 있는 만큼만 낸다. 네 가지가 겹쳐야 유리로 보인다.
@@ -45,6 +48,8 @@
   --color-success: var(--success);
   --color-mark: var(--mark);
   --color-mark-soft: var(--mark-soft);
+  --color-check: var(--check);
+  --color-check-soft: var(--check-soft);
   --font-sans: Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", system-ui, sans-serif;
 }
 
