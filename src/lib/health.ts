@@ -10,7 +10,7 @@ export type Check = { ok: boolean; detail: string };
  * 여기 있는데 표에 없으면 /setup 이 빨갛게 짚는다 — 함수가 '있는지' 만 봐서는 옛 판인지 모른다.
  * 새 마이그레이션을 더하면 여기에도 한 줄 더한다. 이미 돌린 파일은 고치지 않고 새 번호로 낸다.
  */
-export const REQUIRED_MIGRATIONS = ['0017_lms_grading_guard', '0018_state_guards'] as const;
+export const REQUIRED_MIGRATIONS = ['0017_lms_grading_guard', '0018_state_guards', '0019_apply_outcome'] as const;
 
 /** 표에 적힌 이름 가운데 빠진 것. 표가 없으면(0017 전) 전부 빠진 것이다. */
 async function missingMigrations(db: NonNullable<ReturnType<typeof supabaseAdmin>>): Promise<string[] | null> {

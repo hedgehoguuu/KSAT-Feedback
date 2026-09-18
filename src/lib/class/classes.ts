@@ -1,4 +1,5 @@
 import 'server-only';
+import { randomUUID } from 'node:crypto';
 import type { ApplicationStatus, ClassStatus } from '@/config/class';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { applicationPurgeDate } from './fields';
@@ -335,23 +336,32 @@ export type ApplyInput = {
 export class ApplyError extends Error {
   constructor(
     message: string,
-    readonly code: 'CLASS_NOT_OPEN' | 'CLASS_FULL' | 'UNKNOWN',
+    readonly code: 'CLASS_NOT_OPEN' | 'CLASS_FULL' | 'PHONE_TAKEN' | 'UNKNOWN',
   ) {
     super(message);
     this.name = 'ApplyError';
   }
 }
 
+/** created 가 false 면 같은 번호 · 같은 이름으로 이미 들어가 있던 신청이다 — 재시도의 응답만 유실된 것. */
+export type ApplyResult = { id: string; created: boolean };
+
 /**
  * 신청 한 건. 정원 초과는 여기(트랜잭션 안)에서 막는다 —
  * 화면에서만 막으면 마지막 자리를 동시에 누른 두 명이 둘 다 통과한다.
+ *
+ * 새 신청의 id 는 여기서 뽑아 넘긴다. DB 는 새로 만들면 그 id 를, 이미 있던 신청이면 그 신청의
+ * id 를 돌려준다(0019). 둘이 같아야 새로 들어간 것이다 — 알림은 그때만 보낸다.
+ * 같은 번호로 다른 학생이 이미 신청해 있으면 DB 가 PHONE_TAKEN 으로 막는다.
  */
-export async function applyToClass(input: ApplyInput): Promise<string> {
+export async function applyToClass(input: ApplyInput): Promise<ApplyResult> {
   const db = supabaseAdmin();
   if (!db) throw new ApplyError('지금은 신청을 받을 수 없어요. 잠시 뒤 다시 시도해주세요.', 'UNKNOWN');
 
+  const proposed = randomUUID();
   const { data, error } = await db.rpc('create_class_application', {
     payload: {
+      id: proposed,
       slug: input.slug,
       student_name: input.studentName,
       receipt_no: input.receiptNo,
@@ -369,18 +379,27 @@ export async function applyToClass(input: ApplyInput): Promise<string> {
     if (text.includes('CLASS_NOT_OPEN')) {
       throw new ApplyError('지금 신청을 받고 있지 않은 반이에요.', 'CLASS_NOT_OPEN');
     }
+    if (text.includes('PHONE_TAKEN')) {
+      // 앞 학생의 이름은 말하지 않는다 — 번호만 알면 누가 신청했는지 알아낼 수 있게 된다.
+      throw new ApplyError(
+        '이 학부모 연락처로 이 반에 다른 학생 이름의 신청이 이미 있어요. 한 연락처에 한 자리씩 받아요 — ' +
+          '먼저 들어간 신청은 그대로 있고, 그 번호로 곧 연락드릴게요. 이름을 잘못 적었거나 형제·자매가 함께 들으려면 그때 말씀해주세요.',
+        'PHONE_TAKEN',
+      );
+    }
     throw new ApplyError('신청이 안 됐어요. 다시 눌러주세요.', 'UNKNOWN');
   }
 
-  return String(data);
+  const id = String(data);
+  return { id, created: id === proposed };
 }
 
 /**
  * 이미 들어간 같은 신청이 있는가 — 같은 반 · 같은 연락처 · 같은 학생 이름.
  *
  * 응답만 유실되고 학부모님이 다시 누른 경우를 알아보려는 것이다. 이름까지 보는 이유는
- * 형제처럼 번호만 같은 다른 신청을 재시도로 착각하지 않기 위해서다 — 그쪽은 예전처럼
- * create_class_application 이 판단한다.
+ * 형제처럼 번호만 같은 다른 신청을 재시도로 착각하지 않기 위해서다 — 그쪽은
+ * create_class_application 이 PHONE_TAKEN 으로 막는다 (0019).
  *
  * 못 물어보면 null. 그러면 평소 길로 가고, DB 함수가 같은 번호를 한 번 더 막아 준다.
  */

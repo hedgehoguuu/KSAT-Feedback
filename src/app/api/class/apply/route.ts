@@ -57,7 +57,10 @@ export async function POST(req: Request) {
 
   let applicationId: string;
   try {
-    applicationId = await applyToClass({ slug, studentName, receiptNo, parentPhone });
+    const result = await applyToClass({ slug, studentName, receiptNo, parentPhone });
+    // 위에서 못 본 사이에 같은 신청이 먼저 들어갔다(두 번 누른 요청이 겹쳤다). 알림은 그쪽이 보낸다.
+    if (!result.created) return accepted(receiptNo);
+    applicationId = result.id;
   } catch (err) {
     if (err instanceof ApplyError) return bad(err.message, err.code === 'UNKNOWN' ? 500 : 409);
     return bad('신청이 안 됐어요. 다시 눌러주세요.', 500);
