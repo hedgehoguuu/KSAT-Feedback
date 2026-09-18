@@ -267,10 +267,14 @@ supabase/migrations/              데이터베이스 설계도 — SQL Editor �
 docs/                             아티팩트로 공유한 문서
   setup-checklist.html            준비 체크리스트
   report.html                     개발 완료 보고
+  runbook.html                    9모 접수 운영 노트 — 매일 볼 것 · 이상할 때 할 일
   feedback-line.html              피드백 생산 방식 검토
   math-samples.html               수학 피드백 예시 5장
+  service-brief.html              무료 피드백에서 그룹과외까지 (서비스 소개)
+  landing.html                    학생 · 학부모용 홍보 랜딩
   class-180.html                  3시간 수업 구조 정의서 (튜터용)
   class-landing-prd.html          모집 페이지 설계서 (PRD v1.1)
+  reviews/                        코드 리뷰 기록과 고친 커밋 (README.md 가 목차)
 
 .env.example                      필요한 환경변수 목록 (실제 값은 Vercel 에)
 vercel.json                       매일 03:00(KST) 크론 설정

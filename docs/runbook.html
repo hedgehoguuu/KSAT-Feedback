@@ -1,0 +1,558 @@
+<title>9모 접수 운영 노트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+
+<style>
+  :root {
+    --ground: #f5f6f8;
+    --panel: #ffffff;
+    --panel-2: #edeff3;
+    --ink: #12161c;
+    --ink-2: #4b5462;
+    --ink-3: #7d8796;
+    --line: #dde1e8;
+    --line-2: #c3cad5;
+    --accent: #14549c;
+    --accent-soft: #e6eef8;
+    --ok: #0d6b48;
+    --ok-soft: #e2f1ea;
+    --warn: #8c4a00;
+    --warn-soft: #fbeeda;
+    --alarm: #a52218;
+    --alarm-soft: #fbe9e7;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0c1015;
+      --panel: #141a21;
+      --panel-2: #1b232c;
+      --ink: #e7ecf3;
+      --ink-2: #a3aebd;
+      --ink-3: #6e7988;
+      --line: #232c37;
+      --line-2: #33404e;
+      --accent: #78aae8;
+      --accent-soft: #142334;
+      --ok: #4bbd8c;
+      --ok-soft: #10261d;
+      --warn: #d9a05c;
+      --warn-soft: #291d0f;
+      --alarm: #e8776b;
+      --alarm-soft: #2b1513;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0c1015;
+    --panel: #141a21;
+    --panel-2: #1b232c;
+    --ink: #e7ecf3;
+    --ink-2: #a3aebd;
+    --ink-3: #6e7988;
+    --line: #232c37;
+    --line-2: #33404e;
+    --accent: #78aae8;
+    --accent-soft: #142334;
+    --ok: #4bbd8c;
+    --ok-soft: #10261d;
+    --warn: #d9a05c;
+    --warn-soft: #291d0f;
+    --alarm: #e8776b;
+    --alarm-soft: #2b1513;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+    font-size: 15.5px;
+    line-height: 1.72;
+    word-break: keep-all;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 22px 100px; }
+
+  .mono {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ------------------------------------------------ 표지 */
+  header.top { padding: 60px 0 0; border-bottom: 2px solid var(--ink); padding-bottom: 26px; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .17em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 16px; font-weight: 600;
+  }
+  h1 { font-size: 34px; font-weight: 700; line-height: 1.3; letter-spacing: -.015em; margin: 0; text-wrap: balance; }
+  .standfirst { color: var(--ink-2); margin: 14px 0 0; max-width: 60ch; }
+
+  .facts { display: flex; flex-wrap: wrap; gap: 0; margin-top: 26px; border-top: 1px solid var(--line); }
+  .facts div { flex: 1 1 150px; padding: 14px 18px 12px 0; border-right: 1px solid var(--line); }
+  .facts div:last-child { border-right: 0; }
+  .facts dt {
+    margin: 0; font-family: "IBM Plex Mono", monospace; font-size: 10.5px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .facts dd {
+    margin: 4px 0 0; font-size: 19px; font-weight: 700; letter-spacing: -.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  .facts dd small { display: block; font-size: 12.5px; font-weight: 400; color: var(--ink-3); letter-spacing: 0; margin-top: 1px; }
+
+  /* ------------------------------------------------ 섹션 */
+  section { margin-top: 52px; }
+  .sec-head { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--line-2); padding-bottom: 9px; margin-bottom: 20px; }
+  .sec-n { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600; color: var(--accent); }
+  h2 { font-size: 21px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+  .lead { color: var(--ink-2); margin: -6px 0 20px; max-width: 64ch; }
+  h3 { font-size: 15.5px; font-weight: 700; margin: 26px 0 7px; }
+  p { margin: 0 0 13px; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ------------------------------------------------ 매일 점검 판 */
+  .daily { border: 2px solid var(--ink); background: var(--panel); padding: 22px 24px; }
+  .daily .label {
+    font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--ink-3); margin: 0 0 8px;
+  }
+  .daily .link {
+    font-family: "IBM Plex Mono", monospace; font-size: 14.5px; font-weight: 600;
+    color: var(--accent); word-break: break-all; margin: 0 0 18px; display: block; text-decoration: none;
+  }
+  .daily .link:hover { text-decoration: underline; }
+
+  .readout {
+    background: var(--panel-2); border: 1px solid var(--line); padding: 13px 15px;
+    font-family: "IBM Plex Mono", monospace; font-size: 13px; line-height: 1.9;
+    overflow-x: auto; white-space: pre; color: var(--ink-2);
+  }
+  .readout b { color: var(--ink); font-weight: 600; }
+
+  .gauges { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); margin-top: 18px; }
+  .gauge { background: var(--panel); padding: 14px 16px; }
+  .gauge .k { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; font-weight: 600; color: var(--ink); }
+  .gauge .v { font-size: 13px; color: var(--ink-2); margin-top: 3px; line-height: 1.6; }
+  .gauge .v em { font-style: normal; font-weight: 600; color: var(--alarm); }
+
+  /* ------------------------------------------------ 일정 */
+  .when { border-top: 1px solid var(--line); }
+  .when-row { display: flex; gap: 20px; padding: 17px 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
+  .when-date {
+    flex: 0 0 96px; font-family: "IBM Plex Mono", monospace; font-size: 13px;
+    font-weight: 600; color: var(--accent); padding-top: 2px; letter-spacing: -.01em;
+  }
+  .when-body { flex: 1 1 auto; min-width: 0; }
+  .when-body b { display: block; font-size: 15.5px; font-weight: 700; margin-bottom: 3px; }
+  .when-body p { margin: 0; color: var(--ink-2); font-size: 14.5px; }
+  .when-row.hot .when-date { color: var(--alarm); }
+
+  /* ------------------------------------------------ 표 */
+  .scroll { overflow-x: auto; border: 1px solid var(--line); background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { text-align: left; padding: 11px 15px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th {
+    font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--ink-3); font-weight: 500; background: var(--panel-2);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.sym { font-weight: 600; color: var(--ink); }
+  td.num { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
+  .rank { font-family: "IBM Plex Mono", monospace; font-weight: 600; color: var(--accent); white-space: nowrap; }
+
+  code {
+    font-family: "IBM Plex Mono", monospace; font-size: .87em;
+    background: var(--panel-2); border: 1px solid var(--line);
+    padding: 1px 5px; word-break: break-all;
+  }
+
+  .note { border: 1px solid var(--line); background: var(--panel); padding: 17px 19px; margin-top: 18px; }
+  .note.warn { border-color: color-mix(in srgb, var(--warn) 40%, var(--line)); background: var(--warn-soft); }
+  .note.ok { border-color: color-mix(in srgb, var(--ok) 34%, var(--line)); background: var(--ok-soft); }
+  .note.alarm { border-color: color-mix(in srgb, var(--alarm) 38%, var(--line)); background: var(--alarm-soft); }
+  .note p:first-child { margin-top: 0; }
+  .note b.head { display: block; margin-bottom: 5px; }
+
+  ul { margin: 0 0 13px; padding-left: 20px; }
+  li { margin-bottom: 6px; color: var(--ink-2); }
+  li b { color: var(--ink); }
+  li:last-child { margin-bottom: 0; }
+
+  /* ------------------------------------------------ 도식 */
+  figure { margin: 22px 0 0; }
+  .frame { border: 1px solid var(--line); background: var(--panel); padding: 20px 18px; overflow-x: auto; }
+  figure svg { display: block; width: 100%; min-width: 660px; height: auto; }
+  figcaption { margin-top: 11px; font-size: 13.5px; color: var(--ink-2); line-height: 1.65; }
+  .n-box { fill: var(--panel-2); stroke: var(--line-2); }
+  .n-box-a { fill: var(--accent-soft); stroke: var(--accent); }
+  .n-t { fill: var(--ink); font-family: "IBM Plex Sans KR", sans-serif; font-size: 12.5px; font-weight: 600; }
+  .n-s { fill: var(--ink-3); font-family: "IBM Plex Sans KR", sans-serif; font-size: 10.5px; }
+  .n-e { stroke: var(--ink-3); fill: none; }
+  .n-e-a { stroke: var(--accent); fill: none; }
+  .n-l { fill: var(--ink-2); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; }
+
+  footer { margin-top: 56px; padding-top: 20px; border-top: 2px solid var(--ink); color: var(--ink-3); font-size: 13.5px; }
+
+  @media (max-width: 620px) {
+    h1 { font-size: 27px; }
+    .when-row { flex-direction: column; gap: 4px; }
+    .when-date { flex-basis: auto; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">운영 노트 · 2026-09-02 → 09-09</p>
+    <h1>접수 열고 나서 볼 것</h1>
+    <p class="standfirst">
+      개발은 8/30에 끝났다. 이 문서는 그 뒤 한 주 동안 무엇을 언제 확인하고,
+      뭔가 이상할 때 어디를 눌러야 하는지만 적은 것이다.
+    </p>
+
+    <dl class="facts">
+      <div><dt>접수 오픈</dt><dd>9월 2일<small>첫 번호 F0902-001</small></dd></div>
+      <div><dt>회신 마감</dt><dd>9월 9일<small>접수일 + 7일</small></dd></div>
+      <div><dt>하루 상한</dt><dd>100건<small>자정에 초기화</small></dd></div>
+      <div><dt>먼저 차는 것</dt><dd>저장 용량<small>130~250건이 한계</small></dd></div>
+    </dl>
+  </header>
+
+  <!-- ============================================ 1 -->
+  <section>
+    <div class="sec-head"><span class="sec-n">01</span><h2>매일 아침 1분</h2></div>
+    <p class="lead">이 주소 하나만 열면 된다. 숫자 세 개를 보고 끝낸다.
+    <b>관리자만 열리므로</b> 먼저 <a href="https://ksat-feedback.vercel.app/admin/login" style="color:var(--accent)">/admin</a> 에
+    로그인해 둔다 — 한 번 로그인하면 7일 유지된다. 로그인 없이 열면 "관리자만 볼 수 있어요" 만 뜬다.</p>
+
+    <div class="daily">
+      <p class="label">매일 여기</p>
+      <a class="link" href="https://ksat-feedback.vercel.app/api/health">ksat-feedback.vercel.app/api/health</a>
+      <div class="readout">"ready":<b>true</b>, "submissionCount":<b>12</b>, "pendingCount":<b>0</b>, "failureCount":<b>0</b></div>
+      <div class="gauges">
+        <div class="gauge">
+          <div class="k">submissionCount</div>
+          <div class="v">지금까지 들어온 접수. 늘어나기만 하면 정상이다.</div>
+        </div>
+        <div class="gauge">
+          <div class="k">pendingCount</div>
+          <div class="v">아직 처리 중인 접수. <em>30분 넘게 0이 아니면</em> 손을 봐야 한다.</div>
+        </div>
+        <div class="gauge">
+          <div class="k">failureCount</div>
+          <div class="v">해결 안 된 오류. <em>0이 아니면</em> 아래 03번을 본다.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note ok">
+      <b class="head">세 숫자가 정상이면 그날은 끝이다.</b>
+      <p>접수가 제대로 들어왔는지는 Notion을 보면 되고, 그건 피드백 쓰면서 어차피 보게 된다.
+      이 주소는 <b>뭔가 조용히 망가졌는지</b>만 확인하는 용도다.</p>
+    </div>
+
+    <p style="margin-top:16px">
+      화면으로 보고 싶으면 <a href="https://ksat-feedback.vercel.app/setup" style="color:var(--accent)">/setup</a> 이
+      모든 항목을 ✓/✗ 로 보여준다. 다만 여기에는 접수 건수만 나오고 <b>미처리·오류 숫자는 안 나온다.</b>
+      매일 점검은 위의 <code>/api/health</code> 로 하는 게 맞다. 둘 다 같은 관리자 로그인으로 열린다.
+      스크립트로 부를 때는 03번의 명령처럼 <code>x-worker-secret</code> 헤더를 붙인다.
+    </p>
+  </section>
+
+  <!-- ============================================ 2 -->
+  <section>
+    <div class="sec-head"><span class="sec-n">02</span><h2>날짜별로 할 일</h2></div>
+
+    <div class="when">
+      <div class="when-row hot">
+        <div class="when-date">9/1 (월)</div>
+        <div class="when-body">
+          <b>Supabase 깨우기</b>
+          <p><a href="https://ksat-feedback.vercel.app/setup" style="color:var(--accent)">/setup</a> 을 한 번 연다.
+          무료 플랜은 일주일 놀면 잠들어서, 안 깨우면 9/2 첫 접수가 느리거나 실패할 수 있다.
+          모든 항목이 초록인지도 같이 확인된다.</p>
+        </div>
+      </div>
+
+      <div class="when-row hot">
+        <div class="when-date">9/2 (화)</div>
+        <div class="when-body">
+          <b>오픈 직후 첫 접수 한 건을 끝까지 본다</b>
+          <p>첫 접수가 들어오면 Notion에 줄이 생기고, PDF 링크가 붙고, 학생에게 메일이 갔는지 본다.
+          이 세 개가 한 건에서 다 되면 나머지도 된다. 안 되면 03번.</p>
+        </div>
+      </div>
+
+      <div class="when-row">
+        <div class="when-date">9/2 ~ 9/8</div>
+        <div class="when-body">
+          <b>아침에 숫자 세 개, 그리고 용량</b>
+          <p>01번의 세 숫자를 보고, 접수가 하루 30건을 넘기 시작하면 04번의 저장 용량도 같이 본다.
+          그 아래로는 용량 걱정할 일이 없다.</p>
+        </div>
+      </div>
+
+      <div class="when-row hot">
+        <div class="when-date">9/9 (화)</div>
+        <div class="when-body">
+          <b>9/2 접수분 회신 마감</b>
+          <p>학생에게 "7일 안에 보내드려요"라고 약속했고 완료 화면·메일에 날짜가 박혀 나갔다.
+          접수일마다 마감이 다르므로 Notion의 <code>회신일</code> 칸으로 관리한다.</p>
+        </div>
+      </div>
+
+      <div class="when-row">
+        <div class="when-date">9모 이후</div>
+        <div class="when-body">
+          <b>Notion 토큰 정리</b>
+          <p>작업 중에 토큰이 대화 기록에 노출됐다. Notion 설정 → Connections 에서 그 연결을 삭제하거나
+          새로 발급한다. 급하진 않지만 잊기 쉬우니 회신 다 끝낸 날 같이 한다.</p>
+        </div>
+      </div>
+
+      <div class="when-row">
+        <div class="when-date">10/2 이후</div>
+        <div class="when-body">
+          <b>사진은 저절로 지워진다</b>
+          <p>9/2 접수분 사진·PDF는 30일 뒤 자동 삭제된다. 접수 기록(몇 건 받았고 언제 회신했는지)은 남는다.
+          할 일 없음.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ 3 -->
+  <section>
+    <div class="sec-head"><span class="sec-n">03</span><h2>이상할 때</h2></div>
+    <p class="lead">
+      아래 명령의 <code>SECRET</code> 자리에는 Vercel → Settings → Environment Variables 의
+      <code>WORKER_SECRET</code> 값을 넣는다. 이 문서에는 일부러 적지 않았다.
+    </p>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>증상</th><th>왜</th><th>할 일</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="sym">pendingCount가<br>안 줄어든다</td>
+            <td>제출 직후 후처리가 60초를 넘겨 잘렸다. 사진이 많을 때 생긴다.</td>
+            <td>기다리면 새벽 3시 크론이 되살린다. 급하면 그 접수번호로 재처리를 부른다.</td>
+          </tr>
+          <tr>
+            <td class="sym">Notion에<br>줄이 안 생겼다</td>
+            <td>Notion API가 잠깐 막혔거나 후처리가 잘렸다.</td>
+            <td>재처리. 같은 접수를 다시 돌려도 줄이 두 개 생기지 않는다.</td>
+          </tr>
+          <tr>
+            <td class="sym">PDF 링크가<br>비어 있다</td>
+            <td>사진 병합이 실패했거나 링크 유효기간이 지났다.</td>
+            <td>재처리하면 새 링크가 채워진다. 사진 원본은 그대로 있으니 잃는 건 없다.</td>
+          </tr>
+          <tr>
+            <td class="sym">확인 메일이<br>안 갔다</td>
+            <td>Gmail 앱 비밀번호가 만료됐거나 하루 발송량을 넘겼다.</td>
+            <td>먼저 시험 메일을 한 통 보내본다 — <code>/api/worker/status?mail=1</code></td>
+          </tr>
+          <tr>
+            <td class="sym">학생이 "접수가<br>안 돼요" 한다</td>
+            <td>하루 상한 100건에 닿았거나 접수 스위치가 꺼졌다.</td>
+            <td><code>/api/intake</code> 를 열어 <code>open</code> 과 <code>remainingToday</code> 를 본다.</td>
+          </tr>
+          <tr>
+            <td class="sym">사이트가<br>느리다</td>
+            <td>Supabase가 잠들었다가 깨는 중이다.</td>
+            <td>첫 요청만 느리다. 30초쯤 뒤 다시 해본다.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>재처리 명령</h3>
+    <div class="readout">curl -X POST -H "x-worker-secret: SECRET" \
+  "https://ksat-feedback.vercel.app/api/worker/process?receipt=F0902-013"</div>
+    <p style="margin-top:11px">
+      접수번호만 바꿔 쓴다. 이미 끝난 단계는 건너뛰므로 <b>여러 번 불러도 안전하다.</b>
+      무엇이 왜 막혔는지 원문으로 보려면 <code>/api/worker/status</code> 를 같은 헤더로 연다.
+    </p>
+  </section>
+
+  <!-- ============================================ 4 -->
+  <section>
+    <div class="sec-head"><span class="sec-n">04</span><h2>먼저 터지는 순서</h2></div>
+    <p class="lead">한계에 닿는 순서대로다. 1번이 압도적으로 먼저 온다.</p>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>순위</th><th>한계</th><th>언제 닿나</th><th>대응</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="rank">1</td>
+            <td class="sym">저장 용량 1GB</td>
+            <td class="num">접수 130~250건</td>
+            <td>Supabase 유료 전환, 또는 보관 기간을 30일에서 줄인다</td>
+          </tr>
+          <tr>
+            <td class="rank">2</td>
+            <td class="sym">튜터 3명의 시간</td>
+            <td class="num">하루 10~20건?</td>
+            <td>실제로는 이게 먼저 온다. 하루 상한을 낮춘다</td>
+          </tr>
+          <tr>
+            <td class="rank">3</td>
+            <td class="sym">Gmail 500통/일</td>
+            <td class="num">하루 500건</td>
+            <td>하루 상한이 100이라 닿을 일이 없다</td>
+          </tr>
+          <tr>
+            <td class="rank">4</td>
+            <td class="sym">Notion 초당 3회</td>
+            <td class="num">동시 폭주 시</td>
+            <td>자동으로 기다렸다 다시 보낸다. 할 일 없음</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note warn">
+      <b class="head">용량은 이 주소로 본다</b>
+      <div class="readout" style="margin:8px 0 10px">curl -H "x-worker-secret: SECRET" \
+  "https://ksat-feedback.vercel.app/api/worker/storage"</div>
+      <p><code>total.mb</code> 가 <b>700을 넘으면</b> 슬슬 결정해야 한다. 접수 1건이 사진과 PDF 합쳐 4~8MB다.
+      하루 100건이 실제로 다 차면 이틀이면 바닥나므로, 상한 100은 용량을 지켜주지 못한다는 점을 기억할 것.</p>
+    </div>
+  </section>
+
+  <!-- ============================================ 5 -->
+  <section>
+    <div class="sec-head"><span class="sec-n">05</span><h2>저절로 도는 것</h2></div>
+    <p class="lead">아래는 신경 쓰지 않아도 된다. 무엇이 자동인지 알아야 괜히 손대지 않는다.</p>
+
+    <figure>
+      <div class="frame">
+        <svg viewBox="0 0 700 190" role="img" aria-label="학생 제출 뒤 자동으로 도는 흐름과 새벽 3시 크론이 실패를 되살리는 구조">
+          <rect class="n-box-a" x="8" y="26" width="104" height="46" rx="3"/>
+          <text class="n-t" x="60" y="46" text-anchor="middle">학생 제출</text>
+          <text class="n-s" x="60" y="62" text-anchor="middle">접수번호 발급</text>
+
+          <path class="n-e-a" d="M112 49 H 156" marker-end="url(#ah)"/>
+
+          <rect class="n-box" x="156" y="26" width="104" height="46" rx="3"/>
+          <text class="n-t" x="208" y="46" text-anchor="middle">PDF 병합</text>
+          <text class="n-s" x="208" y="62" text-anchor="middle">과목별 1개</text>
+
+          <path class="n-e-a" d="M260 49 H 304" marker-end="url(#ah)"/>
+
+          <rect class="n-box" x="304" y="26" width="104" height="46" rx="3"/>
+          <text class="n-t" x="356" y="46" text-anchor="middle">Notion 등록</text>
+          <text class="n-s" x="356" y="62" text-anchor="middle">과목당 1줄</text>
+
+          <path class="n-e-a" d="M408 49 H 452" marker-end="url(#ah)"/>
+
+          <rect class="n-box" x="452" y="26" width="104" height="46" rx="3"/>
+          <text class="n-t" x="504" y="46" text-anchor="middle">확인 메일</text>
+          <text class="n-s" x="504" y="62" text-anchor="middle">학생에게</text>
+
+          <text class="n-l" x="286" y="16" text-anchor="middle">제출 직후 · 60초 안에</text>
+
+          <path class="n-e" d="M208 72 V 108 H 350" stroke-dasharray="4 3"/>
+          <path class="n-e" d="M356 72 V 108" stroke-dasharray="4 3"/>
+          <path class="n-e" d="M504 72 V 108 H 360" stroke-dasharray="4 3"/>
+          <text class="n-l" x="196" y="88">실패하면</text>
+
+          <rect class="n-box" x="236" y="108" width="228" height="52" rx="3"/>
+          <text class="n-t" x="350" y="130" text-anchor="middle">매일 새벽 3시 자동 정리</text>
+          <text class="n-s" x="350" y="147" text-anchor="middle">밀린 접수 되살리기 · 만료 사진 삭제 · 주인 없는 사진 정리</text>
+
+          <defs>
+            <marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0 0 L8 4 L0 8 z" fill="var(--accent)"/>
+            </marker>
+          </defs>
+        </svg>
+      </div>
+      <figcaption>
+        제출 직후 처리가 잘려도 <b>접수는 이미 저장돼 있다.</b> 새벽 3시 정리가 밀린 것을 되살리므로,
+        밤에 문제를 발견해도 급히 손댈 필요가 없다 — 그래서 <code>pendingCount</code> 판단 기준을 30분으로 둔 것이다.
+      </figcaption>
+    </figure>
+
+    <ul style="margin-top:20px">
+      <li><b>밀린 접수 되살리기</b> — 후처리가 잘린 건을 다시 돌린다</li>
+      <li><b>만료 사진 삭제</b> — 접수 30일 뒤 사진·PDF를 지운다. 접수 기록은 남는다</li>
+      <li><b>주인 없는 사진 정리</b> — 사진만 올리고 그만둔 학생의 파일을 24시간 뒤 지운다</li>
+      <li><b>하루 상한 초기화</b> — 한국 날짜가 바뀌면 저절로 0부터 다시 센다</li>
+    </ul>
+  </section>
+
+  <!-- ============================================ 6 -->
+  <section>
+    <div class="sec-head"><span class="sec-n">06</span><h2>바꿀 것은 코드가 아니다</h2></div>
+    <p class="lead">
+      운영 중 조정은 전부 <b>Supabase → Table Editor → <code>app_settings</code></b> 한 줄에서 한다.
+      줄 오른쪽 끝 <code>⋯</code> → Edit row → 고치고 Save. 배포 없이 즉시 반영된다.
+    </p>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>칸</th><th>지금</th><th>무슨 뜻</th></tr></thead>
+        <tbody>
+          <tr><td class="sym">intake_open</td><td class="num">TRUE</td><td>FALSE로 바꾸면 접수 전체 중단</td></tr>
+          <tr><td class="sym">daily_capacity</td><td class="num">100</td><td>하루 몇 건까지. 비우면 상한 없음</td></tr>
+          <tr><td class="sym">disabled_subjects</td><td class="num">[]</td><td>특정 과목만 닫기. 예: <code>["english","int_sci"]</code></td></tr>
+          <tr><td class="sym">closed_reason</td><td>이번 회차 접수가 마감됐어요.</td><td>접수를 껐을 때 학생에게 보이는 문구</td></tr>
+          <tr><td class="sym">daily_closed_reason</td><td>오늘 접수는 다 찼어요.<br>내일 다시 열려요.</td><td>하루 상한에 닿았을 때 문구</td></tr>
+          <tr><td class="sym">capacity</td><td class="num">NULL</td><td>통틀어 상한. 안 쓴다. 비워둘 것</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note alarm">
+      <b class="head">건드리면 안 되는 것</b>
+      <p><code>id</code> 는 반드시 1이어야 한다. 바뀌면 사이트가 이 줄을 못 찾는다.
+      그리고 이 표는 <b>줄이 하나만</b> 있어야 한다 — 새 줄을 추가하지 말 것.</p>
+    </div>
+
+    <p style="margin-top:16px">
+      과목 코드는 <code>korean</code> · <code>math</code> · <code>english</code> ·
+      <code>int_sci</code> · <code>int_soc</code> 다. 값을 바꿔도 이미 사이트를 열어둔 학생은
+      새로고침해야 보인다. 다만 제출할 때 서버가 한 번 더 확인하므로, 닫은 뒤 접수가 실제로 저장되지는 않는다.
+    </p>
+  </section>
+
+  <!-- ============================================ 7 -->
+  <section>
+    <div class="sec-head"><span class="sec-n">07</span><h2>지금 걸려 있는 값</h2></div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>항목</th><th>값</th><th>바꾸려면</th></tr></thead>
+        <tbody>
+          <tr><td class="sym">하루 접수 상한</td><td class="num">100건</td><td><code>app_settings.daily_capacity</code></td></tr>
+          <tr><td class="sym">사진 장수</td><td class="num">국어 16 · 그 외 12<br>전체 40</td><td>코드 (<code>config/app.ts</code>)</td></tr>
+          <tr><td class="sym">고민 문항</td><td class="num">국어 8 · 그 외 5</td><td>코드 (<code>config/questions.config.ts</code>)</td></tr>
+          <tr><td class="sym">원점수 만점</td><td class="num">국·수·영 100<br>통합과학·사회 50</td><td>코드 (<code>config/subjects.ts</code>)</td></tr>
+          <tr><td class="sym">회신 기한</td><td class="num">7일</td><td>코드 (<code>config/app.ts</code>)</td></tr>
+          <tr><td class="sym">사진 보관</td><td class="num">30일</td><td>코드 (<code>config/app.ts</code>)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:14px">
+      "코드"라고 적힌 것은 파일을 고치고 GitHub에 올려야 반영된다. 접수 기간 중에 바꿀 일은 거의 없고,
+      급하면 접수를 잠깐 닫고 작업하는 편이 안전하다.
+    </p>
+  </section>
+
+  <footer>
+    KSAT-Feedback 운영 노트 · 개발 종료 2026-08-30 · 코드와 상세 설명은 레포 README 참고
+  </footer>
+
+</div>
