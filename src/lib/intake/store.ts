@@ -60,7 +60,8 @@ type State = {
 type Actions = {
   setExam: (code: ExamCode) => void;
   toggleSubject: (code: SubjectCode) => void;
-  addPhotos: (subject: SubjectCode, items: { name: string; bytes: number; previewUrl: string }[]) => Photo[];
+  /** 사진 자리를 잡는다. 미리보기는 사진을 줄인 뒤에 붙이므로 처음엔 없어도 된다. */
+  addPhotos: (subject: SubjectCode, items: { name: string; bytes: number; previewUrl?: string }[]) => Photo[];
   patchPhoto: (id: string, patch: Partial<Photo>) => void;
   removePhoto: (id: string) => void;
   movePhoto: (id: string, dir: -1 | 1) => void;

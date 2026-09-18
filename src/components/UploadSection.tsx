@@ -9,8 +9,6 @@ import { getDraftId } from '@/lib/intake/draft';
 import { photosOf, useApply, type Photo } from '@/lib/intake/store';
 import { requestUploadTarget, uploadBlob } from '@/lib/intake/upload';
 
-type Batch = { total: number; done: number } | null;
-
 export function UploadSection({ subject }: { subject: SubjectCode }) {
   const photos = useApply((s) => s.photos);
   const addPhotos = useApply((s) => s.addPhotos);
@@ -19,12 +17,12 @@ export function UploadSection({ subject }: { subject: SubjectCode }) {
   const movePhoto = useApply((s) => s.movePhoto);
 
   const mine = photosOf(photos, subject);
-  const [batch, setBatch] = useState<Batch>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const doneCount = mine.filter((p) => p.status === 'done').length;
   const failedCount = mine.filter((p) => p.status === 'error').length;
-  const busy = mine.some((p) => p.status === 'queued' || p.status === 'uploading');
+  const pendingCount = mine.filter((p) => p.status === 'queued' || p.status === 'uploading').length;
+  const busy = pendingCount > 0;
 
   async function send(photo: Photo, blob: Blob) {
     patchPhoto(photo.id, { status: 'uploading', progress: 0, error: undefined });
@@ -43,14 +41,27 @@ export function UploadSection({ subject }: { subject: SubjectCode }) {
     }
   }
 
+  /**
+   * 고른 사진을 올린다.
+   *
+   * 고른 장 수만큼 자리를 **먼저** 잡는다 — '올리는 중' 으로. 예전에는 한 장씩 줄인 뒤에야 자리를
+   * 잡아서, 12장을 고르고 첫 장을 줄이는 사이 또 고르면 아직 자리가 없는 11장이 상한 계산에서 빠져
+   * 상한을 넘었다. 다음 장을 줄이는 동안에는 '올리는 중' 인 사진이 없어서 다음 단계 버튼도 열렸다.
+   * 이제 장수 · 다음 단계 판정이 모두 이 자리를 본다.
+   *
+   * 줄이는 사이 학생이 그 사진을 지우거나, 과목을 빼거나, 시험을 바꾸면 자리가 사라진다.
+   * 그러면 그 장은 더 하지 않는다.
+   */
   async function onPick(list: FileList | null) {
     if (!list || list.length === 0) return;
     setNotice(null);
 
+    // 화면을 그릴 때의 값이 아니라 지금 이 순간의 장수로 센다. 앞 묶음이 아직 도는 중일 수 있다.
+    const now = useApply.getState().photos;
     const picked = Array.from(list).filter((f) => f.type.startsWith('image/'));
     const subjectMax = maxPhotosFor(subject);
-    const perSubjectLeft = subjectMax - mine.length;
-    const totalLeft = LIMITS.maxPhotosTotal - photos.length;
+    const perSubjectLeft = subjectMax - photosOf(now, subject).length;
+    const totalLeft = LIMITS.maxPhotosTotal - now.length;
     const allowed = Math.max(0, Math.min(picked.length, perSubjectLeft, totalLeft));
 
     if (allowed < picked.length) {
@@ -63,27 +74,26 @@ export function UploadSection({ subject }: { subject: SubjectCode }) {
     if (allowed === 0) return;
 
     const files = picked.slice(0, allowed);
-    setBatch({ total: files.length, done: 0 });
+    const slots = addPhotos(subject, files.map((f) => ({ name: f.name, bytes: f.size })));
+    const stillThere = (id: string) => useApply.getState().photos.some((p) => p.id === id);
 
-    for (const file of files) {
+    for (const [i, file] of files.entries()) {
+      const slot = slots[i];
+      if (!stillThere(slot.id)) continue;
       try {
         const normalized = await normalizeImage(file);
-        const [photo] = addPhotos(subject, [
-          {
-            name: normalized.name,
-            bytes: normalized.blob.size,
-            previewUrl: normalized.previewUrl,
-          },
-        ]);
-        keepBlob(photo.id, normalized.blob);
-        await send(photo, normalized.blob);
+        if (!stillThere(slot.id)) {
+          URL.revokeObjectURL(normalized.previewUrl);
+          continue;
+        }
+        patchPhoto(slot.id, { name: normalized.name, bytes: normalized.blob.size, previewUrl: normalized.previewUrl });
+        keepBlob(slot.id, normalized.blob);
+        await send({ ...slot, name: normalized.name }, normalized.blob);
       } catch {
+        removePhoto(slot.id);
         setNotice('이 사진은 열 수가 없었어요. 다른 사진으로 올려볼래요?');
       }
-      setBatch((b) => (b ? { ...b, done: b.done + 1 } : b));
     }
-
-    setBatch(null);
   }
 
   async function retry(photo: Photo) {
@@ -103,8 +113,8 @@ export function UploadSection({ subject }: { subject: SubjectCode }) {
   }
 
   const headline =
-    busy && batch
-      ? `올리는 중… ${batch.total}장 중 ${batch.done}장`
+    busy
+      ? `올리는 중… ${pendingCount}장 남았어요`
       : doneCount > 0 && failedCount === 0
         ? `${subjectLabel(subject)} 시험지 ${doneCount}장, 잘 받았어요`
         : failedCount > 0
