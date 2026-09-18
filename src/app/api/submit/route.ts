@@ -7,6 +7,7 @@ import { isIdShape, parseDraftPhotoPath } from '@/lib/intake/paths';
 import { formatReceiptNo, replyDueDate } from '@/lib/intake/rules';
 import { readIntake } from '@/lib/intake/switch';
 import { processSubmission } from '@/lib/intake/worker/process';
+import { missingFiles } from '@/lib/intake/worker/storage';
 import { seoulDate } from '@/lib/kst';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
@@ -160,6 +161,18 @@ export async function POST(req: Request) {
     const receiptNo = formatReceiptNo(seq, now);
     mockIssued.set(idempotencyKey, receiptNo);
     return NextResponse.json({ receiptNo, dueDate: replyDueDate(now), mode: 'mock' });
+  }
+
+  /**
+   * 사진이 저장소에 아직 있나. 초안 사진은 접수로 이어지지 않으면 하루 뒤 크론이 지운다
+   * (lib/intake/worker/storage.ts). 며칠 뒤 이어하기로 돌아와 제출하면 경로는 맞는데 파일이 없다 —
+   * 그대로 받으면 접수번호는 나가는데 PDF 는 영영 못 만들고, 학생은 접수된 줄 안다.
+   * 없는 사진만 알려 주고 받지 않는다. 화면이 그 사진만 다시 고르게 하고, 고민과 이메일은 그대로 둔다.
+   * 확인을 못 하면(null) 막지 않는다 — 확인 실패로 멀쩡한 접수를 놓치는 쪽이 더 나쁘다.
+   */
+  const missing = await missingFiles(subjects.flatMap((s) => s.files.map((f) => f.storagePath)));
+  if (missing && missing.length > 0) {
+    return NextResponse.json({ error: 'UPLOAD_EXPIRED', missing }, { status: 409 });
   }
 
   const { data, error } = await db.rpc('create_submission', { payload });

@@ -130,6 +130,27 @@ async function removeAll(paths: string[]): Promise<{ removed: number; errors: st
 }
 
 /**
+ * 이 경로들 가운데 저장소에 없는 것. 폴더마다 목록을 한 번씩 본다 — 초안 사진은 과목 폴더 하나에 모여 있다.
+ * 목록을 못 읽으면 null. 확인하지 못한 것을 '없다' 로 치면 멀쩡한 접수를 막는다.
+ */
+export async function missingFiles(paths: string[]): Promise<string[] | null> {
+  const db = supabaseAdmin();
+  if (!db || paths.length === 0) return [];
+
+  const dirs = [...new Set(paths.map((p) => p.slice(0, p.lastIndexOf('/'))))];
+  const present = new Set<string>();
+  for (const dir of dirs) {
+    const { data, error } = await db.storage.from(RAW_BUCKET).list(dir, { limit: PAGE });
+    if (error) {
+      console.error('[storage] 사진이 있는지 확인하지 못했어요', dir, error);
+      return null;
+    }
+    for (const item of data ?? []) present.add(`${dir}/${item.name}`);
+  }
+  return paths.filter((p) => !present.has(p));
+}
+
+/**
  * 접수로 이어지지 않은 파일을 지운다.
  *
  * olderThanHours 는 안전장치다 — 지금 ②단계에서 사진을 올려두고 ③단계를 쓰고 있는
@@ -168,8 +189,25 @@ export async function cleanupOrphans(
     return { scanned: all.length, orphans: orphans.length, removed: 0, mb, errors: [] };
   }
 
-  const { removed, errors } = await removeAll(orphans.map((e) => e.path));
-  return { scanned: all.length, orphans: orphans.length, removed, mb, errors };
+  /**
+   * 목록을 읽는 사이 접수가 들어와 그 사진을 가리키게 됐을 수 있다 — 크론이 도는 새벽에도 이어하기로
+   * 제출하는 학생이 있다. 지우기 직전에 한 번 더 읽어 그사이 쓰이게 된 것은 뺀다. 다시 못 읽으면
+   * 아무것도 지우지 않는다. (두 번째 읽기와 지우기 사이의 틈은 남는다 — 수 밀리초다.)
+   */
+  let stillReferenced: Set<string>;
+  try {
+    stillReferenced = await referencedPaths();
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    return {
+      scanned: all.length, orphans: orphans.length, removed: 0, mb,
+      errors: [`지우기 직전에 참조 목록을 다시 못 읽어서 아무것도 지우지 않았어요: ${reason}`],
+    };
+  }
+  const targets = orphans.filter((e) => !stillReferenced.has(e.path));
+
+  const { removed, errors } = await removeAll(targets.map((e) => e.path));
+  return { scanned: all.length, orphans: targets.length, removed, mb, errors };
 }
 
 /**
