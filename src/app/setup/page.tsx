@@ -63,6 +63,11 @@ const GUIDE: { key: string; label: string; how: string }[] = [
     how: 'Supabase > SQL Editor 에서 0016_lms_photo_grading.sql 전체를 붙여넣고 Run',
   },
   {
+    key: 'migrations',
+    label: '0017 이후 SQL',
+    how: 'supabase/migrations 에서 빠졌다고 나온 파일을 SQL Editor 에 붙여넣고 Run (여러 번 돌려도 안전해요)',
+  },
+  {
     key: 'adminPassword',
     label: '관리자 잠금',
     how: 'Vercel 환경변수에 ADMIN_PASSWORD 를 아무 긴 문자열로 넣고 다시 배포',

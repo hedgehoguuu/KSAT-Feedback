@@ -13,6 +13,7 @@ import {
 } from './score';
 import { listEnrolled } from './courses';
 import { removeFilesOfExams } from './files';
+import type { GradingSnapshot } from './grading-snapshot';
 import { getStudent, type StudentRow } from './users';
 
 export type ExamRow = {
@@ -215,35 +216,35 @@ export async function listAnswers(attemptId: string): Promise<AnswerRow[]> {
 }
 
 /**
- * 채점 한 판을 통째로 저장한다 (0012 → 0015 → 0016 save_grading).
+ * 채점 한 판을 통째로 저장한다 (0012 → 0015 → 0016 → 0017 save_grading).
  *
  * plpgsql 함수는 통째로 한 트랜잭션이라 중간에 실패하면 전부 되돌아간다. 예전에 요청 네
  * 번으로 나눠 하다가 82점 · 정오 45개가 0점 · 0개가 되고도 '저장했어요' 라고 말한 적이 있다.
  * 그래서 error 를 반드시 던진다 — 저장이 안 됐는데 됐다고 말하는 것이 가장 나쁘다.
  *
  * 한 문항이라도 매겨 저장하면 튜터 채점이 된다. 그 뒤로는 사진을 다시 읽어도 덮지 않는다.
- */
-/**
- * 채점을 저장한다.
  *
- * rev 는 화면이 그릴 때 본 응시의 updated_at 이다. DB 가 응시를 잠근 뒤 지금 값과 견줘,
- * 다르면 아무것도 쓰지 않고 'STALE' 을 돌려준다 — 학생이 사진을 바꿔 사진으로 매긴 채점이
- * 비워졌는데 그 전에 열어 둔 화면으로 저장하면, 사라진 옛 사진의 점수가 되살아나 공개될 수
- * 있다. 여기서 최신 값을 다시 읽어 넘기면 막는 뜻이 없다 — 화면이 본 값이어야 한다.
+ * base 는 화면이 그릴 때 본 정오와 정답표다 (grading-snapshot.ts). DB 가 응시를 잠근 뒤
+ * 지금 것과 견줘, 다르면 아무것도 쓰지 않고 'STALE' 을 돌려준다. 여기서 최신 판을 다시 읽어
+ * 넘기면 막는 뜻이 없다 — 화면이 본 판이어야 한다.
+ *
+ * rev 는 0016 판 화면이 보내던 값(응시의 updated_at)이다. base 가 없을 때만 넘긴다 —
+ * 배포 직전에 열어 둔 화면도 보호를 받게.
  */
 export async function saveGrading(input: {
   attemptId: string;
   answers: { question_id: string; correct: boolean; chosen: number | null }[];
   overallComment: string | null;
   status: PublishStatus;
-  rev: string | null;
+  base: GradingSnapshot | null;
+  rev?: string | null;
 }): Promise<'SAVED' | 'STALE'> {
   const { error } = await db().rpc('save_grading', {
     payload: {
       attempt_id: input.attemptId,
       overall_comment: input.overallComment,
       status: input.status,
-      rev: input.rev,
+      ...(input.base ? { base: input.base } : { rev: input.rev ?? null }),
       answers: input.answers.map((a) => ({
         question_id: a.question_id,
         correct: a.correct,

@@ -18,6 +18,7 @@ import {
   deleteExam,
   getAttempt,
   getExam,
+  listAnswers,
   listQuestions,
   openAttempt,
   publishGradedAttempts,
@@ -34,6 +35,7 @@ import {
   sendFeedback,
   setAnswerImage,
 } from '@/lib/lms/feedback';
+import { changedNos, gradingSnapshot, parseSnapshot } from '@/lib/lms/grading-snapshot';
 import { readAnswerKey, type OcrResult } from '@/lib/lms/ocr';
 import { applyPhotoRead, requestPhotoRead } from '@/lib/lms/photo-read';
 import { readJpeg } from '@/lib/lms/upload';
@@ -231,11 +233,19 @@ export async function startGrading(formData: FormData): Promise<void> {
 }
 
 /**
- * 채점 한 판을 저장한다. 화면이 그릴 때 본 판(rev)이 아직 최신일 때만 — 그사이 학생이
- * 사진을 바꿔 사진으로 매긴 채점이 비워졌으면 'STALE' 을 돌려주고 아무것도 쓰지 않는다.
- * 그때는 화면을 넘기지 않는다. 튜터가 방금 매긴 것을 날리지 않고 안내만 띄운다.
+ * 저장이 거절됐을 때 화면에 돌려주는 것.
+ *   base     지금 판. 화면이 이것으로 바꿔 끼우면, 튜터가 확인하고 한 번 더 누른 저장은 통과한다.
+ *   changed  화면이 본 판과 달라진 문항 번호
  */
-export async function submitGrading(_state: 'STALE' | null, formData: FormData): Promise<'STALE' | null> {
+export type GradingSaveState = null | { stale: true; base: string; changed: number[] };
+
+/**
+ * 채점 한 판을 저장한다. 화면이 그릴 때 본 판(base — 정오와 정답표)이 아직 지금 것과 같을 때만.
+ * 그사이 학생이 사진을 바꿔 사진 채점이 비워졌거나 새로 채워졌거나, 정답표가 고쳐졌으면
+ * 아무것도 쓰지 않고 지금 판과 바뀐 문항을 돌려준다. 화면은 넘기지 않는다 — 튜터가 방금 매긴
+ * 것을 날리지 않고, 무엇이 바뀌었는지 보여 주고 고르게 한다.
+ */
+export async function submitGrading(_state: GradingSaveState, formData: FormData): Promise<GradingSaveState> {
   const { attempt } = await assertAttempt(text(formData, 'attempt_id'));
   const questions = await listQuestions(attempt.exam_id);
 
@@ -256,15 +266,23 @@ export async function submitGrading(_state: 'STALE' | null, formData: FormData):
     })
     .filter((a): a is NonNullable<typeof a> => a !== null);
 
+  const base = parseSnapshot(text(formData, 'base'));
   const status = text(formData, 'status');
   const outcome = await saveGrading({
     attemptId: attempt.id,
     answers,
     overallComment: optional(formData, 'overall_comment'),
     status: isPublishStatus(status) ? status : 'draft',
+    base,
+    // 0016 판 화면(배포 전에 열어 둔 것)은 base 대신 rev 를 보낸다
     rev: optional(formData, 'rev'),
   });
-  if (outcome === 'STALE') return 'STALE';
+
+  if (outcome === 'STALE') {
+    const [nowQuestions, nowAnswers] = await Promise.all([listQuestions(attempt.exam_id), listAnswers(attempt.id)]);
+    const now = gradingSnapshot(nowQuestions, nowAnswers);
+    return { stale: true, base: JSON.stringify(now), changed: base ? changedNos(base, now, nowQuestions) : [] };
+  }
 
   revalidatePath(`/lms/exams/${attempt.exam_id}`);
   redirect(`/lms/attempts/${attempt.id}?saved=1`);

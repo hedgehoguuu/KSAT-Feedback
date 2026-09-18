@@ -14,7 +14,9 @@ import {
   parseAnswer,
   unitLabel,
 } from '@/config/lms';
+import type { GradingSaveState } from '@/app/lms/course-actions';
 import { parseAnswerLine } from '@/lib/lms/answer-line';
+import { gradingSnapshot } from '@/lib/lms/grading-snapshot';
 import type { ReadAnswer } from '@/lib/lms/ocr-rows';
 import { scoreAttempt, type AnswerRow, type QuestionRow } from '@/lib/lms/score';
 import { setDirty } from './dirty';
@@ -35,9 +37,11 @@ import { btn, btnGhost, input, label } from './Shell';
  * 사진에서 읽은 답(hints)이 있으면 칸마다 붙인다. 확실히 못 읽은 문항은 노랗게 두르고
  * 읽힌 값을 '넣기' 로 한 번에 넣게 한다 — 저절로 넣지는 않는다. 사람이 사진을 보고 누르게 한다.
  *
- * 저장은 화면을 그릴 때 본 판(rev)이 아직 최신일 때만 된다. 그사이 학생이 사진을 바꿔
- * 사진으로 매긴 채점이 비워졌으면 DB 가 거절한다 — 그때는 화면을 넘기지 않고 안내만 띄운다.
- * 방금 매긴 것이 그대로 남아 있어야 사진을 다시 보고 무엇을 고칠지 정할 수 있다.
+ * 저장은 화면을 그릴 때 본 판(정오와 정답표)이 지금도 같을 때만 된다 (grading-snapshot.ts).
+ * 그사이 학생이 사진을 바꿔 사진 채점이 비워졌거나 새로 채워졌거나, 정답표가 고쳐졌으면 DB 가
+ * 거절한다. 그때는 화면을 넘기지 않고 바뀐 문항을 짚어 준다. 매긴 것은 그대로 남는다 —
+ * 새로 고쳐 바뀐 채점을 볼지, 확인하고 이 화면의 채점으로 저장할지 튜터가 고른다.
+ * 학생이 질문을 제출하는 것처럼 채점과 상관없는 일로는 거절되지 않는다.
  */
 
 type Mark = '' | 'o' | 'x';
@@ -45,7 +49,6 @@ type Mark = '' | 'o' | 'x';
 export function GradeSheet({
   action,
   attemptId,
-  rev,
   questions,
   initialAnswers,
   initialOverall,
@@ -54,10 +57,8 @@ export function GradeSheet({
   hints = {},
   tutorOwned = false,
 }: {
-  action: (state: 'STALE' | null, formData: FormData) => Promise<'STALE' | null>;
+  action: (state: GradingSaveState, formData: FormData) => Promise<GradingSaveState>;
   attemptId: string;
-  /** 이 화면이 본 채점 판 (응시의 updated_at). 저장할 때 DB 가 견준다. */
-  rev: string;
   questions: QuestionRow[];
   initialAnswers: AnswerRow[];
   initialOverall: string;
@@ -80,8 +81,16 @@ export function GradeSheet({
   );
   const [line, setLine] = useState('');
   const [lineNote, setLineNote] = useState<string | null>(null);
-  const [saveError, save, saving] = useActionState(action, null);
+  const [saveState, save, saving] = useActionState(action, null);
   const router = useRouter();
+
+  // 이 화면이 본 판. 저장이 거절되면 서버가 준 지금 판으로 바꿔 끼운다 — 튜터가 바뀐 문항을 확인하고
+  // 한 번 더 누르면 그때는 이 화면의 채점으로 저장된다.
+  const initialBase = useMemo(
+    () => JSON.stringify(gradingSnapshot(questions, initialAnswers)),
+    [questions, initialAnswers],
+  );
+  const base = saveState?.base ?? initialBase;
 
   // 이 화면을 떠나면 '저장 안 한 손질' 도 함께 사라진다.
   useEffect(() => () => setDirty(false), []);
@@ -89,8 +98,8 @@ export function GradeSheet({
   // 저장이 거절되면 매긴 것이 화면에만 남는다. 다시 '저장 안 한 손질' 로 표시해 둬야
   // 사진 읽기 감시가 화면을 새로 고쳐 날리지 않는다.
   useEffect(() => {
-    if (saveError === 'STALE') setDirty(true);
-  }, [saveError]);
+    if (saveState?.stale) setDirty(true);
+  }, [saveState]);
 
   const score = useMemo(() => {
     const answers: AnswerRow[] = sorted
@@ -147,7 +156,7 @@ export function GradeSheet({
   return (
     <form action={save} onSubmit={() => setDirty(false)} className="flex flex-col gap-5">
       <input type="hidden" name="attempt_id" value={attemptId} />
-      <input type="hidden" name="rev" value={rev} />
+      <input type="hidden" name="base" value={base} />
 
       {/* ── 위에 붙어 따라다니는 합계. 스크롤을 내려도 지금 몇 점인지가 안 사라진다. */}
       <div className="glass-bar sticky top-14 z-10 -mx-1 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-xl px-4 py-3">
@@ -170,12 +179,18 @@ export function GradeSheet({
         ) : null}
       </div>
 
-      {saveError === 'STALE' ? (
+      {saveState?.stale ? (
         <div className="rounded-xl bg-mark-soft px-4 py-3 text-[14px] leading-[1.7] text-mark" role="alert">
-          <p className="font-bold">저장하지 않았어요 — 그사이 이 학생의 채점이 바뀌었어요.</p>
+          <p className="font-bold">
+            저장하지 않았어요 — 이 화면을 연 뒤에 이 학생의 채점이 바뀌었어요
+            {saveState.changed.length > 0 ? ` (${saveState.changed.join(', ')}번)` : ''}.
+          </p>
           <p>
-            학생이 시험지 사진을 바꾸면 사진으로 매긴 채점이 비워져요. 지금 저장하면 옛 사진으로 매긴 점수가
-            되살아나요. 매긴 것은 그대로 두었으니, 새로 고쳐 사진과 읽은 답을 확인한 뒤 다시 매겨주세요.
+            학생이 시험지 사진을 바꿔 사진으로 매긴 채점이 비워졌거나 새로 채워졌을 수 있고, 정답표가 고쳐졌을 수도
+            있어요. 화면에 남은 채점이 옛 사진이나 옛 정답으로 매긴 것이라면 새로 고쳐서 다시 보세요.
+          </p>
+          <p className="mt-1">
+            지금 화면의 채점이 맞다면 아래 저장 단추를 한 번 더 누르세요. 그때는 이 화면의 채점으로 저장돼요.
           </p>
           <button
             type="button"
@@ -185,7 +200,7 @@ export function GradeSheet({
             }}
             className="mt-2 underline underline-offset-2 font-bold"
           >
-            새로 고치기 (지금 매긴 것은 사라져요)
+            새로 고쳐 바뀐 채점 보기 (지금 매긴 것은 사라져요)
           </button>
         </div>
       ) : null}

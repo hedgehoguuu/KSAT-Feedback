@@ -5,6 +5,24 @@ import { notionConfigured } from './worker/notion';
 
 export type Check = { ok: boolean; detail: string };
 
+/**
+ * 돌려야 하는 마이그레이션 (0017 부터). 이 파일들은 끝에서 schema_migrations 에 제 이름을 적는다.
+ * 여기 있는데 표에 없으면 /setup 이 빨갛게 짚는다 — 함수가 '있는지' 만 봐서는 옛 판인지 모른다.
+ * 새 마이그레이션을 더하면 여기에도 한 줄 더한다. 이미 돌린 파일은 고치지 않고 새 번호로 낸다.
+ */
+export const REQUIRED_MIGRATIONS = ['0017_lms_grading_guard'] as const;
+
+/** 표에 적힌 이름 가운데 빠진 것. 표가 없으면(0017 전) 전부 빠진 것이다. */
+async function missingMigrations(db: NonNullable<ReturnType<typeof supabaseAdmin>>): Promise<string[] | null> {
+  const { data, error } = await db.from('schema_migrations').select('name');
+  if (error) {
+    // 표가 아직 없다 — 0017 을 안 돌렸다. 그 밖의 오류는 '모름' 으로 둔다.
+    return /schema_migrations|schema cache|does not exist/i.test(error.message) ? [...REQUIRED_MIGRATIONS] : null;
+  }
+  const applied = new Set((data ?? []).map((r: { name: string }) => r.name));
+  return REQUIRED_MIGRATIONS.filter((name) => !applied.has(name));
+}
+
 export type Health = {
   /** 지금 돌고 있는 배포의 커밋. 고친 게 반영됐는지 확인할 때 쓴다. */
   commit: string | null;
@@ -48,6 +66,7 @@ export async function getHealth(): Promise<Health> {
     lmsMath: { ok: false, detail: '아직 확인 못 했어요' },
     lmsBucket: { ok: false, detail: '아직 확인 못 했어요' },
     lmsPhotoRead: { ok: false, detail: '아직 확인 못 했어요' },
+    migrations: { ok: false, detail: '아직 확인 못 했어요' },
     bucket: { ok: false, detail: '아직 확인 못 했어요' },
     workerSchema: { ok: false, detail: '아직 확인 못 했어요' },
     classSchema: { ok: false, detail: '아직 확인 못 했어요' },
@@ -92,7 +111,7 @@ export async function getHealth(): Promise<Health> {
 
   const db = supabaseAdmin();
   if (!db) {
-    for (const key of ['connection', 'tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'lmsMath', 'lmsBucket', 'lmsPhotoRead', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
+    for (const key of ['connection', 'tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'lmsMath', 'lmsBucket', 'lmsPhotoRead', 'migrations', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
       checks[key] = { ok: false, detail: 'Supabase 연결 전이라 확인할 수 없어요' };
     }
     return {
@@ -111,7 +130,7 @@ export async function getHealth(): Promise<Health> {
     const detail = sqlNotRun
       ? 'SQL 을 아직 실행하지 않았어요. supabase/migrations/0001_init.sql 을 SQL Editor 에서 실행해주세요'
       : '확인하지 못했어요';
-    for (const key of ['tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'lmsMath', 'lmsBucket', 'lmsPhotoRead', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
+    for (const key of ['tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'lmsMath', 'lmsBucket', 'lmsPhotoRead', 'migrations', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
       checks[key] = { ok: false, detail };
     }
     return {
@@ -212,6 +231,18 @@ export async function getHealth(): Promise<Health> {
     detail: status.lms_photo_read
       ? '사진 자동 채점 표와 함수가 있어요'
       : '사진 자동 채점 표가 없어요. 0016_lms_photo_grading.sql 을 실행해주세요',
+  };
+  // 0017 부터는 파일마다 이름을 적는다. 이미 돌린 0016 을 고쳐 '다시 돌리세요' 라고 사람에게 맡겼다가,
+  // 안 돌린 DB 에서도 여기가 초록불이던 일을 되풀이하지 않으려는 것이다.
+  const missing = await missingMigrations(db);
+  checks.migrations = {
+    ok: missing !== null && missing.length === 0,
+    detail:
+      missing === null
+        ? '돌린 마이그레이션 기록을 못 읽었어요'
+        : missing.length === 0
+          ? `0017 이후 SQL 을 다 돌렸어요 (${REQUIRED_MIGRATIONS.length}개)`
+          : `아직 안 돌린 SQL 이 있어요: ${missing.map((m) => `${m}.sql`).join(', ')}`,
   };
   checks.workerSchema = {
     ok: Boolean(status.worker_schema),

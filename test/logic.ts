@@ -51,6 +51,7 @@ import { callTimeoutMs, canWaitFor, retryWaitMs, shouldRetry } from '../src/lib/
 import { parseAnswerLine } from '../src/lib/lms/answer-line.ts';
 import { courseStats, scoreAttempt, trendsOf, type AnswerRow, type QuestionRow } from '../src/lib/lms/score.ts';
 import { cleanConcerns, progressOf } from '../src/lib/lms/feedback.ts';
+import { changedNos, gradingSnapshot, parseSnapshot } from '../src/lib/lms/grading-snapshot.ts';
 import { readStudentAnswers } from '../src/lib/lms/ocr.ts';
 import { renderFeedbackPdf, type FeedbackDoc } from '../src/lib/lms/pdf/feedback-pdf.ts';
 import { fitText, wrapText } from '../src/lib/lms/pdf/wrap.ts';
@@ -471,6 +472,36 @@ eq('학생 답이 다르면 짚는다', readDiffers(readForDiff, [
 ]), [2]);
 eq('빈칸으로 읽혔는데 O 면 짚는다', readDiffers([ans(3, null)], [{ no: 3, chosen: null, correct: true }]), [3]);
 eq('튜터가 안 매긴 문항은 짚는다', readDiffers([ans(6, 1)], []), [6]);
+
+section('채점 화면이 본 판 — 오래 열어 둔 화면 알아보기');
+const qa = '00000000-0000-4000-8000-00000000000a';
+const qb = '00000000-0000-4000-8000-00000000000b';
+const snapQuestions: QuestionRow[] = [
+  { id: qa, no: 1, points: 2, answer: 3, unit_code: null },
+  { id: qb, no: 2, points: 2, answer: 5, unit_code: null },
+];
+const snap = gradingSnapshot(snapQuestions, [{ question_id: qa, correct: true, chosen: 3 }]);
+eq('정오와 정답표를 함께 담는다', snap, {
+  answers: [{ question_id: qa, correct: true, chosen: 3 }],
+  key: [{ question_id: qa, answer: 3 }, { question_id: qb, answer: 5 }],
+});
+eq('폼에서 온 판을 그대로 읽는다', parseSnapshot(JSON.stringify(snap)), snap);
+eq('빈 칸이면 판 없음', parseSnapshot(''), null);
+eq('JSON 이 아니면 판 없음', parseSnapshot('{'), null);
+eq('문항 id 가 uuid 가 아니면 판 없음 (DB 가 알아볼 수 없는 오류를 내지 않게)',
+  parseSnapshot(JSON.stringify({ answers: [{ question_id: 'x', correct: true, chosen: null }], key: [] })), null);
+eq('정답표가 빠지면 판 없음', parseSnapshot(JSON.stringify({ answers: [] })), null);
+eq('같으면 바뀐 문항 없음', changedNos(snap, snap, snapQuestions), []);
+eq('사진 채점이 비워지면 그 문항을 짚는다',
+  changedNos(snap, gradingSnapshot(snapQuestions, []), snapQuestions), [1]);
+eq('새로 매겨진 문항도 짚는다',
+  changedNos(snap, gradingSnapshot(snapQuestions, [
+    { question_id: qa, correct: true, chosen: 3 },
+    { question_id: qb, correct: false, chosen: 1 },
+  ]), snapQuestions), [2]);
+eq('정답이 바뀐 문항을 짚는다',
+  changedNos(snap, gradingSnapshot([snapQuestions[0], { ...snapQuestions[1], answer: 4 }],
+    [{ question_id: qa, correct: true, chosen: 3 }]), snapQuestions), [2]);
 
 section('재시도 시간 — 전체 마감을 넘지 않는다');
 const headersOf = (h: Record<string, string>) => ({ get: (k: string) => h[k] ?? null });

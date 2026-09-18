@@ -12,8 +12,9 @@ export function ReadWatcher({ url, active }: { url: string; active: boolean }) {
   if (notice) {
     return (
       <p className="mt-2 rounded-lg bg-check-soft px-3 py-2 text-[13px] font-bold leading-[1.6] text-check" role="status">
-        사진 읽기가 끝났거나 멈췄어요. 아래에서 매기던 것을 저장하면 그 채점이 남아요. 읽은 결과나 &lsquo;다시
-        읽기&rsquo; 를 보려면 저장하지 말고 새로고침하세요.
+        사진 읽기가 끝났거나 멈췄어요. 읽은 결과나 &lsquo;다시 읽기&rsquo; 를 보려면 새로고침하세요 — 매기던 것은
+        사라져요. 매기던 것을 지키려면 먼저 저장하세요. 그사이 사진 채점이 채워졌으면 저장하기 전에 바뀐 문항을
+        짚어 드려요.
       </p>
     );
   }

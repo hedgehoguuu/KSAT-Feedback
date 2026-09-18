@@ -137,7 +137,6 @@ export default async function GradingPage({ params, searchParams }: PageProps<'/
             key={data.attempt.updated_at}
             action={submitGrading}
             attemptId={data.attempt.id}
-            rev={data.attempt.updated_at}
             questions={data.questions}
             initialAnswers={data.answers}
             initialOverall={data.attempt.overall_comment ?? ''}
