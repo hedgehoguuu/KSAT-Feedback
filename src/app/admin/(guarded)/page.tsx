@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { CLASS_STATUS } from '@/config/class';
+import { requireAdmin } from '@/lib/admin';
 import { listClasses } from '@/lib/class/classes';
 import { won } from '@/lib/format';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -7,6 +8,8 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminClasses({ searchParams }: PageProps<'/admin'>) {
+  // 레이아웃도 막지만 화면마다 다시 본다 — 레이아웃은 화면 사이를 옮겨 다닐 때 다시 돌지 않는다.
+  await requireAdmin();
   const { saved } = await searchParams;
   const { rows: classes, failed } = await listClasses({ onlyOpen: false });
   const connected = Boolean(supabaseAdmin());

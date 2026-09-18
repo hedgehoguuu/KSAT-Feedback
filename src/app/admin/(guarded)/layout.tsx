@@ -15,7 +15,8 @@ const NAV = [
 ];
 
 export default async function GuardedAdminLayout({ children }: { children: ReactNode }) {
-  // 이 아래 화면은 전부 이 한 줄이 지킨다. 쓰기(서버 함수)는 따로 또 확인한다.
+  // 첫 번째 문. 레이아웃은 화면 사이를 옮겨 다닐 때 다시 돌지 않아서(Partial Rendering) 이것만 믿지
+  // 않는다 — 화면마다 requireAdmin() 을 또 부르고, 쓰기(서버 함수)는 assertAdmin() 으로 따로 본다.
   await requireAdmin();
 
   return (

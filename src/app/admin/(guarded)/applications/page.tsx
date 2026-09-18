@@ -1,5 +1,6 @@
 import { setApplicationStatusAction } from '@/app/admin/actions';
 import { APPLICATION_STATUS, APPLICATION_STATUSES, CLASS } from '@/config/class';
+import { requireAdmin } from '@/lib/admin';
 import { listApplications } from '@/lib/class/classes';
 // 서버는 UTC 로 돈다. 그냥 찍으면 저녁 7시 신청이 오전 10시로 보인다.
 import { seoulStamp } from '@/lib/kst';
@@ -13,6 +14,8 @@ const STATUS_ERRORS: Record<string, string> = {
 };
 
 export default async function AdminApplications({ searchParams }: PageProps<'/admin/applications'>) {
+  // 레이아웃도 막지만 화면마다 다시 본다 — 레이아웃은 화면 사이를 옮겨 다닐 때 다시 돌지 않는다.
+  await requireAdmin();
   const { error } = await searchParams;
   const statusError = typeof error === 'string' ? STATUS_ERRORS[error] : undefined;
   const { rows, failed } = await listApplications();
