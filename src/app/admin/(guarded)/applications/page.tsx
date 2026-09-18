@@ -6,7 +6,15 @@ import { seoulStamp } from '@/lib/kst';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminApplications() {
+/** 상태를 못 옮겼을 때 (0018 set_application_status) */
+const STATUS_ERRORS: Record<string, string> = {
+  full: '그 반은 자리가 다 차서 취소한 신청을 되살리지 않았어요. 더 받으려면 반 정원을 먼저 늘려주세요.',
+  dup: '같은 연락처로 살아 있는 신청이 이미 있어서 취소한 신청을 되살리지 않았어요.',
+};
+
+export default async function AdminApplications({ searchParams }: PageProps<'/admin/applications'>) {
+  const { error } = await searchParams;
+  const statusError = typeof error === 'string' ? STATUS_ERRORS[error] : undefined;
   const { rows, failed } = await listApplications();
   const live = rows.filter((r) => r.status !== 'canceled');
 
@@ -26,6 +34,12 @@ export default async function AdminApplications() {
           </p>
         )}
       </header>
+
+      {statusError ? (
+        <p className="rounded-2xl bg-danger/10 p-4 text-[14px] leading-[1.6] text-danger" role="alert">
+          {statusError}
+        </p>
+      ) : null}
 
       {failed ? (
         <p className="rounded-2xl bg-danger/10 p-5 text-[14px] leading-[1.6] text-danger" role="alert">

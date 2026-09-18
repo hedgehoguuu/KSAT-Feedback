@@ -6,6 +6,7 @@
 --
 --   1. 비밀번호를 바꾸면 다른 기기의 로그인이 풀린다 (lms_users.session_key)
 --   2. 실패한 접수는 곧바로 다시 집지 않는다 (claim_submission)
+--   3. 취소한 신청을 되살릴 때도 정원과 같은 번호를 본다 (set_application_status)
 --
 -- Supabase → SQL Editor 에 통째로 붙여넣고 Run 한 번. 여러 번 돌려도 안전하다.
 -- 지금 돌고 있는 앱(0017 판)과도 맞는다 — 먼저 돌리고 배포한다.
@@ -67,6 +68,62 @@ $$;
 -- 0014 와 같은 이유. 다시 만든 함수도 공개 키로는 못 부르게 한다.
 revoke execute on function public.claim_submission(text) from public, anon, authenticated;
 grant execute on function public.claim_submission(text) to service_role;
+
+-- -------------------------------------- 3. 취소한 신청을 되살릴 때도 정원을 본다
+-- 새 신청은 반 행을 잠그고 정원을 보는데(create_class_application), 관리자의 상태 옮기기는 조건 없는
+-- UPDATE 였다. 정원 3명인 반에서 A 를 취소하고 D 를 받은 뒤 A 를 '입금 완료' 로 되돌리면 넷이 된다.
+-- 취소 → 살아 있는 상태로 옮길 때는 새 신청과 같은 반 잠금 아래에서 정원과 같은 연락처를 다시 본다.
+-- 더 받으려면 /admin 에서 정원을 먼저 늘린다.
+create or replace function set_application_status(payload jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  aid   uuid := (payload->>'id')::uuid;
+  want  text := payload->>'status';
+  cid   uuid;
+  cur   text;
+  phone text;
+  cap   int;
+  taken int;
+begin
+  if aid is null or want is null then
+    raise exception 'id 와 status 가 필요합니다';
+  end if;
+
+  select class_id into cid from class_applications where id = aid;
+  if cid is null then
+    raise exception 'NOT_FOUND' using errcode = 'P0001', hint = '없는 신청이에요';
+  end if;
+
+  -- 새 신청과 같은 순서로 잠근다: 반 → 신청
+  select capacity into cap from classes where id = cid for update;
+  select status, parent_phone into cur, phone from class_applications where id = aid for update;
+
+  if cur = 'canceled' and want <> 'canceled' then
+    if exists (
+      select 1 from class_applications
+       where class_id = cid and parent_phone = phone and status <> 'canceled' and id <> aid
+    ) then
+      raise exception 'DUPLICATE' using errcode = 'P0001', hint = '같은 연락처의 살아 있는 신청이 있어요';
+    end if;
+
+    select count(*) into taken
+      from class_applications
+     where class_id = cid and status <> 'canceled';
+    if taken >= cap then
+      raise exception 'CLASS_FULL' using errcode = 'P0001', hint = '자리가 다 찼어요';
+    end if;
+  end if;
+
+  update class_applications set status = want where id = aid;
+end;
+$$;
+
+revoke execute on function public.set_application_status(jsonb) from public, anon, authenticated;
+grant execute on function public.set_application_status(jsonb) to service_role;
 
 -- ------------------------------------------------------ 돌린 파일 적어 두기
 -- /setup 이 이 표를 읽어 빠진 마이그레이션을 짚는다 (lib/health.ts 의 REQUIRED_MIGRATIONS).

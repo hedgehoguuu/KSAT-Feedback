@@ -162,6 +162,10 @@ export async function setApplicationStatusAction(formData: FormData): Promise<vo
   await assertAdmin();
   const id = text(formData, 'id');
   const status = text(formData, 'status');
-  if (id && isApplicationStatus(status)) await setApplicationStatus(id, status);
+  if (!id || !isApplicationStatus(status)) redirect('/admin/applications');
+
+  const outcome = await setApplicationStatus(id, status);
+  if (outcome === 'CLASS_FULL') redirect('/admin/applications?error=full');
+  if (outcome === 'DUPLICATE') redirect('/admin/applications?error=dup');
   redirect('/admin/applications');
 }

@@ -492,12 +492,32 @@ export async function markApplicationAlert(id: string, error: string | null): Pr
   }
 }
 
-export async function setApplicationStatus(id: string, status: ApplicationStatus): Promise<void> {
+/**
+ * 신청 상태를 옮긴다 (0018 set_application_status).
+ *
+ * 취소한 신청을 되살릴 때는 새 신청과 같은 반 잠금 아래에서 정원과 같은 연락처를 다시 본다 —
+ * 조건 없이 고치면 취소한 자리에 새 사람을 받은 뒤 되살려서 정원을 넘긴다. 넘으면 'CLASS_FULL',
+ * 같은 연락처의 살아 있는 신청이 있으면 'DUPLICATE'. 0018 을 안 돌린 DB 에서는 예전처럼 그냥 고친다.
+ */
+export async function setApplicationStatus(
+  id: string,
+  status: ApplicationStatus,
+): Promise<'OK' | 'CLASS_FULL' | 'DUPLICATE'> {
   const db = supabaseAdmin();
   if (!db) throw new Error('Supabase 연결이 없어요');
 
-  const { error } = await db.from('class_applications').update({ status }).eq('id', id);
+  const { error } = await db.rpc('set_application_status', { payload: { id, status } });
+  if (error?.code === 'P0001' && (error.message === 'CLASS_FULL' || error.message === 'DUPLICATE')) {
+    return error.message;
+  }
+  // 함수가 아직 없다 (0018 전)
+  if (error?.code === 'PGRST202') {
+    const { error: plain } = await db.from('class_applications').update({ status }).eq('id', id);
+    if (plain) throw new Error(plain.message);
+    return 'OK';
+  }
   if (error) throw new Error(error.message);
+  return 'OK';
 }
 
 /** 보유기간이 지난 신청을 지운다. 사진과 달리 행 자체를 지운다. */
