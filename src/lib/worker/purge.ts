@@ -1,4 +1,5 @@
 import 'server-only';
+import { seoulDate } from '@/lib/kst';
 import { RAW_BUCKET, supabaseAdmin } from '@/lib/supabase/admin';
 
 type SubjectRow = {
@@ -29,7 +30,9 @@ export async function purgeExpiredFiles(limit = 50): Promise<{ purged: string[];
   const db = supabaseAdmin();
   if (!db) return { purged: [], errors: ['supabase 연결 없음'] };
 
-  const today = new Date().toISOString().slice(0, 10);
+  // purge_after 는 한국 날짜로 적혀 있다 (api/submit). 여기서 UTC 로 세면 크론이 도는 새벽 3시(KST)는
+  // 늘 UTC 로 전날이라, 약속한 날보다 하루 늦게 지웠다.
+  const today = seoulDate();
   const { data, error } = await db
     .from('submissions')
     .select(SELECT)

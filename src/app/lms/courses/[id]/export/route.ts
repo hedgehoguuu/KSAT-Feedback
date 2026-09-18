@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { SECTIONS, SECTION_LIST, UNITS, fmtScore } from '@/config/lms';
+import { seoulDate } from '@/lib/kst';
 import { currentUser } from '@/lib/lms/auth';
 import { courseVisibleTo } from '@/lib/lms/courses';
 import { courseSummary } from '@/lib/lms/exams';
@@ -84,7 +85,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const csv = `﻿${body}`;
 
   // 파일 이름에 한글이 들어가므로 RFC 5987 형식으로도 함께 준다.
-  const today = new Date().toISOString().slice(0, 10);
+  // 파일 이름의 날짜도 한국 날짜로. UTC 로 세면 새벽 0–9시에 받은 파일에 어제 날짜가 붙는다.
+  const today = seoulDate();
   const name = `${course.name}-성적-${today}.csv`;
 
   return new NextResponse(csv, {
