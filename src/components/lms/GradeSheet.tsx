@@ -45,17 +45,7 @@ import { btn, btnGhost, input, label } from './Shell';
 
 type Mark = '' | 'o' | 'x';
 
-export function GradeSheet({
-  action,
-  attemptId,
-  questions,
-  initialAnswers,
-  initialOverall,
-  initialStatus,
-  classAverages,
-  hints = {},
-  tutorOwned = false,
-}: {
+type Props = {
   action: (state: GradingSaveState, formData: FormData) => Promise<GradingSaveState>;
   attemptId: string;
   questions: QuestionRow[];
@@ -68,7 +58,36 @@ export function GradeSheet({
   hints?: Record<string, ReadAnswer>;
   /** 지금 채점을 튜터가 직접 매겼다. 사진과 다른 칸에 읽힌 값을 옅게 적어 준다. */
   tutorOwned?: boolean;
-}) {
+};
+
+/**
+ * 채점표는 받은 값으로 칸을 한 번 채우고, 그 뒤로는 제가 쥔다 — 화면을 새로 고쳐도(router.refresh)
+ * 매긴 것 · 총평 · 저장 결과가 그대로 남는다. 그래서 받은 판이 바뀌면 채점표를 새로 붙인다.
+ *
+ * 이게 없으면 정답표를 고쳐 O 가 X 로 다시 매겨진 뒤 '새로 고쳐 바뀐 채점 보기' 를 눌러도 옛 O 가
+ * 남는다. 저장 결과에 든 판(거절될 때 받은 지금 판)도 남아서, 그대로 누르면 옛 점수가 검사를
+ * 통과해 저장 · 공개된다. 새로 붙이면 셋이 같이 새 판에서 시작한다.
+ *
+ * 매기는 중에는 판이 바뀌어도 새로 붙지 않는다 — 화면을 새로 고치는 것은 저장하지 않은 손질이
+ * 없을 때(dirty.ts)와 튜터가 '새로 고쳐 바뀐 채점 보기' 를 눌렀을 때뿐이다.
+ */
+export function GradeSheet(props: Props) {
+  const base = JSON.stringify(gradingSnapshot(props.questions, props.initialAnswers));
+  return <Sheet key={base} {...props} initialBase={base} />;
+}
+
+function Sheet({
+  action,
+  attemptId,
+  questions,
+  initialAnswers,
+  initialOverall,
+  initialStatus,
+  classAverages,
+  hints = {},
+  tutorOwned = false,
+  initialBase,
+}: Props & { initialBase: string }) {
   const sorted = useMemo(() => [...questions].sort((a, b) => a.no - b.no), [questions]);
   const [marks, setMarks] = useState<Record<string, Mark>>(() =>
     Object.fromEntries(initialAnswers.map((a) => [a.question_id, a.correct ? 'o' : 'x'])),
@@ -85,10 +104,6 @@ export function GradeSheet({
 
   // 이 화면이 본 판. 저장이 거절되면 서버가 준 지금 판으로 바꿔 끼운다 — 튜터가 바뀐 문항을 확인하고
   // 한 번 더 누르면 그때는 이 화면의 채점으로 저장된다.
-  const initialBase = useMemo(
-    () => JSON.stringify(gradingSnapshot(questions, initialAnswers)),
-    [questions, initialAnswers],
-  );
   const base = saveState?.base ?? initialBase;
 
   // 이 화면을 떠나면 '저장 안 한 손질' 도 함께 사라진다.
@@ -194,6 +209,7 @@ export function GradeSheet({
           <button
             type="button"
             onClick={() => {
+              // 새 판이 오면 GradeSheet 가 채점표를 새로 붙인다 — 매긴 것과 견줄 판이 같이 버려진다.
               setDirty(false);
               router.refresh();
             }}
