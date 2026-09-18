@@ -3,8 +3,8 @@
  *
  * app 코드는 `@/config/lms` 처럼 별칭으로, 그리고 `./db` 처럼 확장자 없이 서로를 부른다.
  * 둘 다 번들러(Next)가 풀어 주는 것이라 맨몸의 node 는 못 찾는다. 몇몇 파일은 `server-only`
- * 도 들여오는데 그것은 '이 파일은 서버 전용' 이라는 표시일 뿐 하는 일이 없다. `next/server` 도
- * 번들러가 확장자를 붙여 주는 이름이다.
+ * 도 들여오는데 그것은 '이 파일은 서버 전용' 이라는 표시일 뿐 하는 일이 없다. `next/server` ·
+ * `next/headers` 도 번들러가 확장자를 붙여 주는 이름이다.
  *
  * 시험을 위해 app 코드를 상대경로로 고치는 것은 앞뒤가 바뀐 일이라, 여기서 풀어 준다.
  * 시험이 앱을 있는 그대로 보게 하려는 것이다.
@@ -29,8 +29,9 @@ function firstThatExists(base) {
 
 export function resolve(specifier, context, next) {
   if (specifier === 'server-only') return { url: EMPTY, shortCircuit: true };
-  // next 는 package.json 에 exports 가 없어서 맨몸의 node 가 `next/server` 에 확장자를 못 붙인다.
-  if (specifier === 'next/server') return next('next/server.js', context);
+  // next 는 package.json 에 exports 가 없어서 맨몸의 node 가 `next/server` · `next/headers` 같은
+  // 이름에 확장자를 못 붙인다.
+  if (/^next\/[a-z-]+$/.test(specifier)) return next(`${specifier}.js`, context);
 
   let base = null;
   if (specifier.startsWith('@/')) {

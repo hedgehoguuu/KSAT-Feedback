@@ -6,6 +6,7 @@
  * 답변 PDF 가 제대로 만들어지는가 — 틀리면 사람이 손해를 보는데, 화면만 봐서는
  * 틀린 줄 모르는 것들이다.
  */
+import { createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -44,6 +45,7 @@ import { courseStats, scoreAttempt, trendsOf, type AnswerRow, type QuestionRow }
 import { cleanConcerns, progressOf } from '../src/lib/lms/concerns.ts';
 import { changedNos, gradingSnapshot, parseSnapshot } from '../src/lib/lms/grading-snapshot.ts';
 import { draftPhotoPath, isIdShape, parseDraftPhotoPath } from '../src/lib/intake/paths.ts';
+import { issueSession, readSession } from '../src/lib/lms/auth.ts';
 import { readStudentAnswers } from '../src/lib/lms/ocr.ts';
 import { renderFeedbackPdf, type FeedbackDoc } from '../src/lib/lms/pdf/feedback-pdf.ts';
 import { fitText, wrapText } from '../src/lib/lms/pdf/wrap.ts';
@@ -196,6 +198,21 @@ ok('같은 비밀번호도 해시는 매번 다르다 (소금)', hashPassword('a
 ok('형식이 깨져도 던지지 않고 거절', !verifyPassword('x', 'garbage'));
 ok('버전이 다르면 거절', !verifyPassword('x', 's9.aa.bb'));
 ok('없는 아이디용 더미 해시가 예외를 안 던진다', !verifyPassword('any', `s1.00.${'0'.repeat(128)}`));
+
+section('로그인 쿠키 — 비밀번호가 바뀌면 옛 쿠키가 풀린다');
+process.env.LMS_SESSION_SECRET ||= 'test-session-secret-0123456789';
+const uid = '11111111-2222-4333-8444-555555555555';
+const cookie = issueSession(uid, 'key-1').value;
+eq('발급한 쿠키에서 사람과 열쇠를 꺼낸다', readSession(cookie), { userId: uid, key: 'key-1' });
+eq('열쇠를 바꿔 끼우면 서명이 안 맞는다', readSession(cookie.replace('.key-1.', '.key-2.')), null);
+eq('열쇠를 한 번도 안 뽑은 계정은 빈 열쇠', readSession(issueSession(uid, null).value)?.key, '-');
+const v1Exp = Math.floor(Date.now() / 1000) + 60;
+const v1Sig = createHmac('sha256', process.env.LMS_SESSION_SECRET).update(`v1.${uid}.${v1Exp}`).digest('hex');
+eq('열쇠가 생기기 전의 쿠키(v1)는 빈 열쇠로 읽는다', readSession(`v1.${uid}.${v1Exp}.${v1Sig}`), { userId: uid, key: '-' });
+const oldExp = Math.floor(Date.now() / 1000) - 1;
+const expired = `v2.${uid}.key-1.${oldExp}`;
+eq('만료된 쿠키는 버린다',
+  readSession(`${expired}.${createHmac('sha256', process.env.LMS_SESSION_SECRET).update(expired).digest('hex')}`), null);
 
 section('아이디와 비밀번호 규칙');
 // 대문자는 막지 않고 소문자로 내려서 받는다. 막으면 튜터가 'Boss' 라고 적었을 때

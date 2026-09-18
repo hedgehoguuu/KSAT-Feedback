@@ -1,4 +1,5 @@
 import 'server-only';
+import { randomUUID } from 'node:crypto';
 import { isRole, type Role, type UserStatus } from '@/config/lms';
 import { hashPassword } from './password';
 import { db, inChunks, must, one, rows } from './db';
@@ -184,8 +185,26 @@ export async function updateUser(
 }
 
 /**
+ * 세션 열쇠 (0018). 비밀번호를 바꾸거나 새로 발급할 때마다 새로 뽑는다 — 그 전에 나간 로그인
+ * 쿠키가 전부 풀린다 (lib/lms/auth.ts). 0018 을 아직 안 돌린 DB 에는 칸이 없어서(42703) 그때는
+ * 열쇠 없이 한다. 비밀번호 바꾸기 자체가 막히면 안 된다.
+ */
+function noKeyColumn(error: { code?: string } | null): boolean {
+  return error?.code === '42703';
+}
+
+/** 로그인할 때 쿠키에 넣을 열쇠. 한 번도 안 뽑았으면 null. */
+export async function sessionKeyOf(id: string): Promise<string | null> {
+  const { data, error } = await db().from('lms_users').select('session_key').eq('id', id).maybeSingle();
+  if (noKeyColumn(error)) return null;
+  if (error) throw error;
+  return (data as { session_key: string | null } | null)?.session_key ?? null;
+}
+
+/**
  * 비밀번호를 새로 발급한다. 발급된 비밀번호는 본인이 바꿔야 하므로
  * must_change_password 를 다시 켠다. 실제로 바뀐 계정이 있으면 true.
+ * 그 계정의 로그인은 모든 기기에서 풀린다.
  *
  * studentOnly 는 튜터 쪽에서 부를 때 켠다. 앞에서 학생인지 이미 봤더라도 UPDATE 에도
  * 조건을 건다 — 확인이 빠진 호출이 나중에 생겨도 학생이 아닌 계정은 안 바뀐다.
@@ -195,24 +214,42 @@ export async function resetPassword(
   password: string,
   opts: { studentOnly?: boolean } = {},
 ): Promise<boolean> {
-  let q = db()
-    .from('lms_users')
-    .update({ password_hash: hashPassword(password), must_change_password: true })
-    .eq('id', id);
-  if (opts.studentOnly) q = q.eq('role', 'student');
+  const hash = hashPassword(password);
+  const run = (withKey: boolean) => {
+    let q = db()
+      .from('lms_users')
+      .update({ password_hash: hash, must_change_password: true, ...(withKey ? { session_key: randomUUID() } : {}) })
+      .eq('id', id);
+    if (opts.studentOnly) q = q.eq('role', 'student');
+    return q.select('id');
+  };
 
-  const changed = await must(q.select('id'));
-  return (changed ?? []).length > 0;
+  let { data, error } = await run(true);
+  if (noKeyColumn(error)) ({ data, error } = await run(false));
+  if (error) throw error;
+  return (data ?? []).length > 0;
 }
 
-/** 본인이 직접 바꾼다. 이때는 강제 변경을 끈다. */
-export async function changeOwnPassword(id: string, password: string): Promise<void> {
-  await must(
+/**
+ * 본인이 직접 바꾼다. 이때는 강제 변경을 끈다. 다른 기기의 로그인은 풀리고, 지금 브라우저에
+ * 새로 줄 열쇠를 돌려준다 (0018 전의 DB 면 null).
+ */
+export async function changeOwnPassword(id: string, password: string): Promise<string | null> {
+  const hash = hashPassword(password);
+  const key = randomUUID();
+  const run = (withKey: boolean) =>
     db()
       .from('lms_users')
-      .update({ password_hash: hashPassword(password), must_change_password: false })
-      .eq('id', id),
-  );
+      .update({ password_hash: hash, must_change_password: false, ...(withKey ? { session_key: key } : {}) })
+      .eq('id', id);
+
+  const { error } = await run(true);
+  if (noKeyColumn(error)) {
+    await must(run(false));
+    return null;
+  }
+  if (error) throw error;
+  return key;
 }
 
 /**

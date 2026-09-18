@@ -55,8 +55,8 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = key;
 delete process.env.GMAIL_USER;
 delete process.env.GMAIL_APP_PASSWORD;
 
-const { createUser, findForLogin, getStudent, listStudents, listUsers, resetPassword,
-        tryUserCount, updateUser, deleteUser, upsertStudentProfile } = await import('../src/lib/lms/users.ts');
+const { createUser, findForLogin, getStudent, listStudents, listUsers, resetPassword, changeOwnPassword,
+        sessionKeyOf, tryUserCount, updateUser, deleteUser, upsertStudentProfile } = await import('../src/lib/lms/users.ts');
 const { saveCourse, listCourses, enroll, listEnrolled, courseVisibleTo, studentVisibleTo,
         unenroll, isEnrolled, deleteCourse } = await import('../src/lib/lms/courses.ts');
 const { saveExam, listExams, listQuestions, saveAnswerKey, seedQuestions, openAttempt, findAttempt,
@@ -146,8 +146,15 @@ ok('대문자로 쳐도 찾는다', found?.name === '주현');
 ok('맞는 비밀번호는 통과', verifyPassword('admin-pass-1', found!.password_hash));
 ok('틀린 비밀번호는 거절', !verifyPassword('admin-pass-2', found!.password_hash));
 ok('처음엔 비밀번호를 바꿔야 한다', found!.must_change_password);
+const keyBefore = await sessionKeyOf(adminId);
 await resetPassword(adminId, 'new-admin-pass');
 ok('재발급이 실제로 반영된다', verifyPassword('new-admin-pass', (await findForLogin('boss'))!.password_hash));
+const keyAfterReset = await sessionKeyOf(adminId);
+ok('재발급하면 세션 열쇠가 바뀐다 — 다른 기기의 로그인이 풀린다', keyAfterReset !== null && keyAfterReset !== keyBefore);
+const ownKey = await changeOwnPassword(adminId, 'new-admin-pass');
+ok('본인이 바꿔도 열쇠가 바뀌고, 지금 브라우저에 줄 열쇠를 돌려준다',
+  ownKey !== null && ownKey !== keyAfterReset && ownKey === (await sessionKeyOf(adminId)));
+ok('본인이 바꾸면 강제 변경이 꺼진다', !(await findForLogin('boss'))!.must_change_password);
 
 section('3. 학생 정보');
 const prof = await getStudent(students[0].id);

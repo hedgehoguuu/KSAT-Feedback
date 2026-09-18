@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { isRole, ROLE_HOME } from '@/config/lms';
 import { isAdmin } from '@/lib/admin';
 import {
-  assertRole,
+  assertSignedIn,
   clearSessionCookie,
   currentUser,
   lmsConfigured,
@@ -12,7 +12,14 @@ import {
 } from '@/lib/lms/auth';
 import { loginIdProblem, passwordProblem } from '@/lib/lms/credentials';
 import { verifyPassword } from '@/lib/lms/password';
-import { changeOwnPassword, createUser, findForLogin, markLoggedIn, tryUserCount } from '@/lib/lms/users';
+import {
+  changeOwnPassword,
+  createUser,
+  findForLogin,
+  markLoggedIn,
+  sessionKeyOf,
+  tryUserCount,
+} from '@/lib/lms/users';
 
 /**
  * 모든 쓰기는 맨 앞에서 누구인지 확인한다. 서버 함수는 화면을 거치지 않고
@@ -53,7 +60,7 @@ export async function login(formData: FormData): Promise<void> {
   if (user.status !== 'active') redirect('/lms/login?error=suspended');
   if (!isRole(user.role)) redirect('/lms/login?error=1');
 
-  await setSessionCookie(user.id);
+  await setSessionCookie(user.id, await sessionKeyOf(user.id));
   await markLoggedIn(user.id);
 
   // 관리자가 발급한 첫 비밀번호로 들어왔으면 바꾸고 나서야 다른 화면으로 간다.
@@ -66,8 +73,8 @@ export async function logout(): Promise<void> {
 }
 
 export async function changePassword(formData: FormData): Promise<void> {
-  // 비밀번호를 바꾸는 동작 자체는 must_change_password 에 걸리면 안 되므로 assertRole 을 쓴다.
-  const user = await assertRole('admin', 'tutor', 'student');
+  // 비밀번호를 바꾸는 동작 자체는 must_change_password 에 걸리면 안 되므로 assertSignedIn 을 쓴다.
+  const user = await assertSignedIn();
 
   const current = String(formData.get('current') ?? '');
   const next = String(formData.get('next') ?? '');
@@ -81,7 +88,9 @@ export async function changePassword(formData: FormData): Promise<void> {
   if (next !== again) redirect('/lms/password?error=mismatch');
   if (next === current) redirect('/lms/password?error=same');
 
-  await changeOwnPassword(user.id, next);
+  // 다른 기기의 로그인은 풀린다. 지금 브라우저는 새 열쇠로 다시 들여보낸다.
+  const key = await changeOwnPassword(user.id, next);
+  await setSessionCookie(user.id, key);
   redirect(`${ROLE_HOME[user.role]}?changed=1`);
 }
 
