@@ -1,7 +1,7 @@
 import 'server-only';
 import { LMS } from '@/config/lms';
 import { db, must, one, rows } from './db';
-import { paths, putFile, removeFiles, removeFilesQuietly } from './files';
+import { paths, putFile, removeFilesQuietly } from './files';
 
 /**
  * 학생이 올린 시험지 사진 (lms_attempt_photos). 응시 하나에 여러 장.
@@ -40,7 +40,7 @@ export async function listPhotos(attemptId: string): Promise<PhotoRow[]> {
  * 줄이 생기는 순간 DB 가 사진으로 매긴 채점을 비운다 (0016 트리거). 새 사진까지 읽은 결과로
  * 다시 채우는 것은 사진 읽기(photo-read.ts)의 몫이다.
  */
-export async function addPhoto(attemptId: string, bytes: Uint8Array): Promise<PhotoRow | 'TOO_MANY'> {
+export async function addPhoto(attemptId: string, bytes: Uint8Array): Promise<PhotoRow | 'TOO_MANY' | 'LOCKED'> {
   const existing = await listPhotos(attemptId);
   if (existing.length >= LMS.maxPhotos) return 'TOO_MANY';
 
@@ -53,6 +53,11 @@ export async function addPhoto(attemptId: string, bytes: Uint8Array): Promise<Ph
       .insert({ attempt_id: attemptId, storage_path: path, order_index: next, bytes: bytes.byteLength })
       .select(PHOTO_COLS)
       .single();
+    // 올리는 사이 튜터가 답을 보냈다 — DB(0018 사진 트리거)가 막았다. 올린 파일은 아래에서 지운다.
+    if (error?.code === 'P0001' && error.message === 'LOCKED') {
+      await removeFilesQuietly([path]);
+      return 'LOCKED';
+    }
     if (error || !data) throw error ?? new Error('LMS_PHOTO_INSERT_FAILED');
     return data as unknown as PhotoRow;
   } catch (error) {
@@ -62,18 +67,25 @@ export async function addPhoto(attemptId: string, bytes: Uint8Array): Promise<Ph
 }
 
 /**
- * 사진을 지운다. 이 응시의 사진이 아니면 아무것도 안 한다. 파일을 먼저 지운다.
- * 줄이 지워지는 순간 DB 가 사진으로 매긴 채점을 비운다 (0016 트리거).
+ * 사진을 지운다. 이 응시의 사진이 아니면 'NOT_FOUND'.
+ *
+ * 한 장을 지울 때는 줄을 먼저 지운다. 답을 보낸 시험이면 DB 가 줄 지우기를 막는데(0018 사진
+ * 트리거), 파일부터 지우면 거절돼도 사진은 이미 사라진다 — 보낸 PDF 와 튜터 화면의 사진이 깨진다.
+ * 줄이 지워지는 순간 DB 가 사진으로 매긴 채점도 비운다 (0016 트리거). 그 뒤 파일 지우기가 실패하면
+ * 저장소에 한 장이 남고 로그에 적힌다. (회차 · 반 · 계정을 통째로 지울 때는 파일을 먼저 지운다 — files.ts)
  */
-export async function removePhoto(attemptId: string, photoId: string): Promise<boolean> {
+export async function removePhoto(attemptId: string, photoId: string): Promise<'OK' | 'NOT_FOUND' | 'LOCKED'> {
   const photo = await one<PhotoRow>(
     db().from('lms_attempt_photos').select(PHOTO_COLS).eq('id', photoId).eq('attempt_id', attemptId).maybeSingle(),
   );
-  if (!photo) return false;
+  if (!photo) return 'NOT_FOUND';
 
-  await removeFiles([photo.storage_path]);
-  await must(db().from('lms_attempt_photos').delete().eq('id', photo.id));
-  return true;
+  const { error } = await db().from('lms_attempt_photos').delete().eq('id', photo.id);
+  if (error?.code === 'P0001' && error.message === 'LOCKED') return 'LOCKED';
+  if (error) throw error;
+
+  await removeFilesQuietly([photo.storage_path]);
+  return 'OK';
 }
 
 /** 한 칸 앞뒤로. 번호가 겹쳐 있을 수 있어서 옮긴 김에 0 부터 다시 매긴다. */

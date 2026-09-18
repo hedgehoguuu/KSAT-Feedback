@@ -7,6 +7,8 @@
 --   1. 비밀번호를 바꾸면 다른 기기의 로그인이 풀린다 (lms_users.session_key)
 --   2. 실패한 접수는 곧바로 다시 집지 않는다 (claim_submission)
 --   3. 취소한 신청을 되살릴 때도 정원과 같은 번호를 본다 (set_application_status)
+--   4. 점수가 든 답변 PDF 는 공개 여부와 상관없이 판을 견준다 (mark_feedback_ready)
+--   5. 답을 보낸 시험의 사진은 DB 가 막는다 (사진 트리거)
 --
 -- Supabase → SQL Editor 에 통째로 붙여넣고 Run 한 번. 여러 번 돌려도 안전하다.
 -- 지금 돌고 있는 앱(0017 판)과도 맞는다 — 먼저 돌리고 배포한다.
@@ -124,6 +126,167 @@ $$;
 
 revoke execute on function public.set_application_status(jsonb) from public, anon, authenticated;
 grant execute on function public.set_application_status(jsonb) to service_role;
+
+-- ----------------------------------- 4. 점수가 든 답변 PDF 는 늘 판을 견준다
+-- 0016 과 같고 견주는 조건만 바뀐다. 0016 은 '이번에 점수를 새로 여는가(publish)' 일 때만 정오를
+-- 견줬다. 이미 공개한 응시에 PDF 를 (다시) 보내는 사이 채점이 바뀌면, 옛 점수가 든 PDF 가 나갔다.
+-- 이제 앱이 PDF 를 만들 때 읽은 판(base — 정오와 정답표, 0017)을 늘 보내고, 여기서 지금 것과 견준다.
+-- PDF 의 정오표에는 정답도 찍히므로 정답표까지 본다.
+create or replace function mark_feedback_ready(payload jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  aid          uuid := (payload->>'attempt_id')::uuid;
+  publish      boolean := coalesce((payload->>'publish')::boolean, false);
+  included     uuid[];
+  now_ids      uuid[];
+  now_answers  jsonb;
+  sent_answers jsonb;
+begin
+  if aid is null or coalesce(payload->>'path', '') = '' then
+    raise exception 'attempt_id 와 path 가 필요합니다';
+  end if;
+
+  perform 1 from lms_attempts where id = aid for update;
+  if not found then
+    raise exception '없는 응시입니다: %', aid;
+  end if;
+
+  if exists (
+    select 1 from lms_concerns
+     where attempt_id = aid and answer is null and answer_image_path is null
+  ) then
+    raise exception 'UNANSWERED' using errcode = 'P0001', hint = '답이 안 달린 질문이 있어요';
+  end if;
+
+  select coalesce(array_agg(value::uuid), '{}')
+    into included
+    from jsonb_array_elements_text(coalesce(payload->'concern_ids', '[]'::jsonb));
+  select coalesce(array_agg(id), '{}')
+    into now_ids
+    from lms_concerns
+   where attempt_id = aid;
+
+  if cardinality(now_ids) = 0 then
+    raise exception 'NO_CONCERNS' using errcode = 'P0001', hint = '질문이 하나도 없어요';
+  end if;
+  if not (included @> now_ids and now_ids @> included) then
+    raise exception 'CHANGED' using errcode = 'P0001', hint = '그사이 학생 질문이 바뀌었어요';
+  end if;
+
+  if jsonb_typeof(payload->'base') = 'object' then
+    -- 점수가 든 PDF 다. 새로 공개하든 이미 공개했든, 만들 때 읽은 판(정오 · 정답표)이 지금도 같아야 한다.
+    if lms_grading_snapshot(aid, (select exam_id from lms_attempts where id = aid))
+       is distinct from lms_grading_shape(payload->'base') then
+      raise exception 'REGRADED' using errcode = 'P0001', hint = '보내는 사이 채점이나 정답표가 바뀌었어요';
+    end if;
+  elsif publish then
+    -- 0017 판의 앱은 base 대신 answers 를 보낸다 (새로 공개할 때만).
+    -- 양쪽을 같은 모양으로 만들어 견준다 (문항 id 순서 · 같은 자료형).
+    select coalesce(jsonb_agg(jsonb_build_object('question_id', question_id, 'correct', correct, 'chosen', chosen)
+                              order by question_id), '[]'::jsonb)
+      into now_answers
+      from lms_answers
+     where attempt_id = aid;
+    select coalesce(jsonb_agg(jsonb_build_object('question_id', (x->>'question_id')::uuid,
+                                                 'correct', (x->>'correct')::boolean,
+                                                 'chosen', nullif(x->>'chosen', '')::smallint)
+                              order by (x->>'question_id')::uuid), '[]'::jsonb)
+      into sent_answers
+      from jsonb_array_elements(coalesce(payload->'answers', '[]'::jsonb)) as x;
+    if now_answers is distinct from sent_answers then
+      raise exception 'REGRADED' using errcode = 'P0001', hint = '보내는 사이 채점이 바뀌었어요';
+    end if;
+  end if;
+
+  update lms_attempts
+     set feedback_path     = payload->>'path',
+         feedback_ready_at = now(),
+         status            = case when publish then 'published' else status end,
+         updated_at        = now()
+   where id = aid;
+end;
+$$;
+
+-- -------------------------------------- 5. 답을 보낸 시험의 사진은 DB 가 막는다
+-- 0016 과 같고 한 가지를 더한다: 답을 보낸 응시(feedback_ready_at)면 사진을 넣지도 지우지도 못한다.
+-- 학생 쪽 서버 함수는 시작할 때 한 번 보는데, 저장소에 사진을 올리는 동안 튜터가 보내기를 끝내면
+-- 그 확인은 낡는다. 응시를 잠그는 이 트리거에서 다시 본다.
+create or replace function lms_photos_changed()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  aid        uuid := case when tg_op = 'DELETE' then old.attempt_id else new.attempt_id end;
+  att_status text;
+  att_source text;
+  att_ready  timestamptz;
+begin
+  select status, answers_source, feedback_ready_at into att_status, att_source, att_ready
+    from lms_attempts
+   where id = aid
+     for update;
+  -- 응시를 지우며 딸려 지워지는 사진이면 응시가 이미 없다. 할 일이 없다.
+  if not found then
+    if tg_op = 'DELETE' then
+      return old;
+    end if;
+    return new;
+  end if;
+
+  -- 답을 보낸 시험은 잠긴다. 앱도 먼저 보지만, 그 확인과 여기 사이에 튜터가 보내기를 끝낼 수 있다.
+  -- 응시를 잠근 이 자리에서 다시 봐야 보낸 PDF 와 사진이 어긋나지 않는다.
+  if att_ready is not null then
+    raise exception 'LOCKED' using errcode = 'P0001', hint = '답을 이미 받은 시험이에요';
+  end if;
+
+  if att_status = 'draft' and att_source = 'photo' then
+    delete from lms_answers where attempt_id = aid;
+    update lms_attempts
+       set answers_source = null,
+           updated_at     = now()
+     where id = aid;
+  end if;
+
+  -- 마지막 사진을 지우면 읽을 것이 없다. 읽기 기록을 빈 결과로 닫는다 — 실패나 멈춤으로 남으면
+  -- 매일 새벽 정리가 사진 없는 응시를 되살리려고 자리를 차지한다. 번호를 올려 읽는 중이던 옛
+  -- 읽기도 버리게 한다. 모델을 부른 횟수(runs)는 그대로 둔다 — 지웠다 다시 올려 상한을 풀지 못하게.
+  if tg_op = 'DELETE'
+     and not exists (select 1 from lms_attempt_photos where attempt_id = aid and id <> old.id) then
+    update lms_photo_reads
+       set request_no  = request_no + 1,
+           status      = 'done',
+           finished_at = now(),
+           photo_ids   = '{}',
+           answers     = '[]'::jsonb,
+           unreadable  = '{}',
+           note        = null,
+           error       = null,
+           updated_at  = now()
+     where attempt_id = aid;
+  end if;
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists lms_photos_changed on lms_attempt_photos;
+create trigger lms_photos_changed
+  before insert or delete on lms_attempt_photos
+  for each row execute function lms_photos_changed();
+
+-- 0014 · 0016 과 같은 이유. 다시 만든 함수도 공개 키로는 못 부르게 한다.
+revoke execute on function public.mark_feedback_ready(jsonb) from public, anon, authenticated;
+grant execute on function public.mark_feedback_ready(jsonb) to service_role;
+revoke execute on function public.lms_photos_changed() from public, anon, authenticated;
 
 -- ------------------------------------------------------ 돌린 파일 적어 두기
 -- /setup 이 이 표를 읽어 빠진 마이그레이션을 짚는다 (lib/health.ts 의 REQUIRED_MIGRATIONS).

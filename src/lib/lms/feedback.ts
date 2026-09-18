@@ -7,10 +7,11 @@ import { getCourse, type CourseRow } from './courses';
 import { db } from './db';
 import { loadGrading, type AttemptRow, type ExamRow } from './exams';
 import { getFile, paths, putFile, removeFilesQuietly } from './files';
+import { gradingSnapshot } from './grading-snapshot';
 import { sendFeedbackMail } from './mail';
 import { renderFeedbackPdf, type FeedbackDoc } from './pdf/feedback-pdf';
 import { loadFonts } from './pdf/fonts';
-import type { AnswerRow } from './score';
+import type { AnswerRow, QuestionRow } from './score';
 import { getUser, type StudentRow, type UserRow } from './users';
 
 /**
@@ -26,8 +27,9 @@ import { getUser, type StudentRow, type UserRow } from './users';
 export type BuiltFeedback = {
   doc: FeedbackDoc;
   attempt: AttemptRow;
-  /** PDF 를 만들 때 읽은 정오. 보낼 때 DB 가 지금 정오와 견준다 (0016 mark_feedback_ready). */
+  /** PDF 를 만들 때 읽은 정오와 문항표. 보낼 때 DB 가 지금 것과 견준다 (0018 mark_feedback_ready). */
   answers: AnswerRow[];
+  questions: QuestionRow[];
   exam: ExamRow;
   course: CourseRow;
   student: StudentRow;
@@ -105,7 +107,7 @@ export async function buildFeedback(attemptId: string): Promise<BuiltFeedback | 
     overallComment: attempt.overall_comment,
   };
 
-  return { doc, attempt, answers, exam, course, student, tutor, concerns, scored };
+  return { doc, attempt, answers, questions, exam, course, student, tutor, concerns, scored };
 }
 
 export async function renderFeedback(built: BuiltFeedback): Promise<Uint8Array> {
@@ -133,8 +135,9 @@ const READY_REFUSALS = new Set<string>(['NO_CONCERNS', 'UNANSWERED', 'CHANGED', 
  *   2) PDF 를 만들어 새 이름으로 올린다
  *   3) DB 가 같은 잠금 안에서 한 번 더 확인하고 '보냄' 으로 표시한다 — 여기서 거절되면
  *      올린 PDF 를 지우고 멈춘다. PDF 에 점수가 들어갔으면 같은 잠금 안에서 두 가지를 더 한다:
- *      PDF 를 만들 때 읽은 정오가 지금도 같은지 보고(학생이 그사이 사진을 바꾸면 사진 채점이
- *      비워진다 — 그러면 REGRADED 로 멈춘다), 같으면 점수를 학생에게 연다.
+ *      PDF 를 만들 때 읽은 판(정오와 정답표)이 지금도 같은지 보고(학생이 그사이 사진을 바꿔
+ *      사진 채점이 비워졌거나 정답표가 고쳐졌으면 REGRADED 로 멈춘다), 아직 비공개면 점수를 연다.
+ *      이미 공개한 응시에 다시 보낼 때도 판은 견준다 — 옛 점수가 든 PDF 가 나가면 안 된다.
  *   4) 메일을 보내고, 결과를 응시 행에 적는다. 메일이 안 가도 학생은 화면에서 받는다.
  */
 export async function sendFeedback(attemptId: string): Promise<SendOutcome> {
@@ -156,7 +159,9 @@ export async function sendFeedback(attemptId: string): Promise<SendOutcome> {
       path,
       concern_ids: built.concerns.map((c) => c.id),
       publish,
-      // DB 가 같은 모양으로 다시 줄 세워 견준다. 여기서의 순서는 상관없다.
+      // 점수가 든 PDF 면 만들 때 읽은 판. DB 가 같은 모양으로 다시 줄 세워 견준다 (0018).
+      ...(built.scored ? { base: gradingSnapshot(built.questions, built.answers) } : {}),
+      // 0017 판의 DB 는 base 를 모르고, 새로 공개할 때 이것으로 견준다.
       answers: publish
         ? built.answers.map((a) => ({ question_id: a.question_id, correct: a.correct, chosen: a.chosen }))
         : [],

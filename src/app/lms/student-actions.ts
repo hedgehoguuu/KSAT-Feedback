@@ -79,6 +79,8 @@ export async function uploadPaperPhoto(formData: FormData): Promise<PhotoUpload>
     return { ok: false, reason: 'FAILED' };
   }
   if (photo === 'TOO_MANY') return { ok: false, reason: 'TOO_MANY' };
+  // 올리는 사이 튜터가 답을 보냈다. DB 가 막았고 올린 파일은 지웠다.
+  if (photo === 'LOCKED') return { ok: false, reason: 'LOCKED' };
 
   // 한 장씩 올라오는 동안 매번 읽지 않는다. 조용해진 뒤에 한 번 읽는다 (PHOTO_READ.quietMs).
   const read = await askRead(attempt.id, () => requestPhotoRead(attempt.id, { by: 'student' }));
@@ -96,8 +98,10 @@ export async function removePaperPhoto(formData: FormData): Promise<PhotoChange>
   if (attempt.feedback_ready_at) return { ok: false, reason: 'LOCKED' };
 
   const removed = await removePhoto(attempt.id, text(formData, 'photo_id'));
+  if (removed === 'LOCKED') return { ok: false, reason: 'LOCKED' };
   // 지운 사진에서 읽힌 답은 채점에서도 빠져야 한다.
-  const read = removed ? await askRead(attempt.id, () => requestPhotoRead(attempt.id, { by: 'student' })) : undefined;
+  const read =
+    removed === 'OK' ? await askRead(attempt.id, () => requestPhotoRead(attempt.id, { by: 'student' })) : undefined;
   revalidatePath(`/lms/me/exams/${ok.exam.id}`);
   return { ok: true, read };
 }

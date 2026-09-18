@@ -303,14 +303,14 @@ eq('열린 회차는 학생 시험 목록에 뜬다', (await studentExams(studen
 section('12. 시험지 사진');
 const p1 = await addPhoto(attempt.id, JPEG);
 const p2 = await addPhoto(attempt.id, JPEG);
-ok('사진 두 장', p1 !== 'TOO_MANY' && p2 !== 'TOO_MANY');
-const photo1 = p1 as Exclude<typeof p1, 'TOO_MANY'>;
-const photo2 = p2 as Exclude<typeof p2, 'TOO_MANY'>;
+ok('사진 두 장', typeof p1 === 'object' && typeof p2 === 'object');
+const photo1 = p1 as Exclude<typeof p1, 'TOO_MANY' | 'LOCKED'>;
+const photo2 = p2 as Exclude<typeof p2, 'TOO_MANY' | 'LOCKED'>;
 ok('저장소에 파일이 있다', await fileExists(photo1.storage_path));
-ok('다른 학생 응시로는 못 지운다', !(await removePhoto(a2.id, photo1.id)));
+eq('다른 학생 응시로는 못 지운다', await removePhoto(a2.id, photo1.id), 'NOT_FOUND');
 await movePhoto(attempt.id, photo2.id, -1);
 eq('순서를 바꾼다', (await listPhotos(attempt.id)).map((p) => p.id), [photo2.id, photo1.id]);
-ok('지우면 줄이 사라진다', await removePhoto(attempt.id, photo2.id));
+eq('지우면 줄이 사라진다', await removePhoto(attempt.id, photo2.id), 'OK');
 ok('파일도 사라진다', !(await fileExists(photo2.storage_path)));
 eq('한 장 남는다', (await listPhotos(attempt.id)).length, 1);
 
@@ -354,6 +354,12 @@ eq('메일이 안 간 이유가 적힌다', afterSend.mail_error, 'NOT_CONFIGURE
 const pdf = await feedbackPdfOf(afterSend);
 eq('학생이 받을 PDF', pdf ? Buffer.from(pdf.slice(0, 5)).toString() : null, '%PDF-');
 eq('보낸 뒤 학생 쪽은 잠긴다', await saveConcerns(attempt.id, [], true), 'LOCKED');
+// 학생 쪽 서버 함수가 먼저 본 뒤 튜터가 보내기를 끝낸 경우 — DB 가 사진을 막는다 (0018)
+const lateAdd = await addPhoto(attempt.id, JPEG);
+eq('보낸 뒤에는 사진을 못 넣는다', lateAdd, 'LOCKED');
+eq('보낸 뒤에는 사진을 못 지운다', await removePhoto(attempt.id, photo1.id), 'LOCKED');
+ok('거절돼도 사진 파일은 그대로', await fileExists(photo1.storage_path));
+eq('사진은 한 장 그대로', (await listPhotos(attempt.id)).length, 1);
 eq('잠긴 질문은 그대로 3개', (await listConcerns(attempt.id)).length, 3);
 eq('튜터 할 일에서 빠진다', (await pendingFeedback([courseId])).length, 0);
 const mine = (await studentExams(students[0].id))[0];
@@ -378,6 +384,20 @@ await saveConcernAnswers(a3.id, [{ id: (await listConcerns(a3.id))[0].id, answer
 const withScore = await sendFeedback(a3.id);
 eq('채점이 끝났으면 보내면서 점수를 연다', withScore.ok && withScore.published, true);
 eq('다희 학생 화면에 점수', (await studentHistory(students[2].id, { publishedOnly: true })).points[0]?.score.earned, 100);
+
+// 이미 공개한 점수가 든 PDF 를 다시 보낼 때도 판을 견준다 (0018) — 0016 은 새로 공개할 때만 봤다
+const a3Before = (await loadGrading(a3.id))!;
+const a3Base = gradingSnapshot(a3Before.questions, a3Before.answers);
+await saveGrading({ attemptId: a3.id, answers: a3Before.answers.slice(1), overallComment: null, status: 'published', base: null });
+const staleSend = await db().rpc('mark_feedback_ready', { payload: {
+  attempt_id: a3.id, path: 'attempts/x/feedback-1.pdf', concern_ids: [(await listConcerns(a3.id))[0].id],
+  publish: false, base: a3Base } });
+eq('공개한 뒤라도 PDF 를 만든 뒤 채점이 바뀌면 보내지 않는다', staleSend.error?.message, 'REGRADED');
+await saveGrading({ attemptId: a3.id, answers: a3Before.answers, overallComment: null, status: 'published', base: null });
+const sameSend = await db().rpc('mark_feedback_ready', { payload: {
+  attempt_id: a3.id, path: (await getAttempt(a3.id))!.feedback_path, concern_ids: [(await listConcerns(a3.id))[0].id],
+  publish: false, base: a3Base } });
+eq('판이 그대로면 다시 보낸다', sameSend.error, null);
 eq('질문이 없으면 보낼 것이 없다', await sendFeedback(a2.id), { ok: false, reason: 'NO_CONCERNS' });
 
 section('16. 반 누적');
@@ -555,7 +575,7 @@ eq('모델은 뒤의 읽기만 불렀다 (요청 두 번)', modelCalls.length - 
 const before = await photoIdsOf(r1.id);
 const { data: reqC } = await db().rpc('request_photo_read', { payload: { attempt_id: r1.id, max_runs: null } });
 eq('시작', (await db().rpc('claim_photo_read', { payload: { attempt_id: r1.id, request_no: reqC } })).data, true);
-ok('지운다', await removePhoto(r1.id, before[5]));
+eq('지운다', await removePhoto(r1.id, before[5]), 'OK');
 eq('지우는 순간 사진 채점이 비워진다', (await gradingOf(r1.id)).score.graded, 0);
 const finished = await db().rpc('finish_photo_read', { payload: {
   attempt_id: r1.id, request_no: reqC, photo_ids: before, answers: read1.answers, unreadable: [], note: '' } });
