@@ -73,7 +73,8 @@ export async function saveClassAction(formData: FormData): Promise<void> {
 
   // 되돌아갈 곳. 새 반이면 아직 /admin/class/[slug] 가 없어서 그리로 보내면 404 가 뜨고,
   // 관리자는 적던 것을 통째로 잃는다. 폼이 숨은 칸으로 어디서 왔는지 알려준다.
-  const form = text(formData, 'mode') === 'new' ? '/admin/class/new' : `/admin/class/${slug}`;
+  const mode = text(formData, 'mode') === 'new' ? 'new' : 'edit';
+  const form = mode === 'new' ? '/admin/class/new' : `/admin/class/${slug}`;
   const back = (message: string): never => redirect(`${form}?error=${encodeURIComponent(message)}`);
 
   if (!isSlug(slug)) back('주소(slug)는 영문 소문자·숫자·하이픈으로 적어주세요');
@@ -111,7 +112,7 @@ export async function saveClassAction(formData: FormData): Promise<void> {
 
   let failure: string | null = null;
   try {
-    await saveClass(input);
+    await saveClass(input, mode);
   } catch (err) {
     failure = err instanceof Error ? err.message : '저장이 안 됐어요';
   }

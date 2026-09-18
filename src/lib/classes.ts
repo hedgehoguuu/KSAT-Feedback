@@ -233,19 +233,31 @@ export type ClassInput = {
   sort_order: number;
 };
 
-/** 반 만들기 · 고치기. slug 가 같으면 덮어쓴다. */
-export async function saveClass(input: ClassInput): Promise<void> {
+/**
+ * 반 만들기(new) · 고치기(edit).
+ *
+ * 둘을 upsert 하나로 하던 때는 새 반에 이미 있는 주소를 적으면 그 반을 말없이 덮어썼다 —
+ * 신청자가 있는 반의 이름 · 수강료 · 정원이 바뀐다. 그래서 새 반은 넣기만 하고, 주소가 겹치면
+ * 거절한다. 고칠 때는 있는 반만 고친다 — 그사이 지워졌으면 되살리지 않는다.
+ */
+export async function saveClass(input: ClassInput, mode: 'new' | 'edit'): Promise<void> {
   const db = supabaseAdmin();
   if (!db) throw new Error('Supabase 연결이 없어요');
 
-  const { error } = await db
-    .from('classes')
-    .upsert({ ...input, updated_at: new Date().toISOString() }, { onConflict: 'slug' });
+  const row = { ...input, updated_at: new Date().toISOString() };
+  const { data, error } =
+    mode === 'new'
+      ? await db.from('classes').insert(row).select('slug')
+      : await db.from('classes').update(row).eq('slug', input.slug).select('slug');
 
   if (isMissingColumn(error)) {
     throw new Error('Supabase 에서 0006_mock_exam.sql 을 한 번 실행해주세요');
   }
+  if (error?.code === '23505') throw new Error('이미 있는 주소(slug)예요. 다른 주소를 적어주세요');
   if (error) throw new Error(error.message);
+  if (mode === 'edit' && (data ?? []).length === 0) {
+    throw new Error('고칠 반을 찾지 못했어요. 목록에서 다시 열어주세요');
+  }
 }
 
 export async function deleteClass(slug: string): Promise<void> {
