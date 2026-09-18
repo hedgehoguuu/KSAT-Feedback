@@ -164,15 +164,24 @@ export async function processSubmission(
     }
 
     // ------------------------------------------------- 튜터에게 줄 서명 URL
+    // 튜터가 Notion 에서 여는 것은 이 링크다. 못 만들었으면 PDF 가 있어도 튜터에게는 없는 것이라
+    // 실패로 적는다 — 예전에는 확인하지 않아서, 링크 없는 페이지가 생기고도 완료(synced)로 쳤다.
+    // 페이지는 링크 없이라도 만들어 두고, 다음 판이 위의 '링크 맞추기' 로 채운다.
     let pdfUrl: string | null = null;
     if (pdfPath) {
-      const { data: signed } = await db.storage
+      const { data: signed, error: signError } = await db.storage
         .from(RAW_BUCKET)
         .createSignedUrl(pdfPath, PDF_URL_TTL_SECONDS, {
           // 내려받을 때는 {접수번호}_{학년}_{과목}.pdf 로 저장되게 한다 (BE-3 AC)
           download: pdfFileName(receiptNo, exam.grade, subject.subject_code),
         });
       pdfUrl = signed?.signedUrl ?? null;
+      if (!pdfUrl) {
+        notionOk = false;
+        const why = `PDF 링크를 못 만들었어요: ${signError?.message ?? '빈 주소'}`;
+        await fail(receiptNo, data.id, 'notion', subject.subject_code, why);
+        result.failures.push(`${label} ${why}`);
+      }
     }
 
     /**
@@ -312,11 +321,22 @@ export async function processPending(limit = 5, budgetMs = 45_000): Promise<Proc
 
   const startedAt = Date.now();
   const results: ProcessResult[] = [];
+  const seen = new Set<string>();
 
   for (let i = 0; i < limit; i += 1) {
     if (Date.now() - startedAt > budgetMs) break;
     const { data: receiptNo } = await db.rpc('claim_submission', { p_receipt_no: null });
     if (!receiptNo) break;
+    /**
+     * 방금 실패한 접수를 또 집었다. 0018 의 claim_submission 은 실패한 접수를 10분 동안 다시 집지
+     * 않지만, 그 전의 DB 는 가장 오래된 실패를 곧바로 다시 준다 — 그러면 한 판에서 같은 접수가
+     * 다섯 번 실패해 자동 재시도 한도를 다 쓰고, 뒤의 새 접수는 기다린다. 집은 것을 되돌려 놓고 멈춘다.
+     */
+    if (seen.has(receiptNo as string)) {
+      await db.from('submissions').update({ status: 'failed' }).eq('receipt_no', receiptNo);
+      break;
+    }
+    seen.add(receiptNo as string);
     // 한 건이 예외로 터져도 다음 건과 크론의 뒤 작업(삭제·정리)은 계속 돈다.
     // 그 건은 'processing' 으로 남아 10분 뒤 다시 집힌다.
     try {
