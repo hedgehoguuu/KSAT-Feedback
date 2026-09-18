@@ -1,19 +1,14 @@
 import { NextResponse, after } from 'next/server';
-import {
-  INTAKE_DEFAULTS,
-  LIMITS,
-  POLICY,
-  formatReceiptNo,
-  maxPhotosFor,
-  replyDueDate,
-} from '@/config/app';
+import { INTAKE_DEFAULTS, LIMITS, POLICY, maxPhotosFor } from '@/config/app';
 import { findExam, isExamCode } from '@/config/exams';
 import { isSubjectCode, maxScoreOf } from '@/config/subjects';
-import { isValidEmail } from '@/lib/email';
-import { readIntake } from '@/lib/intake';
+import { isValidEmail } from '@/lib/intake/email';
+import { isIdShape, parseDraftPhotoPath } from '@/lib/intake/paths';
+import { formatReceiptNo, replyDueDate } from '@/lib/intake/rules';
+import { readIntake } from '@/lib/intake/switch';
+import { processSubmission } from '@/lib/intake/worker/process';
 import { seoulDate } from '@/lib/kst';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { processSubmission } from '@/lib/worker/process';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -43,8 +38,6 @@ type Body = {
 const mockSeq = new Map<string, number>();
 const mockIssued = new Map<string, string>();
 
-const ID_SHAPE = /^[A-Za-z0-9-]{8,64}$/;
-
 function bad(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
@@ -59,8 +52,8 @@ export async function POST(req: Request) {
 
   const { idempotencyKey, draftId, examCode, email, consent, ageOk, subjects } = body;
 
-  if (!idempotencyKey || !ID_SHAPE.test(idempotencyKey)) return bad('invalid idempotencyKey');
-  if (!draftId || !ID_SHAPE.test(draftId)) return bad('invalid draftId');
+  if (!isIdShape(idempotencyKey)) return bad('invalid idempotencyKey');
+  if (!isIdShape(draftId)) return bad('invalid draftId');
   if (!examCode || !isExamCode(examCode)) return bad('invalid examCode');
   if (!email || !isValidEmail(email)) return bad('invalid email');
   if (consent !== true) return bad('consent required');
@@ -101,7 +94,6 @@ export async function POST(req: Request) {
   let totalFiles = 0;
   const seen = new Set<string>();
   const paths = new Set<string>();
-  const expectedPath = /^raw\/drafts\/[A-Za-z0-9-]{8,64}\/[a-z_]{3,12}\/[A-Za-z0-9-]{8,64}\.jpg$/;
   for (const s of subjects) {
     if (!s || !isSubjectCode(s.subjectCode)) return bad('invalid subject');
     if (!allowed.has(s.subjectCode)) return bad('subject not in exam');
@@ -123,8 +115,9 @@ export async function POST(req: Request) {
       if (!f?.storagePath || typeof f.storagePath !== 'string') return bad('invalid file');
       if (!Number.isInteger(f.orderIndex)) return bad('invalid file order');
       // 이 초안·이 과목의 사진만 받는다. 남의 접수 경로를 끼워 넣지 못하게 한다.
-      if (!expectedPath.test(f.storagePath)) return bad('invalid file path');
-      if (!f.storagePath.startsWith(`raw/drafts/${draftId}/${s.subjectCode}/`)) {
+      const at = parseDraftPhotoPath(f.storagePath);
+      if (!at) return bad('invalid file path');
+      if (at.draftId !== draftId || at.subject !== s.subjectCode) {
         return bad('file path does not belong to this submission');
       }
       // 같은 파일을 두 번 넣으면 PDF 에 같은 장이 두 번 들어간다

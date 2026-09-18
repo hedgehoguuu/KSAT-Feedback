@@ -1,15 +1,11 @@
 import 'server-only';
-import { replyDueDate } from '@/config/app';
 import { findExam, type ExamCode } from '@/config/exams';
 import { subjectLabel, type SubjectCode } from '@/config/subjects';
+import { replyDueDate } from '@/lib/intake/rules';
+import { mailConfigured } from '@/lib/mail';
 import { RAW_BUCKET, supabaseAdmin } from '@/lib/supabase/admin';
-import { mailConfigured, sendConfirmationMail } from './mail';
-import {
-  createNotionPage,
-  notionConfigured,
-  PDF_URL_TTL_SECONDS,
-  updateNotionPdfUrl,
-} from './notion';
+import { sendConfirmationMail } from './mail';
+import { createNotionPage, notionConfigured, PDF_URL_TTL_SECONDS, updateNotionPdfUrl } from './notion';
 import { mergeToPdf, pdfFileName, pdfStoragePath } from './pdf';
 
 export type ProcessResult = {

@@ -1,6 +1,6 @@
 import 'server-only';
-import nodemailer from 'nodemailer';
 import { BRANDING } from '@/config/app';
+import { sendMail } from '@/lib/mail';
 import { siteUrl } from '@/lib/site';
 
 export type ApplicationAlert = {
@@ -17,23 +17,9 @@ export type ApplicationAlert = {
  * 신청이 들어오면 팀에게 알린다 (모집 페이지 PRD §06).
  * 학생에게는 메일을 보내지 않는다 — 연락은 남겨 준 번호로 카카오톡이다.
  *
- * 접수 확인 메일(worker/mail.ts)과 같은 Gmail SMTP 를 쓴다.
+ * 보내는 길은 lib/mail.ts 에 있다 — 접수 확인 메일 · 답변 PDF 와 같은 Gmail SMTP 다.
  */
 export async function sendApplicationAlert(input: ApplicationAlert): Promise<void> {
-  const user = process.env.GMAIL_USER?.trim();
-  const pass = process.env.GMAIL_APP_PASSWORD?.replace(/\s+/g, '');
-  if (!user || !pass) throw new Error('GMAIL_USER / GMAIL_APP_PASSWORD 가 없습니다');
-
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: { user, pass },
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 15_000,
-  });
-
   // 로컬에서는 도메인이 없어서 상대 경로만 남는다.
   const site = siteUrl() ?? '';
 
@@ -49,8 +35,8 @@ export async function sendApplicationAlert(input: ApplicationAlert): Promise<voi
     `신청자 목록 — ${site}/admin/applications`,
   ];
 
-  await transporter.sendMail({
-    from: `${BRANDING.serviceName} <${user}>`,
+  await sendMail({
+    fromName: BRANDING.serviceName,
     to: BRANDING.contactEmail,
     subject: `[신청] ${input.classTitle} · ${input.studentName} (${input.parentPhone})`,
     text: lines.join('\n'),

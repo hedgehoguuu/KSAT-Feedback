@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import { BottomBar } from '@/components/BottomBar';
 import { ClassMeta } from '@/components/ClassMeta';
 import { PriceBlock } from '@/components/PriceBlock';
-import { isPhone, isReceiptNo, normalizePhone, normalizeReceiptNo } from '@/config/class';
 import { APPLY } from '@/config/class-copy';
-import type { ClassSummary } from '@/lib/classes';
+import type { ClassSummary } from '@/lib/class/classes';
+import { isPhone, isReceiptNo, normalizePhone, normalizeReceiptNo } from '@/lib/class/fields';
 
 // 입력칸도 유리 위에 놓인다. 흐림은 걸지 않고(글자가 흔들린다) 살짝 비치게만 채운다.
 const FIELD =

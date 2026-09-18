@@ -1,7 +1,7 @@
 import { NextResponse, after } from 'next/server';
-import { isPhone, isReceiptNo, normalizePhone, normalizeReceiptNo } from '@/config/class';
-import { ApplyError, applyToClass, findLiveApplication, getClass, markApplicationAlert } from '@/lib/classes';
-import { sendApplicationAlert } from '@/lib/class-mail';
+import { ApplyError, applyToClass, findLiveApplication, getClass, markApplicationAlert } from '@/lib/class/classes';
+import { isPhone, isReceiptNo, normalizePhone, normalizeReceiptNo } from '@/lib/class/fields';
+import { sendApplicationAlert } from '@/lib/class/mail';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

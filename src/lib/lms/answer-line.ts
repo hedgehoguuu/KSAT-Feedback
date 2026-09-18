@@ -1,4 +1,5 @@
-import { QUESTION_COUNT, parseAnswer, paperQuestion } from '@/config/lms';
+import { QUESTION_COUNT, paperQuestion } from '@/config/lms';
+import { parseAnswer } from './paper';
 
 /**
  * 답 여러 개를 한 줄로 받아 번호에 나눠 준다. 정답표를 옮겨 적거나, 학생 답안을 불러 주며

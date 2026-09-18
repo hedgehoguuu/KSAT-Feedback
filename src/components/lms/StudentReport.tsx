@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { fmtDay, fmtRate, fmtScore } from '@/config/lms';
+import { fmtDay, fmtRate, fmtScore } from '@/lib/format';
 import type { HistoryPoint, studentHistory } from '@/lib/lms/exams';
 import { RateBars, barsOf } from './RateBars';
 import { Card, Empty, Stat } from './Shell';

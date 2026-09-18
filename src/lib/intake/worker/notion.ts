@@ -1,8 +1,9 @@
 import 'server-only';
 import { POLICY } from '@/config/app';
 import type { Exam } from '@/config/exams';
-import { answerText, isAnswered, itemNumbers, questionsFor } from '@/config/questions.config';
+import { questionsFor } from '@/config/questions.config';
 import { subjectLabel, type SubjectCode } from '@/config/subjects';
+import { answerText, isAnswered, itemNumbers } from '@/lib/intake/concerns';
 
 const NOTION_VERSION = '2022-06-28';
 

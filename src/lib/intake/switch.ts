@@ -1,6 +1,6 @@
 import 'server-only';
 import { INTAKE_DEFAULTS } from '@/config/app';
-import { supabaseAdmin } from './supabase/admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export type Intake = {
   open: boolean;

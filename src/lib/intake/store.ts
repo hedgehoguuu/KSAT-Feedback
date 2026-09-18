@@ -7,7 +7,7 @@ import type { ExamCode } from '@/config/exams';
 import { findExam } from '@/config/exams';
 import type { ConcernValue } from '@/config/questions.config';
 import type { SubjectCode } from '@/config/subjects';
-import { uid } from './id';
+import { uid } from '@/lib/id';
 
 export type PhotoStatus = 'queued' | 'uploading' | 'done' | 'error';
 
@@ -260,7 +260,7 @@ export const useApply = create<State & Actions>()(
       /**
        * 복원할 때 '올리는 중' 이던 사진을 '안 올라감' 으로 바꾼다.
        *
-       * 올리던 작업과 원본(lib/blobs 의 메모리)은 새로고침과 함께 사라진다. 상태만 그대로
+       * 올리던 작업과 원본(blobs.ts 의 메모리)은 새로고침과 함께 사라진다. 상태만 그대로
        * 되살리면 화면은 영영 올리는 중이라 믿고 다음 버튼을 막는데, 다시 올리기 버튼도 안 뜬다.
        * 오류로 두면 다시 올리기가 뜨고, 누르면 원본이 없으니 다시 고르라고 안내한다.
        */

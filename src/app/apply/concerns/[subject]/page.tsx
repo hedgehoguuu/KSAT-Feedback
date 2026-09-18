@@ -4,20 +4,19 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { AutoTextarea } from '@/components/AutoTextarea';
 import { BottomBar } from '@/components/BottomBar';
+import { findExam } from '@/config/exams';
 import {
-  choiceOf,
-  isAnswered,
-  itemsOf,
   questionsFor,
   type ChoiceAnswer,
   type ConcernItem,
   type ConcernValue,
   type Question,
 } from '@/config/questions.config';
-import { findExam } from '@/config/exams';
-import { isSubjectCode, maxScoreOf, scoreProblem, subjectLabel, type SubjectCode } from '@/config/subjects';
-import { filledSubjects } from '@/lib/flow';
-import { useApply } from '@/lib/store';
+import { isSubjectCode, maxScoreOf, subjectLabel, type SubjectCode } from '@/config/subjects';
+import { choiceOf, isAnswered, itemsOf } from '@/lib/intake/concerns';
+import { filledSubjects } from '@/lib/intake/flow';
+import { scoreProblem } from '@/lib/intake/rules';
+import { useApply } from '@/lib/intake/store';
 
 export default function ConcernStep() {
   const router = useRouter();

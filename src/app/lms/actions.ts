@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { isRole, loginIdProblem, passwordProblem, ROLE_HOME } from '@/config/lms';
+import { isRole, ROLE_HOME } from '@/config/lms';
 import { isAdmin } from '@/lib/admin';
 import {
   assertRole,
@@ -10,6 +10,7 @@ import {
   lmsConfigured,
   setSessionCookie,
 } from '@/lib/lms/auth';
+import { loginIdProblem, passwordProblem } from '@/lib/lms/credentials';
 import { verifyPassword } from '@/lib/lms/password';
 import { changeOwnPassword, createUser, findForLogin, markLoggedIn, tryUserCount } from '@/lib/lms/users';
 

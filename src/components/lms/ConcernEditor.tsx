@@ -2,7 +2,8 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { AutoTextarea } from '@/components/AutoTextarea';
-import { CONCERN, PAPER, concernOrder, concernTopic } from '@/config/lms';
+import { CONCERN, PAPER, concernTopic } from '@/config/lms';
+import { concernOrder } from '@/lib/lms/paper';
 import { btn, btnGhost } from './Shell';
 
 /**

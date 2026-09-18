@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { isAdmin } from '@/lib/admin';
 import { getHealth } from '@/lib/health';
-import { workerAuthorized } from '@/lib/worker/auth';
+import { workerAuthorized } from '@/lib/worker-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,7 +16,7 @@ const NO_STORE = { 'cache-control': 'no-store' };
  *
  * 들어오는 길은 둘이다.
  *   관리자 로그인 쿠키   브라우저로 /admin 에 로그인한 뒤 이 주소를 연다 (매일 점검)
- *   WORKER_SECRET 헤더   스크립트 · 모니터링 (lib/worker/auth.ts)
+ *   WORKER_SECRET 헤더   스크립트 · 모니터링 (lib/worker-auth.ts)
  * 아니면 401 만 준다. 무엇이 준비 안 됐는지도 말하지 않는다.
  */
 export async function GET(req: Request) {

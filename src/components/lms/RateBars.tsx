@@ -1,4 +1,4 @@
-import { fmtRate } from '@/config/lms';
+import { fmtRate } from '@/lib/format';
 
 /**
  * 정답률 가로 막대. 단원별 · 배점별 · 공통/미적분이 모두 이 부품을 쓴다.

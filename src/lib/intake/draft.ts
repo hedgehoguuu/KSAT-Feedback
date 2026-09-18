@@ -1,6 +1,6 @@
 'use client';
 
-import { uid } from './id';
+import { uid } from '@/lib/id';
 
 const KEY = 'ksat-feedback:draftId';
 

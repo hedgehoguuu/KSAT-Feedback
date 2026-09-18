@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { LIMITS, maxPhotosFor } from '@/config/app';
 import { subjectLabel, type SubjectCode } from '@/config/subjects';
-import { dropBlob, keepBlob, readBlob } from '@/lib/blobs';
-import { getDraftId } from '@/lib/draft';
 import { normalizeImage } from '@/lib/image';
-import { photosOf, useApply, type Photo } from '@/lib/store';
-import { requestUploadTarget, uploadBlob } from '@/lib/upload';
+import { dropBlob, keepBlob, readBlob } from '@/lib/intake/blobs';
+import { getDraftId } from '@/lib/intake/draft';
+import { photosOf, useApply, type Photo } from '@/lib/intake/store';
+import { requestUploadTarget, uploadBlob } from '@/lib/intake/upload';
 
 type Batch = { total: number; done: number } | null;
 

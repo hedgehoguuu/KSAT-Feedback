@@ -62,9 +62,11 @@ const { saveCourse, listCourses, enroll, listEnrolled, courseVisibleTo, studentV
 const { saveExam, listExams, listQuestions, saveAnswerKey, seedQuestions, openAttempt, findAttempt,
         saveGrading, loadGrading, examBoard, courseSummary, studentHistory,
         publishGradedAttempts, listAnswers, deleteExam, getAttempt } = await import('../src/lib/lms/exams.ts');
-const { addPhoto, listPhotos, movePhoto, removePhoto, saveConcerns, listConcerns, saveConcernAnswers,
-        setAnswerImage, clearAnswerImage, sendFeedback, feedbackPdfOf, pendingFeedback,
-        studentExams, cleanConcerns } = await import('../src/lib/lms/feedback.ts');
+const { addPhoto, listPhotos, movePhoto, removePhoto } = await import('../src/lib/lms/photos.ts');
+const { saveConcerns, listConcerns, saveConcernAnswers, setAnswerImage, clearAnswerImage,
+        cleanConcerns } = await import('../src/lib/lms/concerns.ts');
+const { sendFeedback, feedbackPdfOf } = await import('../src/lib/lms/feedback.ts');
+const { pendingFeedback, studentExams } = await import('../src/lib/lms/lists.ts');
 const { LMS_BUCKET, getFile } = await import('../src/lib/lms/files.ts');
 const { verifyPassword } = await import('../src/lib/lms/password.ts');
 const { db } = await import('../src/lib/lms/db.ts');

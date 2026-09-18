@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { BottomBar } from '@/components/BottomBar';
 import { POLICY } from '@/config/app';
 import { subjectLabel } from '@/config/subjects';
-import { clearDraftId } from '@/lib/draft';
-import { isValidEmail, suggestEmail } from '@/lib/email';
-import { filledSubjects } from '@/lib/flow';
-import { useApply } from '@/lib/store';
-import { submitApplication } from '@/lib/submit';
+import { clearDraftId } from '@/lib/intake/draft';
+import { isValidEmail, suggestEmail } from '@/lib/intake/email';
+import { filledSubjects } from '@/lib/intake/flow';
+import { useApply } from '@/lib/intake/store';
+import { submitApplication } from '@/lib/intake/submit';
 
 export default function EmailStep() {
   const router = useRouter();

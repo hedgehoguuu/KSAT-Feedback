@@ -1,6 +1,6 @@
 import { setApplicationStatusAction } from '@/app/admin/actions';
 import { APPLICATION_STATUS, APPLICATION_STATUSES, CLASS } from '@/config/class';
-import { listApplications } from '@/lib/classes';
+import { listApplications } from '@/lib/class/classes';
 // 서버는 UTC 로 돈다. 그냥 찍으면 저녁 7시 신청이 오전 10시로 보인다.
 import { seoulStamp } from '@/lib/kst';
 

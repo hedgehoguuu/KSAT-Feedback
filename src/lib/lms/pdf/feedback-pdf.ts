@@ -1,6 +1,7 @@
 import { PDFDocument, rgb, type PDFFont, type PDFImage, type PDFPage, type RGB } from 'pdf-lib';
 import type { Font } from 'fontkit';
-import { KINDS, SECTIONS, SUBJECT, concernTopic, fmtDay, fmtScore, paperQuestion } from '@/config/lms';
+import { KINDS, SECTIONS, SUBJECT, concernTopic, paperQuestion } from '@/config/lms';
+import { fmtDay, fmtScore } from '@/lib/format';
 import { fontkitForPdfLib, openFont } from './fontkit';
 import { fitText, wrapText } from './wrap';
 

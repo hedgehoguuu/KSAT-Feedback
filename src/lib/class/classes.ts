@@ -1,10 +1,7 @@
 import 'server-only';
-import {
-  applicationPurgeDate,
-  type ApplicationStatus,
-  type ClassStatus,
-} from '@/config/class';
-import { supabaseAdmin } from './supabase/admin';
+import type { ApplicationStatus, ClassStatus } from '@/config/class';
+import { supabaseAdmin } from '@/lib/supabase/admin';
+import { applicationPurgeDate } from './fields';
 
 /** 튜터 증빙 이미지. 학생 시험지(exam-papers)와 섞지 않는다 — 보관 규칙이 다르다. */
 export const PROOF_BUCKET = 'tutor-proof';

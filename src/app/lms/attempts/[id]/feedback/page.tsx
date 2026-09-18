@@ -3,13 +3,16 @@ import { notFound } from 'next/navigation';
 import { FeedbackAnswers, type ConcernView } from '@/components/lms/FeedbackAnswers';
 import { PhotoStrip } from '@/components/lms/PhotoStrip';
 import { Card, Empty, Shell, btnGhost } from '@/components/lms/Shell';
-import { CONCERN, KINDS, SECTIONS, concernTopic, fmtDay, fmtScore, paperQuestion, unitLabel } from '@/config/lms';
+import { CONCERN, KINDS, SECTIONS, concernTopic, paperQuestion, unitLabel } from '@/config/lms';
+import { fmtDay, fmtScore } from '@/lib/format';
 import { seoulDate, seoulStamp } from '@/lib/kst';
 import { requireRole } from '@/lib/lms/auth';
+import { listConcerns } from '@/lib/lms/concerns';
 import { courseVisibleTo } from '@/lib/lms/courses';
 import { loadGrading } from '@/lib/lms/exams';
-import { listConcerns, listPhotos, mailErrorText } from '@/lib/lms/feedback';
+import { mailErrorText } from '@/lib/lms/feedback';
 import { signedUrls } from '@/lib/lms/files';
+import { listPhotos } from '@/lib/lms/photos';
 import { removeAnswerImage, saveFeedbackAnswers, uploadAnswerImage } from '../../../course-actions';
 
 export const dynamic = 'force-dynamic';

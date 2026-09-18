@@ -1,10 +1,6 @@
-import {
-  CLASS,
-  CLASS_STATUS,
-  CLASS_STATUSES,
-} from '@/config/class';
 import { deleteClassAction, removeProofAction, saveClassAction, uploadProofAction } from '@/app/admin/actions';
-import type { ClassCard } from '@/lib/classes';
+import { CLASS, CLASS_STATUS, CLASS_STATUSES } from '@/config/class';
+import type { ClassCard } from '@/lib/class/classes';
 
 type Props = {
   data: ClassCard | null;

@@ -7,8 +7,8 @@ import { UploadSection } from '@/components/UploadSection';
 import { LIMITS, photoLimitNote } from '@/config/app';
 import { findExam } from '@/config/exams';
 import { subjectLabel, type SubjectCode } from '@/config/subjects';
-import { photosOf, useApply } from '@/lib/store';
-import { useIntake } from '@/lib/useIntake';
+import { photosOf, useApply } from '@/lib/intake/store';
+import { useIntake } from '@/lib/intake/useIntake';
 
 export default function UploadStep() {
   const router = useRouter();

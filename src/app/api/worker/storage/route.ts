@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { workerAuthorized } from '@/lib/worker/auth';
-import { cleanupOrphans, inventory, wipeStorage } from '@/lib/worker/storage';
+import { cleanupOrphans, inventory, wipeStorage } from '@/lib/intake/worker/storage';
+import { workerAuthorized } from '@/lib/worker-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,7 @@ export const maxDuration = 60;
  *   POST /api/worker/storage?mode=orphans&dry=1    지우지 않고 몇 개인지만 세기
  *   POST /api/worker/storage?mode=wipe&confirm=WIPE-ALL   버킷 통째로 비우기 (되돌릴 수 없음)
  *
- * WORKER_SECRET 헤더가 있어야 한다 (lib/worker/auth.ts).
+ * WORKER_SECRET 헤더가 있어야 한다 (lib/worker-auth.ts).
  */
 export async function GET(req: Request) {
   if (!workerAuthorized(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });

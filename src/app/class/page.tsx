@@ -5,7 +5,7 @@ import { Marked } from '@/components/Marked';
 import { Reveal } from '@/components/Reveal';
 import { BRANDING } from '@/config/app';
 import { COPY } from '@/config/class-copy';
-import { listClasses, signProofUrls } from '@/lib/classes';
+import { listClasses, signProofUrls } from '@/lib/class/classes';
 
 // 관리자에서 고친 값이 바로 보여야 한다. 캐시하지 않는다.
 export const dynamic = 'force-dynamic';

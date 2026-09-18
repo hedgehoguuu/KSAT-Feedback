@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useIntake } from '@/lib/useIntake';
-import { clearDraftId } from '@/lib/draft';
 import { STEPS } from '@/config/steps';
-import { hasProgress, useApply, useHydrated } from '@/lib/store';
+import { clearDraftId } from '@/lib/intake/draft';
+import { hasProgress, useApply, useHydrated } from '@/lib/intake/store';
+import { useIntake } from '@/lib/intake/useIntake';
 
 const BADGES = ['무료', '재종에서의 경험을 살렸어요', '이메일만 물어봐요', '1주일 안에 보내드려요'];
 

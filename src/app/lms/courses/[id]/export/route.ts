@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { SECTIONS, SECTION_LIST, UNITS, fmtScore } from '@/config/lms';
+import { SECTIONS, SECTION_LIST, UNITS } from '@/config/lms';
+import { fmtScore } from '@/lib/format';
 import { seoulDate } from '@/lib/kst';
 import { currentUser } from '@/lib/lms/auth';
 import { courseVisibleTo } from '@/lib/lms/courses';

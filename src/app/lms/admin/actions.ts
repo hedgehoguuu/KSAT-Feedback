@@ -2,16 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { isCourseStatus, isRole, loginIdProblem, passwordProblem } from '@/config/lms';
+import { isCourseStatus, isRole } from '@/config/lms';
 import { assertRole } from '@/lib/lms/auth';
 import { deleteCourse, saveCourse } from '@/lib/lms/courses';
-import {
-  createUser,
-  deleteUser,
-  resetPassword,
-  updateUser,
-  upsertStudentProfile,
-} from '@/lib/lms/users';
+import { loginIdProblem, passwordProblem } from '@/lib/lms/credentials';
+import { createUser, deleteUser, resetPassword, updateUser, upsertStudentProfile } from '@/lib/lms/users';
 
 /** 관리자만 지나간다. 화면을 막는 것과 별개로 여기서 한 번 더 확인한다. */
 function text(form: FormData, key: string): string {

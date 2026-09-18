@@ -1,5 +1,3 @@
-import { seoulDate } from '@/lib/kst';
-
 // 모집 페이지(/class)와 관리자 화면이 함께 보는 상수. 모집 페이지 PRD v1.1 §00 확정값.
 // 여기 숫자를 고치면 화면 · 기본값 · 서버 검사가 같이 따라간다.
 
@@ -19,7 +17,8 @@ export const CLASS = {
   retentionDays: 90,
 } as const;
 
-// 화면에 나오는 문구·목록은 class-copy.ts 에 있다. 여기에는 숫자와 규칙만 둔다.
+// 화면에 나오는 문구·목록은 class-copy.ts 에 있다. 여기에는 숫자 · 상태값과 그 타입 가드만 둔다.
+// 연락처 · 접수번호 · 주소(slug) 검사는 lib/class/fields.ts, 금액 서식은 lib/format.ts 에 있다.
 
 export const CLASS_STATUS = {
   draft: '초안',
@@ -42,55 +41,4 @@ export type ApplicationStatus = keyof typeof APPLICATION_STATUS;
 export const APPLICATION_STATUSES = Object.keys(APPLICATION_STATUS) as ApplicationStatus[];
 export function isApplicationStatus(v: string): v is ApplicationStatus {
   return v in APPLICATION_STATUS;
-}
-
-/** 498000 → "498,000원" */
-export function won(amount: number): string {
-  return `${amount.toLocaleString('ko-KR')}원`;
-}
-
-/** 9모 접수번호 — F{MMDD}-{3자리}. formatReceiptNo() 가 만드는 형식과 같다. */
-const RECEIPT_SHAPE = /^F\d{4}-\d{3}$/;
-export function normalizeReceiptNo(value: string): string {
-  const v = value.trim().toUpperCase().replace(/\s+/g, '');
-  // 하이픈을 빼고 적는 경우가 흔하다. F0902013 → F0902-013
-  const bare = /^F(\d{4})(\d{3})$/.exec(v);
-  return bare ? `F${bare[1]}-${bare[2]}` : v;
-}
-export function isReceiptNo(value: string): boolean {
-  return RECEIPT_SHAPE.test(normalizeReceiptNo(value));
-}
-
-/** 학부모 연락처. 숫자만 남겨 010-0000-0000 로 맞춘다. */
-export function normalizePhone(value: string): string {
-  const d = value.replace(/\D/g, '');
-  if (d.length === 11) return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
-  if (d.length === 10) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
-  return value.trim();
-}
-export function isPhone(value: string): boolean {
-  const d = value.replace(/\D/g, '');
-  return /^01[016789]\d{7,8}$/.test(d);
-}
-
-/** 반 주소에 쓰는 slug. 영문 소문자·숫자·하이픈만. */
-const SLUG_SHAPE = /^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/;
-export function isSlug(value: string): boolean {
-  return SLUG_SHAPE.test(value);
-}
-
-/**
- * 신청일 기준 삭제 예정일 (YYYY-MM-DD).
- * 지우는 쪽(purge_expired_applications)이 한국 날짜로 비교하므로 여기도 한국 날짜다.
- */
-export function applicationPurgeDate(from: Date = new Date()): string {
-  return seoulDate(from, CLASS.retentionDays);
-}
-
-/** 2026-10-16 → "10월 16일" */
-export function formatStartsOn(value: string | null): string | null {
-  if (!value) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!m) return value;
-  return `${Number(m[2])}월 ${Number(m[3])}일`;
 }

@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { Card, Empty, Shell } from '@/components/lms/Shell';
 import { StudentReport } from '@/components/lms/StudentReport';
-import { SUBJECT, fmtDay, fmtScore } from '@/config/lms';
+import { SUBJECT } from '@/config/lms';
+import { fmtDay, fmtScore } from '@/lib/format';
 import { seoulDate } from '@/lib/kst';
 import { requireRole } from '@/lib/lms/auth';
 import { coursesOfStudent } from '@/lib/lms/courses';
 import { studentHistory } from '@/lib/lms/exams';
-import { studentExams, type StudentExamItem } from '@/lib/lms/feedback';
+import { studentExams, type StudentExamItem } from '@/lib/lms/lists';
 
 export const dynamic = 'force-dynamic';
 

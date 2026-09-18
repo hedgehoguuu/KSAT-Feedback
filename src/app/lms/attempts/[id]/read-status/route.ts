@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { currentUser } from '@/lib/lms/auth';
 import { courseVisibleTo } from '@/lib/lms/courses';
 import { getAttempt, getExam } from '@/lib/lms/exams';
-import { listPhotos } from '@/lib/lms/feedback';
 import { getPhotoRead } from '@/lib/lms/photo-read';
 import { readViewOf } from '@/lib/lms/photo-read-state';
+import { listPhotos } from '@/lib/lms/photos';
 
 export const dynamic = 'force-dynamic';
 

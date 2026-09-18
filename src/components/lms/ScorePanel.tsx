@@ -1,4 +1,6 @@
-import { SECTIONS, SECTION_LIST, fmtAnswer, fmtRate, fmtScore, paperQuestion } from '@/config/lms';
+import { SECTIONS, SECTION_LIST, paperQuestion } from '@/config/lms';
+import { fmtRate, fmtScore } from '@/lib/format';
+import { fmtAnswer } from '@/lib/lms/paper';
 import type { AnswerRow, AttemptScore, QuestionRow } from '@/lib/lms/score';
 import { RateBars, barsOf } from './RateBars';
 import { Card, Stat } from './Shell';

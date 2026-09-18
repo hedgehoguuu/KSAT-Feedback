@@ -8,12 +8,11 @@ import {
   SECTIONS,
   SECTION_LIST,
   UNIT_GROUPS,
-  parseAnswer,
-  unitsFor,
   type PaperQuestion,
 } from '@/config/lms';
 import { parseAnswerLine } from '@/lib/lms/answer-line';
 import type { OcrResult, OcrRow } from '@/lib/lms/ocr-rows';
+import { parseAnswer, unitsFor } from '@/lib/lms/paper';
 import { AnswerKeyOcr } from './AnswerKeyOcr';
 import { Card, btn, btnGhost, input } from './Shell';
 

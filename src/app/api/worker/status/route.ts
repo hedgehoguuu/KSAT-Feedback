@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { RAW_BUCKET, supabaseAdmin } from '@/lib/supabase/admin';
-import { workerAuthorized } from '@/lib/worker/auth';
-import { sendConfirmationMail } from '@/lib/worker/mail';
 import { findExam } from '@/config/exams';
+import { sendConfirmationMail } from '@/lib/intake/worker/mail';
+import { RAW_BUCKET, supabaseAdmin } from '@/lib/supabase/admin';
+import { workerAuthorized } from '@/lib/worker-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

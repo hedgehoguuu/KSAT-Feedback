@@ -1,4 +1,3 @@
-import { seoulDate, seoulMonthDay } from '@/lib/kst';
 import { SUBJECTS, subjectLabel, type SubjectCode } from './subjects';
 
 // 한곳에서 바꾸는 운영 상수.
@@ -85,15 +84,4 @@ export function photoLimitNote(): string {
   const odd = SUBJECTS.filter((s) => maxPhotosFor(s.code) !== LIMITS.maxPhotosPerSubject);
   if (odd.length === 0) return '';
   return odd.map((s) => `${subjectLabel(s.code)}는 ${maxPhotosFor(s.code)}장`).join(', ');
-}
-
-/** 접수일 기준 회신 예정일 (YYYY-MM-DD). 학생이 보는 날짜라 한국 날짜로 센다. */
-export function replyDueDate(from: Date = new Date()): string {
-  return seoulDate(from, POLICY.replySlaDays);
-}
-
-/** 접수번호 형식: F{MMDD}-{일련번호 3자리} (BE-2). DB 의 next_receipt_no() 와 같은 한국 날짜다. */
-export function formatReceiptNo(seq: number, at: Date = new Date()): string {
-  const { mm, dd } = seoulMonthDay(at);
-  return `${BRANDING.receiptPrefix}${mm}${dd}-${String(seq).padStart(3, '0')}`;
 }

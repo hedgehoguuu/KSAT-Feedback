@@ -1,9 +1,9 @@
 'use client';
 
 import { useRef, useState, useTransition } from 'react';
-import { fmtAnswer } from '@/config/lms';
 import { normalizeImage } from '@/lib/image';
 import type { OcrResult, OcrRow } from '@/lib/lms/ocr-rows';
+import { fmtAnswer } from '@/lib/lms/paper';
 import { btn, btnGhost } from './Shell';
 
 /**

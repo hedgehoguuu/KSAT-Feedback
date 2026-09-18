@@ -1,5 +1,9 @@
 // LMS 설정 단일 출처. 역할 · 시험지 모양 · 단원 · 상태값이 전부 여기서 나온다.
 //
+// 여기에는 값 · 문구와, 그 표를 읽는 조회(번호 → 문항 · 단원 이름)와 타입 가드만 둔다.
+// 답을 해석하고 검사하는 규칙은 lib/lms/paper.ts, 아이디 · 비밀번호 검사는 lib/lms/credentials.ts,
+// 점수 · 날짜 서식은 lib/format.ts 에 있다.
+//
 // 기존 서비스(/apply, /class)가 '한 번 보내고 끝나는' 접수라면 LMS(/lms)는 '쌓이는' 쪽이다.
 // 수업은 수학 실전 모의고사이고, 학생은 전부 미적분을 고른다 (2026-09-17 전환).
 // 시험지 모양이 하나로 고정돼 있어서, 번호만 알면 배점 · 5지선다/단답형 · 공통/미적분이 정해진다.
@@ -114,35 +118,6 @@ export const ANSWER_RANGE: Record<Kind, { min: number; max: number }> = {
   short: { min: 0, max: 999 },
 };
 
-/** 이 번호에 이 값이 답으로 올 수 있는가. 정답표 · 학생 답 · 사진에서 읽은 값을 모두 여기서 거른다. */
-export function isValidAnswer(no: number, value: unknown): value is number {
-  const q = paperQuestion(no);
-  if (!q || typeof value !== 'number' || !Number.isInteger(value)) return false;
-  const { min, max } = ANSWER_RANGE[q.kind];
-  return value >= min && value <= max;
-}
-
-/**
- * 폼에서 온 글자를 답으로. 비었거나 맞지 않으면 null.
- * "③" · "3번" 처럼 적어도 받는다 — 동그라미 숫자는 5지선다를 적을 때 흔히 나온다.
- */
-export function parseAnswer(no: number, raw: string | null | undefined): number | null {
-  const text = String(raw ?? '')
-    .trim()
-    .replace(/[①②③④⑤]/g, (c) => String('①②③④⑤'.indexOf(c) + 1))
-    .replace(/번$/, '');
-  if (!/^\d{1,3}$/.test(text)) return null;
-  const value = Number(text);
-  return isValidAnswer(no, value) ? value : null;
-}
-
-/** 답을 화면에 적는 모양. 5지선다는 동그라미 숫자로 — 단답형 3 과 5지선다 ③ 이 헷갈리지 않게. */
-export function fmtAnswer(no: number, value: number | null | undefined): string {
-  if (value === null || value === undefined) return '—';
-  if (paperQuestion(no)?.kind === 'choice' && value >= 1 && value <= 5) return '①②③④⑤'[value - 1];
-  return String(value);
-}
-
 /* ─────────────────────────────────────────────────────────── 단원 */
 
 export const UNIT_GROUPS = {
@@ -187,16 +162,6 @@ export function unitLabel(code: string | null | undefined): string {
   return UNIT_BY_CODE.get(code)?.label ?? code;
 }
 
-/** 이 번호에 붙일 수 있는 단원. 공통 문항에 미적분 단원을 붙이면 집계가 어긋난다. */
-export function unitsFor(no: number): Unit[] {
-  const calculus = sectionOf(no) === 'calculus';
-  return UNITS.filter((u) => (u.group === 'calculus') === calculus);
-}
-
-export function unitFits(no: number, code: string | null | undefined): boolean {
-  return Boolean(code) && unitsFor(no).some((u) => u.code === code);
-}
-
 /* ─────────────────────────────────────────────────────────── 상태 */
 
 export const COURSE_STATUS = { active: '진행 중', archived: '종료' } as const;
@@ -236,16 +201,6 @@ export const CONCERN = {
 /** 0 → "시험 전체", 21 → "21번" */
 export function concernTopic(no: number): string {
   return no === CONCERN.wholeExam ? '시험 전체' : `${no}번`;
-}
-
-export function isConcernTopic(no: number): boolean {
-  return no === CONCERN.wholeExam || isQuestionNo(no);
-}
-
-/** 질문을 늘어놓는 순서. 문항 순서대로, '시험 전체' 는 맨 뒤. */
-export function concernOrder(a: number, b: number): number {
-  const key = (n: number) => (n === CONCERN.wholeExam ? QUESTION_COUNT + 1 : n);
-  return key(a) - key(b);
 }
 
 /* ─────────────────────────────────────────────────── 사진으로 자동 채점 */
@@ -346,41 +301,3 @@ export const UPLOAD_MESSAGES: Record<string, string> = {
   CLOSED: '지금은 이 시험에 올릴 수 없어요.',
   FAILED: '잘 안 올라갔어요. 잠시 뒤에 다시 해주세요.',
 };
-
-/** 아이디가 규칙에 맞으면 null, 아니면 이유를 돌려준다. */
-export function loginIdProblem(raw: string): string | null {
-  const id = raw.trim().toLowerCase();
-  if (!id) return '아이디를 적어주세요';
-  if (!LMS.loginIdPattern.test(id)) return '영문 소문자·숫자·(. _ -) 4~32자로 적어주세요';
-  return null;
-}
-
-export function passwordProblem(raw: string): string | null {
-  if (!raw) return '비밀번호를 적어주세요';
-  if (raw.length < LMS.minPasswordLength) return `${LMS.minPasswordLength}자 이상으로 적어주세요`;
-  return null;
-}
-
-/** 78.5 → "78.5", 78 → "78". 점수는 소수 첫째 자리까지만 보여준다. */
-export function fmtScore(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(1);
-}
-
-/** 0.8235 → "82%" */
-export function fmtRate(rate: number): string {
-  return `${Math.round(rate * 100)}%`;
-}
-
-/** "2026-09-24" → "9월 24일". 달력 날짜만 다루므로 시차를 타지 않는다. */
-export function fmtDay(date: string | null | undefined): string {
-  if (!date) return '';
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(date);
-  return m ? `${Number(m[2])}월 ${Number(m[3])}일` : date;
-}
-
-/** "2026-09-17" + 7 → "2026-09-24". 달력 계산이라 UTC 로 센다(시각이 없으니 어긋날 일이 없다). */
-export function addDays(date: string, days: number): string {
-  const d = new Date(`${date}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}

@@ -1,4 +1,5 @@
-import { PAPER, isQuestionNo, isValidAnswer, unitFits } from '@/config/lms';
+import { PAPER, isQuestionNo } from '@/config/lms';
+import { isValidAnswer, unitFits } from './paper';
 
 /**
  * 모델이 준 것을 우리 표 모양으로 다듬는 부분.

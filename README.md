@@ -134,14 +134,16 @@ src/app/                          화면과 API — 폴더 이름이 그대로 �
       storage/route.ts            저장소에 쌓인 양 확인 · 주인 없는 사진 삭제
       status/route.ts             무엇이 왜 막혔는지 진단 (?probe=1, ?mail=1)
 
-src/config/                       문구·숫자만 들어 있다. 여기부터 고친다
+src/config/                       값 · 문구만 들어 있다. 여기부터 고친다
+                                  (그 표를 읽는 조회와 isX 타입 가드까지. 해석 · 검사 · 계산 · 서식은 lib/ 에)
   class-copy.ts                ★  모집 페이지 글자 전부. *별표* 는 빨간 밑줄, \n 은 줄바꿈
   questions.config.ts          ★  ③단계 고민 문항 — 공통 5문항 · 국어 8문항
   app.ts                       ★  장수 상한 · 회신 SLA · 보관 기간 · 문의 메일 · 기능 플래그
-  class.ts                        수강료 기본값 · 보유기간 · 접수번호·연락처 형식
+  class.ts                        수강료 기본값 · 보유기간 · 반/신청 상태값
   exams.ts                        시험 3종 → 학년과 과목이 여기서 결정된다
-  subjects.ts                     과목 코드 ↔ 라벨 · 원점수 만점 · 원점수 검사
+  subjects.ts                     과목 코드 ↔ 라벨 · 원점수 만점
   steps.ts                        4단계 이름
+  lms.ts                       ★  성적 관리 — 시험지 모양(번호 · 배점 · 형식) · 단원 · 역할 · 상한
 
 src/components/                   여러 화면이 함께 쓰는 조각
   UploadSection.tsx            ★  사진 업로드 — 장별 진행률 · 재시도 · 순서 변경
@@ -162,47 +164,63 @@ src/components/                   여러 화면이 함께 쓰는 조각
   ExamSummary.tsx                 상단 "고3 · 9월 모평 · 바꾸기"
   Analytics.tsx                   방문 통계 — 주소의 접수번호는 잘라내고 보낸다
 
-src/lib/                          화면 뒤에서 도는 로직
-  store.ts                     ★  입력값 보관 · 자동 저장 (저장소 막히면 메모리로)
-  classes.ts                   ★  개설 클래스 · 신청 읽기/쓰기 · 증빙 서명 URL
+src/lib/                          화면 뒤에서 도는 로직. 루트는 세 흐름이 같이 쓰는 것, 폴더는 흐름 하나
   admin.ts                        관리자 잠금 — 비밀번호 → HMAC 서명 쿠키
   secret.ts                       비밀값 비교 (시간차로 새지 않게)
+  worker-auth.ts                  운영용 주소(/api/worker/*)의 자물쇠 — 열쇠가 없으면 무조건 막는다
   kst.ts                          한국 시간 기준 날짜 — DB 함수와 기준을 맞춘다
+  format.ts                       점수 · 비율 · 날짜 · 금액 서식
+  mail.ts                         메일 보내기 (Gmail SMTP) — 접수 확인 · 신청 알림 · 답변 PDF 가 같이 쓴다
   site.ts                         이 배포의 절대 주소 (미리보기 · 메일 · robots · sitemap)
-  image.ts                        사진을 긴 변 2000px · JPEG 로 줄인다
-  upload.ts                       서명 주소로 실제 전송
-  submit.ts                       제출 payload 조립
-  class-mail.ts                   신청 들어오면 팀에게 알림 메일
-  email.ts                        이메일 형식 검사 · 오타 도메인 제안
-  flow.ts                         사진이 있는 과목만 골라낸다
-  draft.ts blobs.ts id.ts         임시 id · 재시도용 사진 보관
-  useIntake.ts                    접수 열림 여부 조회 (브라우저)
-  intake.ts                       접수 스위치 읽기 (서버 전용)
-  health.ts                       설치 점검 (서버 전용)
+  image.ts                        사진을 긴 변 2000px · JPEG 로 줄인다 (브라우저)
+  id.ts                           임시 id
+  health.ts                       설치 점검 · 돌려야 할 마이그레이션 목록 (서버 전용)
   supabase/admin.ts               DB 접속 — 마스터 키는 이 파일에서만 쓴다
 
-src/lib/worker/                   접수 뒤에 자동으로 도는 것들 (전부 서버 전용)
+src/lib/intake/                   무료 피드백 접수 (/apply)
+  store.ts                     ★  입력값 보관 · 자동 저장 (저장소 막히면 메모리로)
+  paths.ts                        초안 사진 경로 — 올리는 쪽(upload-url)과 제출받는 쪽(submit)이 같이 본다
+  upload.ts                       서명 주소로 실제 전송
+  submit.ts                       제출 payload 조립
+  rules.ts                        회신 예정일 · 접수번호 모양 · 원점수 검사
+  concerns.ts                     고민 답변 값 꺼내기 (글 · 번호와 이유 목록 · 보기)
+  email.ts                        이메일 형식 검사 · 오타 도메인 제안
+  flow.ts                         사진이 있는 과목만 골라낸다
+  draft.ts · blobs.ts             초안 id · 재시도용 사진 보관
+  switch.ts · useIntake.ts        접수 스위치 읽기 (서버 · 브라우저)
+
+src/lib/intake/worker/            접수 뒤에 자동으로 도는 것들 (전부 서버 전용)
   process.ts                   ★  전체 지휘 — PDF → Notion → 확인 메일
   notion.ts                       Notion 페이지 생성 · 본문에 문답 기록 · 429 대기
   purge.ts                        파일 · DB 기록 · Notion 페이지 삭제
   storage.ts                      저장소 훑기 · 주인 없는 사진 정리 · 버킷 비우기
-  mail.ts                         접수 확인 메일 (Gmail SMTP)
+  mail.ts                         접수 확인 메일 본문
   pdf.ts                          사진 여러 장을 PDF 한 개로
-  auth.ts                         운영용 주소의 자물쇠 — 열쇠가 없으면 무조건 막는다
+
+src/lib/class/                    유료 관찰반 모집 (/class · /admin)
+  classes.ts                   ★  개설 클래스 · 신청 읽기/쓰기 · 증빙 서명 URL
+  fields.ts                       접수번호 · 학부모 연락처 · 반 주소(slug) 검사 · 신청 보유기간
+  mail.ts                         신청 들어오면 팀에게 알림 메일
 
 src/app/lms/ · src/lib/lms/ · src/components/lms/   성적 관리 (수학 실전 모의고사)
   config/lms.ts                ★  시험지 모양(번호 · 배점 · 형식) · 단원 · 역할 · 상한 — 전부 여기
+  lib/lms/paper.ts                그 번호에 올 수 있는 답 · 붙일 수 있는 단원 · 질문 자리 (화면과 서버가 같이)
+  lib/lms/credentials.ts          아이디 · 비밀번호 규칙
   app/lms/course-actions.ts       튜터 쓰기 전부 — 회차 · 정답표 · 채점 · 답 달기 · 보내기
   app/lms/student-actions.ts      학생 쓰기 전부 — 시험지 사진 · 문항별 질문
   app/lms/me/exams/[examId]/      학생의 시험 한 회차 (올리기 · 받은 답 · 점수) · PDF 받기 · read-status
   app/lms/attempts/[id]/          튜터의 채점 · feedback(답 달기) · pdf(미리 보기) · read-status(읽기 끝났나)
   lib/lms/score.ts                정오 → 점수 · 공통/미적분 · 배점별 · 단원별 (순수 계산)
   lib/lms/exams.ts                회차 · 정답표 · 응시 · 채점 · 반/학생 누적
-  lib/lms/feedback.ts          ★  사진 · 질문 · 답 · 답변 PDF 만들기와 보내기 · 할 일 목록
+  lib/lms/grading-snapshot.ts     채점 화면이 본 판(정오 · 정답표) — 오래 열어 둔 화면 알아보기
+  lib/lms/photos.ts               학생 시험지 사진 — 올리기 · 지우기 · 순서
+  lib/lms/concerns.ts             학생 질문 · 튜터 답(글 · 풀이 사진)
+  lib/lms/feedback.ts          ★  답변 PDF 만들기와 보내기 · 메일 결과 적기
+  lib/lms/lists.ts                첫 화면 목록 — 튜터의 할 일 · 학생의 시험
   lib/lms/files.ts                lms-files 버킷 — 올리기 · 임시 주소 · 지울 때 파일 먼저
   lib/lms/pdf/feedback-pdf.ts  ★  답변 PDF 양식 (머리말 · 점수 · 정오표 · 질문 카드 · 총평)
   lib/lms/pdf/fontkit.ts          pdf-lib 에 fontkit 2 를 꽂는 이음새 (한글 서브셋이 깨지지 않게)
-  lib/lms/mail.ts                 답변 PDF 메일 (Gmail SMTP, 첨부)
+  lib/lms/mail.ts                 답변 PDF 메일 본문 (첨부)
   lib/lms/ocr.ts · ocr-rows.ts    사진 읽기 (정답표 · 학생 시험지) · 읽은 값 거르고 합치기
   lib/lms/photo-read.ts        ★  사진으로 자동 채점 — 부르기 · 뒤에서 읽기 · 실패 적기 · 새벽 되살리기
   lib/lms/photo-read-state.ts     읽기 상태를 화면 말로 · 화면이 끝나기를 기다리는 법 (순수 계산)
@@ -266,10 +284,11 @@ vercel.json                       매일 03:00(KST) 크론 설정
 | 시험 종류 · 과목 구성 | `src/config/exams.ts` |
 | 랜딩 제목 · 배지 | `src/app/page.tsx` |
 | 완료 화면 문구 | `src/app/done/[receiptNo]/page.tsx` |
-| 접수 확인 메일 내용 | `src/lib/worker/mail.ts` |
+| 접수 확인 메일 내용 | `src/lib/intake/worker/mail.ts` |
 | **접수 열기/닫기 · 상한 · 과목별 차단** | 코드 아님 — Supabase `app_settings` 한 줄 |
 | **모집 페이지 문구 전부** | `src/config/class-copy.ts` — 이 파일 하나만 열면 된다 |
-| 수강료 기본값 · 보유기간 · 접수번호/연락처 형식 | `src/config/class.ts` |
+| 수강료 기본값 · 보유기간 | `src/config/class.ts` |
+| 접수번호 · 연락처 · 반 주소 형식 | `src/lib/class/fields.ts` |
 | 친구 등록 혜택 배너 (끄려면 `promo.title` 을 빈 칸으로) | `src/config/class-copy.ts` |
 | 챗봇 관찰이가 묻고 답하는 말 · 오픈채팅 주소 | `src/config/class-copy.ts` 의 `BUDDY` |
 | 유리 재질 · 뒤에 깔리는 색 | `src/app/globals.css` 의 `.field` · `.glass` |
@@ -969,5 +988,5 @@ G4(자동 반영 성공률)는 Notion 단독 기준으로 읽는다.
   화면과 서버 양쪽에서 같은 기준을 본다.
 - **관리자 서버 함수는 예외 대신 로그인 화면으로**: 7일이 지나 쿠키가 만료된 것뿐인데 예외를
   던지면 "잠시 문제가 생겼어요" 라는 알 수 없는 화면이 뜬다. 어느 쪽이든 그 함수는 실행되지 않는다.
-- **운영용 주소는 열쇠가 없으면 무조건 막힌다**(`lib/worker/auth.ts`). 예전에는 재처리 주소 하나가
+- **운영용 주소는 열쇠가 없으면 무조건 막힌다**(`lib/worker-auth.ts`). 예전에는 재처리 주소 하나가
   `WORKER_SECRET` 을 안 넣은 배포에서 누구나 부를 수 있었다. 잠금은 기본값이어야 한다.

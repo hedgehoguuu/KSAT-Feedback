@@ -2,22 +2,21 @@
 
 import { useActionState, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import type { GradingSaveState } from '@/app/lms/course-actions';
 import {
   KINDS,
   PAPER,
   QUESTION_COUNT,
   SECTIONS,
   SECTION_LIST,
-  fmtAnswer,
-  fmtScore,
   paperQuestion,
-  parseAnswer,
   unitLabel,
 } from '@/config/lms';
-import type { GradingSaveState } from '@/app/lms/course-actions';
+import { fmtScore } from '@/lib/format';
 import { parseAnswerLine } from '@/lib/lms/answer-line';
 import { gradingSnapshot } from '@/lib/lms/grading-snapshot';
 import type { ReadAnswer } from '@/lib/lms/ocr-rows';
+import { fmtAnswer, parseAnswer } from '@/lib/lms/paper';
 import { scoreAttempt, type AnswerRow, type QuestionRow } from '@/lib/lms/score';
 import { setDirty } from './dirty';
 import { RateBars, barsOf } from './RateBars';

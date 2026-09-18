@@ -1,12 +1,8 @@
 import 'server-only';
 import { findExam, type ExamCode } from '@/config/exams';
-import {
-  answerText,
-  isAnswered,
-  questionsFor as concernQuestionsFor,
-  type ConcernValue,
-} from '@/config/questions.config';
+import { questionsFor as concernQuestionsFor, type ConcernValue } from '@/config/questions.config';
 import { isSubjectCode, subjectLabel, type SubjectCode } from '@/config/subjects';
+import { answerText, isAnswered } from '@/lib/intake/concerns';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 /**
@@ -16,7 +12,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
  * — 어느 문항에서 시간이 샜는지, 무엇이 안 보였는지 — 은 지금 수업에서 가장 값진 재료인데,
  * 접수번호만 적어 두고 안 보면 없는 것과 같다.
  *
- * 사진과 PDF 는 접수일 + 30일에 지워지지만(lib/worker/purge.ts) 접수 기록과 고민 답변은
+ * 사진과 PDF 는 접수일 + 30일에 지워지지만(lib/intake/worker/purge.ts) 접수 기록과 고민 답변은
  * 남는다. 그래서 사진이 사라진 뒤에도 여기는 계속 읽힌다 — 사진이 없다는 것만 말해 준다.
  */
 

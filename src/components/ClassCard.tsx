@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ClassMeta } from '@/components/ClassMeta';
 import { PriceBlock } from '@/components/PriceBlock';
 import { RichText } from '@/components/RichText';
-import type { ClassCard as ClassCardData } from '@/lib/classes';
+import type { ClassCard as ClassCardData } from '@/lib/class/classes';
 
 type Props = {
   data: ClassCardData;

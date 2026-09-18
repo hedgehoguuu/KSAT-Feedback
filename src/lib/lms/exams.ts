@@ -1,6 +1,9 @@
 import 'server-only';
 import { PAPER, type PublishStatus } from '@/config/lms';
+import { listEnrolled } from './courses';
 import { db, inChunks, must, one, rows } from './db';
+import { removeFilesOfExams } from './files';
+import type { GradingSnapshot } from './grading-snapshot';
 import {
   courseStats,
   scoreAttempt,
@@ -11,9 +14,6 @@ import {
   type QuestionRow,
   type Trends,
 } from './score';
-import { listEnrolled } from './courses';
-import { removeFilesOfExams } from './files';
-import type { GradingSnapshot } from './grading-snapshot';
 import { getStudent, type StudentRow } from './users';
 
 export type ExamRow = {
@@ -51,7 +51,7 @@ export type AttemptRow = {
 
 export type AnswersSource = 'photo' | 'tutor';
 
-const EXAM_COLS = 'id, course_id, title, exam_date, due_date, status, created_at';
+export const EXAM_COLS = 'id, course_id, title, exam_date, due_date, status, created_at';
 const QUESTION_COLS = 'id, no, points, answer, unit_code';
 // 한 덩어리로 적는다. 문자열을 더해 만들면 supabase-js 가 열 목록을 못 읽어 타입이 오류로 바뀐다.
 export const ATTEMPT_COLS =

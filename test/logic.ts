@@ -17,24 +17,15 @@ import {
   PAPER,
   PHOTO_READ,
   QUESTION_COUNT,
-  addDays,
-  concernOrder,
   concernTopic,
-  fmtAnswer,
-  fmtDay,
-  fmtRate,
-  fmtScore,
-  isValidAnswer,
-  loginIdProblem,
   paperQuestion,
   paperSummary,
-  parseAnswer,
-  passwordProblem,
   sectionFull,
-  unitFits,
   unitLabel,
-  unitsFor,
 } from '../src/config/lms.ts';
+import { addDays, fmtDay, fmtRate, fmtScore } from '../src/lib/format.ts';
+import { loginIdProblem, passwordProblem } from '../src/lib/lms/credentials.ts';
+import { concernOrder, fmtAnswer, isValidAnswer, parseAnswer, unitFits, unitsFor } from '../src/lib/lms/paper.ts';
 import { hashPassword, verifyPassword } from '../src/lib/lms/password.ts';
 import { READ_NOTES, mergeStudentReads, normalizeExtracted, readSummary, type ReadBatch } from '../src/lib/lms/ocr-rows.ts';
 import {
@@ -50,8 +41,9 @@ import {
 import { callTimeoutMs, canWaitFor, retryWaitMs, shouldRetry } from '../src/lib/lms/retry.ts';
 import { parseAnswerLine } from '../src/lib/lms/answer-line.ts';
 import { courseStats, scoreAttempt, trendsOf, type AnswerRow, type QuestionRow } from '../src/lib/lms/score.ts';
-import { cleanConcerns, progressOf } from '../src/lib/lms/feedback.ts';
+import { cleanConcerns, progressOf } from '../src/lib/lms/concerns.ts';
 import { changedNos, gradingSnapshot, parseSnapshot } from '../src/lib/lms/grading-snapshot.ts';
+import { draftPhotoPath, isIdShape, parseDraftPhotoPath } from '../src/lib/intake/paths.ts';
 import { readStudentAnswers } from '../src/lib/lms/ocr.ts';
 import { renderFeedbackPdf, type FeedbackDoc } from '../src/lib/lms/pdf/feedback-pdf.ts';
 import { fitText, wrapText } from '../src/lib/lms/pdf/wrap.ts';
@@ -502,6 +494,16 @@ eq('새로 매겨진 문항도 짚는다',
 eq('정답이 바뀐 문항을 짚는다',
   changedNos(snap, gradingSnapshot([snapQuestions[0], { ...snapQuestions[1], answer: 4 }],
     [{ question_id: qa, correct: true, chosen: 3 }]), snapQuestions), [2]);
+
+section('접수 사진 경로 — 올리는 쪽과 제출받는 쪽이 같은 모양을 본다');
+const draft = '0b7c6f1e-1111-4222-8333-444455556666';
+const photoPath = draftPhotoPath(draft, 'korean', 'a1b2c3d4-e5f6');
+eq('만든 경로를 그대로 푼다', parseDraftPhotoPath(photoPath), { draftId: draft, subject: 'korean' });
+eq('다른 폴더면 못 푼다', parseDraftPhotoPath(`raw/other/${draft}/korean/a1b2c3d4-e5f6.jpg`), null);
+eq('확장자가 다르면 못 푼다', parseDraftPhotoPath(photoPath.replace('.jpg', '.png')), null);
+eq('경로를 거슬러 올라가지 못한다', parseDraftPhotoPath(`raw/drafts/${draft}/korean/../x/a1b2c3d4-e5f6.jpg`), null);
+ok('uuid 는 id 모양이다', isIdShape(draft));
+ok('짧거나 이상한 글자는 아니다', !isIdShape('abc') && !isIdShape('a/b/c/d/e/f') && !isIdShape(undefined));
 
 section('재시도 시간 — 전체 마감을 넘지 않는다');
 const headersOf = (h: Record<string, string>) => ({ get: (k: string) => h[k] ?? null });

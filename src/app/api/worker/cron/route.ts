@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { purgeExpiredApplications } from '@/lib/classes';
+import { purgeExpiredApplications } from '@/lib/class/classes';
+import { processPending } from '@/lib/intake/worker/process';
+import { purgeExpiredFiles } from '@/lib/intake/worker/purge';
+import { cleanupOrphans } from '@/lib/intake/worker/storage';
 import { retryPhotoReads } from '@/lib/lms/photo-read';
-import { cronAuthorized } from '@/lib/worker/auth';
-import { processPending } from '@/lib/worker/process';
-import { purgeExpiredFiles } from '@/lib/worker/purge';
-import { cleanupOrphans } from '@/lib/worker/storage';
+import { cronAuthorized } from '@/lib/worker-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,7 +23,7 @@ export const maxDuration = 300;
  *   5. 성적 관리의 사진 읽기(자동 채점) 되살리기 — 서버가 중간에 끊겨 '읽는 중' 에 멈췄거나,
  *      요청이 몰려 실패한 읽기를 한 번 더 돌린다. 아침에 튜터가 열면 채점이 채워져 있다.
  *
- * 자물쇠는 lib/worker/auth.ts 에 있다. CRON_SECRET 또는 WORKER_SECRET 과 맞아야 실행된다.
+ * 자물쇠는 lib/worker-auth.ts 에 있다. CRON_SECRET 또는 WORKER_SECRET 과 맞아야 실행된다.
  */
 async function run() {
   // 이 함수 전체의 마감. maxDuration(300초)보다 먼저 끝내야 마지막 결과까지 적힌다.

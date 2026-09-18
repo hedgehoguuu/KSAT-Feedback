@@ -3,11 +3,12 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { assertRole } from '@/lib/lms/auth';
+import { cleanConcerns, saveConcerns } from '@/lib/lms/concerns';
 import { isEnrolled } from '@/lib/lms/courses';
 import { findAttempt, getExam, openAttempt, type AttemptRow, type ExamRow } from '@/lib/lms/exams';
-import { addPhoto, cleanConcerns, movePhoto, removePhoto, saveConcerns } from '@/lib/lms/feedback';
 import { signedUrls } from '@/lib/lms/files';
 import { ensurePhotoRead, requestPhotoRead, type ReadRequest } from '@/lib/lms/photo-read';
+import { addPhoto, movePhoto, removePhoto } from '@/lib/lms/photos';
 import { readJpeg } from '@/lib/lms/upload';
 
 /**

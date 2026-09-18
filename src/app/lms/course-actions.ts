@@ -2,18 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import {
-  CONCERN,
-  LMS,
-  PAPER,
-  addDays,
-  isPublishStatus,
-  parseAnswer,
-  passwordProblem,
-  unitFits,
-} from '@/config/lms';
+import { CONCERN, LMS, PAPER, isPublishStatus } from '@/config/lms';
+import { addDays } from '@/lib/format';
 import { assertRole, type SessionUser } from '@/lib/lms/auth';
+import { clearAnswerImage, listConcerns, saveConcernAnswers, setAnswerImage } from '@/lib/lms/concerns';
 import { courseVisibleTo, enroll, isEnrolled, studentVisibleTo, unenroll, type CourseRow } from '@/lib/lms/courses';
+import { passwordProblem } from '@/lib/lms/credentials';
 import {
   deleteExam,
   getAttempt,
@@ -28,15 +22,10 @@ import {
   type AttemptRow,
   type ExamRow,
 } from '@/lib/lms/exams';
-import {
-  clearAnswerImage,
-  listConcerns,
-  saveConcernAnswers,
-  sendFeedback,
-  setAnswerImage,
-} from '@/lib/lms/feedback';
+import { sendFeedback } from '@/lib/lms/feedback';
 import { changedNos, gradingSnapshot, parseSnapshot } from '@/lib/lms/grading-snapshot';
 import { readAnswerKey, type OcrResult } from '@/lib/lms/ocr';
+import { parseAnswer, unitFits } from '@/lib/lms/paper';
 import { applyPhotoRead, requestPhotoRead } from '@/lib/lms/photo-read';
 import { readJpeg } from '@/lib/lms/upload';
 import { resetPassword } from '@/lib/lms/users';

@@ -1,7 +1,7 @@
 import 'server-only';
+import { notionConfigured } from '@/lib/intake/worker/notion';
+import { mailConfigured } from '@/lib/mail';
 import { RAW_BUCKET, supabaseAdmin } from './supabase/admin';
-import { mailConfigured } from './worker/mail';
-import { notionConfigured } from './worker/notion';
 
 export type Check = { ok: boolean; detail: string };
 

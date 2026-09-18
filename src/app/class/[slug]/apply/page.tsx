@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ApplyForm } from '@/components/ApplyForm';
-import { formatStartsOn, won } from '@/config/class';
-import { getClass } from '@/lib/classes';
+import { getClass } from '@/lib/class/classes';
+import { formatStartsOn } from '@/lib/class/fields';
+import { won } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 

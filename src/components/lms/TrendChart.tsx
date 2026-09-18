@@ -1,4 +1,4 @@
-import { fmtScore } from '@/config/lms';
+import { fmtScore } from '@/lib/format';
 
 /**
  * 회차별 점수 추이. 계열이 하나뿐이라 범례를 두지 않는다 — 제목이 이미 무엇인지 말한다.

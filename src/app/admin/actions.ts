@@ -2,12 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import {
-  isApplicationStatus,
-  isClassStatus,
-  isSlug,
-  CLASS,
-} from '@/config/class';
+import { isApplicationStatus, isClassStatus, CLASS } from '@/config/class';
 import { ADMIN_COOKIE, assertAdmin, issueSession, passwordMatches } from '@/lib/admin';
 import {
   deleteClass,
@@ -16,7 +11,8 @@ import {
   setApplicationStatus,
   uploadProof,
   type ClassInput,
-} from '@/lib/classes';
+} from '@/lib/class/classes';
+import { isSlug } from '@/lib/class/fields';
 
 /**
  * 서버 함수는 화면을 거치지 않고 POST 로 바로 불릴 수 있다.

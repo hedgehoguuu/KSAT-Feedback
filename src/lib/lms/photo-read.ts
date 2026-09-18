@@ -2,10 +2,10 @@ import 'server-only';
 import { after } from 'next/server';
 import { PHOTO_READ, PHOTO_READ_RETRYABLE } from '@/config/lms';
 import { db, inChunks, one, rows } from './db';
-import { listPhotos, type PhotoRow } from './feedback';
 import { getFile } from './files';
 import { ocrConfigured, readStudentAnswers, type OcrImage, type ReadTiming, type StudentReadResult } from './ocr';
 import { needsRead, readViewOf, type PhotoReadRow } from './photo-read-state';
+import { listPhotos, type PhotoRow } from './photos';
 
 /**
  * 학생 시험지 사진으로 자동 채점 (0016).

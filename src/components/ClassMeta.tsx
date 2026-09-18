@@ -1,5 +1,5 @@
-import { formatStartsOn } from '@/config/class';
-import type { ClassSummary } from '@/lib/classes';
+import type { ClassSummary } from '@/lib/class/classes';
+import { formatStartsOn } from '@/lib/class/fields';
 
 /**
  * 반 정보를 한 줄로 이어 붙이면(“매주 목요일 19:00–22:00 · 10월 16일 시작 · 4회 · 대치역…”)

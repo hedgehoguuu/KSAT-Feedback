@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readIntake } from '@/lib/intake';
+import { readIntake } from '@/lib/intake/switch';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

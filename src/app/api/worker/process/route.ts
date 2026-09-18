@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
+import { processPending, processSubmission } from '@/lib/intake/worker/process';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { workerAuthorized } from '@/lib/worker/auth';
-import { processPending, processSubmission } from '@/lib/worker/process';
+import { workerAuthorized } from '@/lib/worker-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

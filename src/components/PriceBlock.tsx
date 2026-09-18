@@ -1,4 +1,4 @@
-import { won } from '@/config/class';
+import { won } from '@/lib/format';
 
 /**
  * 수강료. 총액 하나만 보여주고, 그 값에 무엇이 들어 있는지를 바로 아래 체크 목록으로 편다.

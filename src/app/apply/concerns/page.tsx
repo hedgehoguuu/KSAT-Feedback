@@ -2,8 +2,8 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { filledSubjects } from '@/lib/flow';
-import { useApply } from '@/lib/store';
+import { filledSubjects } from '@/lib/intake/flow';
+import { useApply } from '@/lib/intake/store';
 
 /** ③단계 입구 — 첫 과목으로 넘긴다. 과목별 화면은 /apply/concerns/[subject] */
 export default function ConcernsEntry() {

@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { EXAMS, findExam, type ExamCode } from '@/config/exams';
 import { subjectLabel } from '@/config/subjects';
-import { useApply } from '@/lib/store';
+import { useApply } from '@/lib/intake/store';
 
 export default function ExamStep() {
   const router = useRouter();

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { ClassForm } from '@/components/ClassForm';
-import { getClass, signProofUrls } from '@/lib/classes';
+import { getClass, signProofUrls } from '@/lib/class/classes';
 
 export const dynamic = 'force-dynamic';
 

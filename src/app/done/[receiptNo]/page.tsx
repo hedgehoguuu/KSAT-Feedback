@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import { BRANDING, FEATURES, POLICY } from '@/config/app';
 import { findExam } from '@/config/exams';
 import { subjectLabel } from '@/config/subjects';
-import { useApply, useHydrated } from '@/lib/store';
+import { useApply, useHydrated } from '@/lib/intake/store';
 
 export default function DonePage() {
   const params = useParams<{ receiptNo: string }>();

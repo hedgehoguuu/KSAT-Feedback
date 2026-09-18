@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { BRANDING } from '@/config/app';
-import { getClass } from '@/lib/classes';
+import { getClass } from '@/lib/class/classes';
 
 export const dynamic = 'force-dynamic';
 

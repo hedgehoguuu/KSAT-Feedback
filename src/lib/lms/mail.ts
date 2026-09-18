@@ -1,6 +1,6 @@
 import 'server-only';
-import nodemailer from 'nodemailer';
 import { SUBJECT } from '@/config/lms';
+import { sendMail } from '@/lib/mail';
 import { siteUrl } from '@/lib/site';
 
 export type FeedbackMail = {
@@ -28,25 +28,10 @@ function escape(value: string): string {
 /**
  * 답변 PDF 를 학생에게 보낸다.
  *
- * 접수 확인 메일(worker/mail.ts) · 신청 알림(class-mail.ts)과 같은 Gmail SMTP 다.
+ * 보내는 길은 lib/mail.ts 에 있다 — 접수 확인 메일 · 신청 알림과 같은 Gmail SMTP 다.
  * 실패하면 던진다 — 부른 쪽이 그 사실을 응시 행에 적는다 (mail_error).
  */
 export async function sendFeedbackMail(input: FeedbackMail): Promise<void> {
-  const user = process.env.GMAIL_USER?.trim();
-  // 구글은 앱 비밀번호를 'abcd efgh ijkl mnop' 처럼 띄어서 보여준다. 그대로 붙여넣어도 되게 공백을 지운다.
-  const pass = process.env.GMAIL_APP_PASSWORD?.replace(/\s+/g, '');
-  if (!user || !pass) throw new Error('GMAIL_USER / GMAIL_APP_PASSWORD 가 없습니다');
-
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: { user, pass },
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 20_000,
-  });
-
   // 로컬에서는 도메인이 없어서 상대 경로만 남는다.
   const link = `${siteUrl() ?? ''}/lms/me/exams/${input.examId}`;
   const who = input.tutorName ? `${input.tutorName} 선생님` : '선생님';
@@ -77,8 +62,9 @@ export async function sendFeedbackMail(input: FeedbackMail): Promise<void> {
   </div>
 </div>`;
 
-  await transporter.sendMail({
-    from: `${SUBJECT.course} <${user}>`,
+  // PDF 가 붙어 있어서 보내는 데 조금 더 기다린다.
+  await sendMail({
+    fromName: SUBJECT.course,
     to: input.to,
     replyTo: input.replyTo ?? undefined,
     subject: `[답변] ${input.examTitle} — 남긴 질문 ${input.concernCount}개에 답을 달았어요`,
@@ -91,5 +77,5 @@ export async function sendFeedbackMail(input: FeedbackMail): Promise<void> {
         contentType: 'application/pdf',
       },
     ],
-  });
+  }, { socketTimeoutMs: 20_000 });
 }

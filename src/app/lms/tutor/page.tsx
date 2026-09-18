@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { Card, Empty, Shell } from '@/components/lms/Shell';
-import { COURSE_STATUS, fmtDay } from '@/config/lms';
+import { COURSE_STATUS } from '@/config/lms';
+import { fmtDay } from '@/lib/format';
 import { seoulDate, seoulStamp } from '@/lib/kst';
 import { requireRole } from '@/lib/lms/auth';
 import { listCourses } from '@/lib/lms/courses';
-import { pendingFeedback } from '@/lib/lms/feedback';
+import { pendingFeedback } from '@/lib/lms/lists';
 
 export const dynamic = 'force-dynamic';
 

@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { ProgressSteps } from '@/components/ProgressSteps';
 import { ExamSummary } from '@/components/ExamSummary';
+import { ProgressSteps } from '@/components/ProgressSteps';
 import { STEPS, stepByPath, stepIndex } from '@/config/steps';
-import { useApply, useHydrated } from '@/lib/store';
+import { useApply, useHydrated } from '@/lib/intake/store';
 
 export default function ApplyLayout({ children }: LayoutProps<'/apply'>) {
   const pathname = usePathname();

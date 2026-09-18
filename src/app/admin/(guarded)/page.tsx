@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import { CLASS_STATUS, won } from '@/config/class';
-import { listClasses } from '@/lib/classes';
+import { CLASS_STATUS } from '@/config/class';
+import { listClasses } from '@/lib/class/classes';
+import { won } from '@/lib/format';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';

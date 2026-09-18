@@ -1,8 +1,8 @@
 import 'server-only';
-import nodemailer from 'nodemailer';
 import { BRANDING } from '@/config/app';
 import type { Exam } from '@/config/exams';
 import { subjectLabel, type SubjectCode } from '@/config/subjects';
+import { sendMail } from '@/lib/mail';
 
 export type MailInput = {
   receiptNo: string;
@@ -12,34 +12,8 @@ export type MailInput = {
   subjects: { code: SubjectCode; photoCount: number; rawScore?: number | null }[];
 };
 
-export function mailConfigured(): boolean {
-  return Boolean(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
-}
-
-/**
- * 접수 확인 메일 (P1-1).
- *
- * Gmail SMTP 로 보낸다. 발신 주소를 그대로 쓰려면 이 방법뿐이다 —
- * 외부 발송 서비스는 도메인 인증을 요구하는데 gmail.com 은 우리가 인증할 수 없다.
- * 2단계 인증을 켠 계정에서 발급한 앱 비밀번호가 필요하다.
- */
+/** 접수 확인 메일 (P1-1). 보내는 길은 lib/mail.ts 에 있다. */
 export async function sendConfirmationMail(input: MailInput): Promise<void> {
-  const user = process.env.GMAIL_USER?.trim();
-  // 구글은 앱 비밀번호를 'abcd efgh ijkl mnop' 처럼 띄어서 보여준다. 그대로 붙여넣어도 되게 공백을 지운다.
-  const pass = process.env.GMAIL_APP_PASSWORD?.replace(/\s+/g, '');
-  if (!user || !pass) throw new Error('GMAIL_USER / GMAIL_APP_PASSWORD 가 없습니다');
-
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: { user, pass },
-    // 응답이 없을 때 함수 시간을 다 잡아먹지 않게 끊는다
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 15_000,
-  });
-
   // 원점수를 같이 보여줘서 잘못 적었으면 학생이 바로 알아채게 한다
   const summary = input.subjects
     .map((s) => {
@@ -48,8 +22,8 @@ export async function sendConfirmationMail(input: MailInput): Promise<void> {
     })
     .join(' / ');
 
-  await transporter.sendMail({
-    from: `${BRANDING.serviceName} <${user}>`,
+  await sendMail({
+    fromName: BRANDING.serviceName,
     to: input.to,
     subject: `[접수완료] ${input.receiptNo} · ${input.dueDate}까지 보내드릴게요`,
     text: textBody(input, summary),

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { findExam } from '@/config/exams';
-import { useApply } from '@/lib/store';
+import { useApply } from '@/lib/intake/store';
 
 /** 고른 시험이 이후 화면 상단에 계속 보인다 (FE-2 AC) */
 export function ExamSummary() {

@@ -6,14 +6,15 @@ import { PhotoReadPanel } from '@/components/lms/PhotoReadPanel';
 import { PhotoStrip } from '@/components/lms/PhotoStrip';
 import { Card, Shell, btnGhost } from '@/components/lms/Shell';
 import { requireRole } from '@/lib/lms/auth';
+import { listConcerns, progressOf } from '@/lib/lms/concerns';
 import { courseVisibleTo } from '@/lib/lms/courses';
 import { examBoard, loadGrading } from '@/lib/lms/exams';
-import { listConcerns, listPhotos, progressOf } from '@/lib/lms/feedback';
 import { signedUrls } from '@/lib/lms/files';
 import { findIntake } from '@/lib/lms/intake';
 import type { ReadAnswer } from '@/lib/lms/ocr-rows';
 import { getPhotoRead, photoReadConfigured } from '@/lib/lms/photo-read';
 import { readDiffers, readViewOf } from '@/lib/lms/photo-read-state';
+import { listPhotos } from '@/lib/lms/photos';
 import { applyPhotoReadForm, rereadPhotos, submitGrading } from '../../course-actions';
 
 export const dynamic = 'force-dynamic';
