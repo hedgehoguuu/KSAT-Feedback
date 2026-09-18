@@ -13,6 +13,9 @@ import { fitText, wrapText } from './wrap';
  *
  * 여기는 DB 도 저장소도 모른다. 모아 온 값(FeedbackDoc)과 폰트 바이트만 받아 PDF 바이트를
  * 돌려준다 — 그래서 시험에서 그대로 불러 모양을 확인할 수 있다 (test/logic.ts).
+ *
+ * 싣지 못한 풀이 사진은 그 자리에 글로 적고 끝까지 만든 뒤, 어느 질문이었는지 같이 돌려준다.
+ * 미리 보기는 그대로 보여 주고, 보내기는 거기서 멈춘다 (lib/lms/feedback.ts).
  */
 
 export type FeedbackGridCell = {
@@ -55,6 +58,12 @@ export type FeedbackDoc = {
 };
 
 export type FontFiles = { regular: Uint8Array; bold: Uint8Array };
+
+export type RenderedFeedback = {
+  pdf: Uint8Array;
+  /** 풀이 사진이 있는데 싣지 못한 질문의 번호 (0 = 시험 전체) */
+  missingImages: number[];
+};
 
 /* ───────────────────────────────────────────────────────────── 치수 · 색 */
 
@@ -438,7 +447,7 @@ function footers(w: Writer, doc: FeedbackDoc) {
 
 /* ──────────────────────────────────────────────────────────────── 조립 */
 
-export async function renderFeedbackPdf(doc: FeedbackDoc, fonts: FontFiles): Promise<Uint8Array> {
+export async function renderFeedbackPdf(doc: FeedbackDoc, fonts: FontFiles): Promise<RenderedFeedback> {
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkitForPdfLib);
   pdf.setTitle(`${doc.examTitle} 질문 답변 — ${doc.studentName}`, { showInWindowTitleBar: true });
@@ -459,11 +468,13 @@ export async function renderFeedbackPdf(doc: FeedbackDoc, fonts: FontFiles): Pro
       try {
         return c.image.type === 'png' ? await pdf.embedPng(c.image.bytes) : await pdf.embedJpg(c.image.bytes);
       } catch {
-        // 깨진 사진 한 장 때문에 PDF 전체가 안 나가면 안 된다. 그 자리는 글로 남긴다.
+        // 깨진 사진 한 장 때문에 PDF 를 못 만들면 미리 보기도 못 한다. 그 자리는 글로 남기고,
+        // 싣지 못했다는 것은 missingImages 로 알린다.
         return null;
       }
     }),
   );
+  const missingImages = doc.concerns.filter((c, i) => c.image && !images[i]).map((c) => c.no);
 
   header(w, doc);
   if (doc.score) scoreBlock(w, doc.score);
@@ -486,5 +497,5 @@ export async function renderFeedbackPdf(doc: FeedbackDoc, fonts: FontFiles): Pro
   }
 
   footers(w, doc);
-  return pdf.save();
+  return { pdf: await pdf.save(), missingImages };
 }

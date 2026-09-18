@@ -37,8 +37,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const built = await buildFeedback(id);
   if (!built) return new NextResponse('없는 응시예요', { status: 404 });
+  // 싣지 못한 풀이 사진은 그 자리에 글로 적혀 나온다. 보내기는 거기서 멈춘다 (sendFeedback).
   return pdfResponse(
-    await renderFeedback(built),
+    (await renderFeedback(built)).pdf,
     `[미리보기] ${feedbackFileName(built.exam.title, built.student.name)}`,
     'inline',
   );

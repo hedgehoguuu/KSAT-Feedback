@@ -9,7 +9,7 @@ import { loadGrading, type AttemptRow, type ExamRow } from './exams';
 import { getFile, paths, putFile, removeFilesQuietly } from './files';
 import { gradingSnapshot } from './grading-snapshot';
 import { sendFeedbackMail } from './mail';
-import { renderFeedbackPdf, type FeedbackDoc } from './pdf/feedback-pdf';
+import { renderFeedbackPdf, type FeedbackDoc, type RenderedFeedback } from './pdf/feedback-pdf';
 import { loadFonts } from './pdf/fonts';
 import type { AnswerRow, QuestionRow } from './score';
 import { getUser, type StudentRow, type UserRow } from './users';
@@ -65,7 +65,8 @@ export async function buildFeedback(attemptId: string): Promise<BuiltFeedback | 
         return { bytes: await getFile(c.answer_image_path), type };
       } catch (error) {
         console.error('[lms] 풀이 사진을 못 받았어요', c.answer_image_path, error);
-        // 빈 바이트로 넘기면 PDF 가 그 자리에 '사진을 싣지 못했어요' 라고 적는다.
+        // 빈 바이트로 넘기면 PDF 가 그 자리에 '사진을 싣지 못했어요' 라고 적고 missingImages 로 알린다.
+        // 미리 보기는 그대로 보이고, 보내기는 멈춘다 (sendFeedback).
         return { bytes: new Uint8Array(0), type };
       }
     }),
@@ -110,7 +111,7 @@ export async function buildFeedback(attemptId: string): Promise<BuiltFeedback | 
   return { doc, attempt, answers, questions, exam, course, student, tutor, concerns, scored };
 }
 
-export async function renderFeedback(built: BuiltFeedback): Promise<Uint8Array> {
+export async function renderFeedback(built: BuiltFeedback): Promise<RenderedFeedback> {
   return renderFeedbackPdf(built.doc, await loadFonts());
 }
 
@@ -120,7 +121,7 @@ export type MailOutcome =
   | { status: 'NOT_CONFIGURED' }
   | { status: 'FAILED'; error: string };
 
-export type SendRefusal = 'NOT_FOUND' | 'NO_CONCERNS' | 'UNANSWERED' | 'CHANGED' | 'REGRADED';
+export type SendRefusal = 'NOT_FOUND' | 'NO_CONCERNS' | 'UNANSWERED' | 'IMAGE_MISSING' | 'CHANGED' | 'REGRADED';
 
 export type SendOutcome =
   | { ok: true; mail: MailOutcome; published: boolean }
@@ -132,13 +133,16 @@ const READY_REFUSALS = new Set<string>(['NO_CONCERNS', 'UNANSWERED', 'CHANGED', 
  * 답이 다 달렸으면 PDF 를 만들어 보낸다. 이미 보낸 것을 고쳐 다시 보낼 때도 같은 길이다.
  *
  *   1) 다 달렸는지 본다 (화면에서도 막지만 여기서 다시)
- *   2) PDF 를 만들어 새 이름으로 올린다
- *   3) DB 가 같은 잠금 안에서 한 번 더 확인하고 '보냄' 으로 표시한다 — 여기서 거절되면
+ *   2) PDF 를 만든다. 풀이 사진을 하나라도 못 실었으면 여기서 멈춘다 — 사진으로만 단 답이면
+ *      답 없는 질문이 나가고, 보내면 학생 쪽이 잠겨 고칠 수도 없다. 저장소가 잠깐 안 됐으면
+ *      다시 누르면 되고, 사진이 깨졌으면 떼고 다시 붙인다. 아무것도 올리거나 표시하지 않았다.
+ *   3) 새 이름으로 올린다
+ *   4) DB 가 같은 잠금 안에서 한 번 더 확인하고 '보냄' 으로 표시한다 — 여기서 거절되면
  *      올린 PDF 를 지우고 멈춘다. PDF 에 점수가 들어갔으면 같은 잠금 안에서 두 가지를 더 한다:
  *      PDF 를 만들 때 읽은 판(정오와 정답표)이 지금도 같은지 보고(학생이 그사이 사진을 바꿔
  *      사진 채점이 비워졌거나 정답표가 고쳐졌으면 REGRADED 로 멈춘다), 아직 비공개면 점수를 연다.
  *      이미 공개한 응시에 다시 보낼 때도 판은 견준다 — 옛 점수가 든 PDF 가 나가면 안 된다.
- *   4) 메일을 보내고, 결과를 응시 행에 적는다. 메일이 안 가도 학생은 화면에서 받는다.
+ *   5) 메일을 보내고, 결과를 응시 행에 적는다. 메일이 안 가도 학생은 화면에서 받는다.
  */
 export async function sendFeedback(attemptId: string): Promise<SendOutcome> {
   const built = await buildFeedback(attemptId);
@@ -148,7 +152,9 @@ export async function sendFeedback(attemptId: string): Promise<SendOutcome> {
   const progress = progressOf(built.concerns);
   if (progress.missing.length > 0) return { ok: false, reason: 'UNANSWERED', missing: progress.missing };
 
-  const pdf = await renderFeedback(built);
+  const { pdf, missingImages } = await renderFeedback(built);
+  if (missingImages.length > 0) return { ok: false, reason: 'IMAGE_MISSING', missing: missingImages };
+
   const path = paths.feedback(attemptId);
   await putFile(path, pdf, 'application/pdf');
 
