@@ -322,15 +322,29 @@ const doc: FeedbackDoc = {
   ],
   overallComment: '방향을 정하는 연습을 해요.',
 };
-const pdfBytes = await renderFeedbackPdf(doc, fonts);
+const { pdf: pdfBytes, missingImages } = await renderFeedbackPdf(doc, fonts);
 const loaded = await PDFDocument.load(pdfBytes);
 ok('PDF 로 열린다', loaded.getPageCount() > 0);
 ok('긴 답은 쪽을 넘겨 흐른다', loaded.getPageCount() >= 3, loaded.getPageCount());
 ok('쓴 글자만 넣어 가볍다 (200KB 안)', pdfBytes.length < 200_000, pdfBytes.length);
 eq('제목이 들어간다', loaded.getTitle(), '3주차 · 강대K 5회 질문 답변 — 김가영');
 ok('깨진 풀이 사진이 있어도 멈추지 않는다', pdfBytes.length > 0);
+eq('싣지 못한 풀이 사진은 어느 질문인지 알린다 — 보내기가 여기서 멈춘다', missingImages, [0]);
+const unfetched = await renderFeedbackPdf(
+  { ...doc, concerns: [{ ...doc.concerns[0], image: { bytes: new Uint8Array(0), type: 'png' } }] },
+  fonts,
+);
+eq('못 받아 온 사진(빈 바이트)도 싣지 못한 것으로 친다', unfetched.missingImages, [12]);
+// 1×1 PNG. 멀쩡한 사진까지 빠졌다고 하면 답변 PDF 가 하나도 안 나간다.
+const dot = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+const photo = await renderFeedbackPdf(
+  { ...doc, concerns: [{ ...doc.concerns[0], image: { bytes: new Uint8Array(dot), type: 'png' } }] },
+  fonts,
+);
+eq('실은 풀이 사진은 빠진 것으로 치지 않는다', photo.missingImages, []);
 const unscored = await renderFeedbackPdf({ ...doc, score: null, overallComment: null, concerns: doc.concerns.slice(0, 1) }, fonts);
-ok('점수 없이도 만들어진다 (채점 전)', (await PDFDocument.load(unscored)).getPageCount() === 1);
+ok('점수 없이도 만들어진다 (채점 전)', (await PDFDocument.load(unscored.pdf)).getPageCount() === 1);
+eq('사진이 없는 질문만 있으면 빠진 사진도 없다', unscored.missingImages, []);
 
 /* ────────────────────────────────────────────────── 나눠 읽기 */
 

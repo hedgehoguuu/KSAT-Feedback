@@ -19,6 +19,8 @@ export const dynamic = 'force-dynamic';
 
 const ERRORS: Record<string, string> = {
   UNANSWERED: '아직 답을 안 단 질문이 있어 보내지 않았어요.',
+  IMAGE_MISSING:
+    '풀이 사진을 PDF 에 싣지 못해 보내지 않았어요. 잠시 뒤 다시 보내 보고, 그래도 안 되면 그 사진을 떼고 다시 붙여주세요.',
   CHANGED: '그사이 학생이 질문을 바꿨어요. 새 질문을 확인하고 다시 보내주세요.',
   REGRADED: '보내는 사이 채점이 바뀌었어요(학생이 사진을 바꾸면 사진으로 매긴 채점이 비워져요). 점수를 확인하고 다시 보내주세요.',
   NO_CONCERNS: '학생 질문이 하나도 없어 보낼 것이 없어요.',
@@ -126,7 +128,7 @@ export default async function FeedbackPage({ params, searchParams }: PageProps<'
         <p className="mt-4 rounded-xl bg-mark-soft px-4 py-3 text-[14px] font-bold leading-[1.6] text-mark" role="alert">
           {ERRORS[errorKey] ?? '보내지 못했어요. 다시 해주세요.'}
           {typeof flags.missing === 'string'
-            ? ` 남은 것: ${flags.missing
+            ? ` ${errorKey === 'IMAGE_MISSING' ? '사진을 못 실은 질문' : '남은 것'}: ${flags.missing
                 .split(',')
                 .map((n) => concernTopic(Number(n)))
                 .join(', ')}`
