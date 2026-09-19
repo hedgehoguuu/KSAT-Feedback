@@ -128,7 +128,7 @@ export function FeedbackAnswers({
       `${studentName} 학생에게 답변 PDF 를 ${sentAt ? '다시 ' : ''}보냅니다.`,
       '',
       `· 질문 ${concerns.length}개와 답`,
-      scored ? '· 점수와 정오표 (보내면 학생 화면에도 점수가 열려요)' : '· 점수는 채점이 끝나지 않아 빠져요',
+      scored ? '· 점수와 정오표' : '· 점수는 채점이 끝나지 않아 빠져요',
       mailTo ? `· 메일: ${mailTo}` : '· 학생 메일 주소가 없어 메일은 안 가요 (학생 화면에서 받아요)',
       '',
       sentAt ? '학생은 새 PDF 를 받게 돼요.' : '보낸 뒤에는 학생이 질문을 고칠 수 없어요.',

@@ -9,16 +9,15 @@ import { seoulDate, seoulStamp } from '@/lib/kst';
 import { requireRole } from '@/lib/lms/auth';
 import { courseVisibleTo } from '@/lib/lms/courses';
 import { examBoard, getExam, type BoardRow } from '@/lib/lms/exams';
-import { photoReadsOf, type PhotoReadRow } from '@/lib/lms/photo-read';
-import { readProgressOf } from '@/lib/lms/photo-read-state';
-import { publishExamGrades, removeExam, startGrading, updateExam } from '../../course-actions';
+import { scoreShown } from '@/lib/lms/score';
+import { removeExam, startGrading, updateExam } from '../../course-actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ExamPage({ params, searchParams }: PageProps<'/lms/exams/[id]'>) {
   const me = await requireRole('tutor', 'admin');
   const { id } = await params;
-  const { saved, published, skipped } = await searchParams;
+  const { saved } = await searchParams;
 
   const exam = await getExam(id);
   if (!exam) notFound();
@@ -26,21 +25,17 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
   if (!course) notFound();
 
   const board = await examBoard(exam);
-  const reads = await photoReadsOf(board.rows.flatMap((r) => (r.attempt ? [r.attempt.id] : [])));
   const { questions } = board;
   const keyed = questions.filter((q) => q.answer !== null).length;
   const tagged = questions.filter((q) => q.unit_code).length;
-  const gradedCount = board.rows.filter((r) => r.score.complete).length;
-  // 사진으로 다 매겨졌지만 튜터가 아직 열어 보지 않은 학생. 일괄 공개 전에 한 번 묻는다.
-  const unreviewed = board.rows.filter(
-    (r) => r.attempt?.answers_source === 'photo' && r.attempt.status !== 'published' && r.score.complete,
-  ).length;
+  // 채점 끝 = 선생님이 다 매겨 저장한 것. 학생에게 보이는 것과 같은 기준이다 (scoreShown).
+  const done = board.rows.filter((r) => r.attempt && scoreShown(r.attempt, r.score));
+  const gradedCount = done.length;
   const submittedCount = board.rows.filter((r) => r.attempt?.submitted_at).length;
   const sentCount = board.rows.filter((r) => r.attempt?.feedback_ready_at).length;
   const today = seoulDate();
   const overdue = Boolean(exam.due_date && exam.due_date < today);
 
-  const done = board.rows.filter((r) => r.score.complete);
   const pointBars = classBarsOf(done.map((r) => r.score.byPoints), board.stats.partAverages);
   const unitBars = classBarsOf(done.map((r) => r.score.units), board.stats.partAverages);
 
@@ -72,25 +67,10 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
       {saved ? (
         <p className="mt-4 rounded-xl bg-surface px-4 py-3 text-[14px]" role="status">저장했어요.</p>
       ) : null}
-      {published !== undefined ? (
-        <p className="mt-4 rounded-xl bg-surface px-4 py-3 text-[14px] leading-[1.6]" role="status">
-          {Number(published) > 0 ? `${published}명의 점수를 공개했어요.` : '새로 공개할 학생이 없었어요.'}
-          {Number(skipped) > 0 ? (
-            <span className="text-muted">
-              {' '}채점이 아직 안 끝난 {skipped}명은 그대로 뒀어요 — 반쪽짜리 점수는 공개하지 않아요.
-            </span>
-          ) : null}
-          {exam.status === 'draft' && Number(published) > 0 ? (
-            <span className="mt-1 block font-bold text-danger">
-              회차가 아직 &lsquo;준비 중&rsquo; 이라 학생에게는 안 보여요. 아래에서 &lsquo;학생에게 열림&rsquo; 으로 바꿔주세요.
-            </span>
-          ) : null}
-        </p>
-      ) : null}
       {exam.status === 'draft' ? (
         <p className="mt-4 rounded-xl bg-mark-soft px-4 py-3 text-[13px] font-bold leading-[1.6] text-mark">
           아직 학생에게 안 보이는 회차예요. 시험을 본 뒤 아래 &lsquo;회차 정보&rsquo; 에서 &lsquo;학생에게 열림&rsquo; 으로
-          바꾸면 학생들이 시험지 사진과 질문을 올릴 수 있어요.
+          바꾸면 학생들이 점수를 보고 시험지 사진과 질문을 올릴 수 있어요.
         </p>
       ) : null}
 
@@ -112,11 +92,7 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
           label="반 평균"
           value={board.stats.counted ? fmtScore(board.stats.average) : '—'}
           unit={board.stats.counted ? '점' : undefined}
-          note={
-            board.stats.counted
-              ? `최고 ${fmtScore(board.stats.highest)} · 최저 ${fmtScore(board.stats.lowest)}`
-              : '채점 끝난 학생만'
-          }
+          note={board.stats.counted ? `채점 끝난 ${board.stats.counted}명 · 학생에게는 이 평균만 보여요` : '채점 끝난 학생만'}
         />
       </div>
 
@@ -144,27 +120,7 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
           )}
         </Card>
 
-        <Card
-          title={`학생 ${board.rows.length}명`}
-          action={
-            <form action={publishExamGrades}>
-              <input type="hidden" name="exam_id" value={exam.id} />
-              {unreviewed > 0 ? (
-                <ConfirmSubmit
-                  className={btnGhost}
-                  disabled={gradedCount === 0}
-                  message={`채점 끝난 ${gradedCount}명 중 ${unreviewed}명은 사진으로 자동 채점한 뒤 아직 직접 확인하지 않았어요.\n\n사진에서 확실히 읽힌 답만 매긴 것이지만, 잘못 읽었을 수 있어요. 그대로 공개할까요?`}
-                >
-                  채점 끝난 {gradedCount}명 점수 공개
-                </ConfirmSubmit>
-              ) : (
-                <button type="submit" className={btnGhost} disabled={gradedCount === 0}>
-                  채점 끝난 {gradedCount}명 점수 공개
-                </button>
-              )}
-            </form>
-          }
-        >
+        <Card title={`학생 ${board.rows.length}명`}>
           {board.rows.length === 0 ? (
             <Empty>
               이 반에 수강생이 없어요.{' '}
@@ -192,7 +148,6 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
                     <StudentLine
                       key={row.student.id}
                       row={row}
-                      read={row.attempt ? (reads.get(row.attempt.id) ?? null) : null}
                       rank={board.stats.standings.find((s) => s.studentId === row.student.id)?.rank ?? 0}
                       examId={exam.id}
                       canGrade={questions.length > 0}
@@ -203,9 +158,9 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
             </div>
           )}
           <p className="mt-3 text-[13px] leading-[1.6] text-muted">
-            학생이 시험지 사진을 올리면 사진에서 학생 답을 읽어 채점을 채워요(&lsquo;자동&rsquo;). 확실히 읽힌 문항만 매기고,
-            애매한 문항은 &lsquo;확인&rsquo; 으로 남겨요. 학생이 올린 질문에 답을 다 달고 보내면 답변 PDF 가 학생 메일로 가요.
-            채점이 끝났으면 점수도 PDF 에 들어가고, 그때 학생 화면에도 점수가 열려요.
+            수업이 끝나면 학생마다 &lsquo;채점&rsquo; 을 눌러 걷은 OMR 을 찍어 올리세요. 마킹한 답을 읽어 칸을 채우고, 애매한
+            문항은 노랗게 남겨요. 확인하고 저장하면 30문항을 다 매긴 학생은 바로 학생 화면에 점수가 보여요. 학생이 올린
+            질문에 답을 다 달고 보내면 답변 PDF 가 학생 메일로 가요.
           </p>
         </Card>
 
@@ -253,9 +208,9 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
             <button type="submit" className={btn}>저장</button>
           </form>
           <p className="mt-3 text-[13px] leading-[1.6] text-muted">
-            &lsquo;학생에게 열림&rsquo; 이면 학생이 이 회차에 시험지 사진과 질문을 올릴 수 있어요. 점수는 따로 —
-            채점 화면에서 &lsquo;저장하고 점수 공개&rsquo; 를 누르거나 답변 PDF 를 보내야 그 학생에게 보여요.
-            답 달 기한은 학생 화면에 &lsquo;이 날 수업 전까지 답을 받아요&rsquo; 로 보여요.
+            &lsquo;학생에게 열림&rsquo; 이면 학생이 이 회차에 시험지 사진과 질문을 올리고, 채점이 끝난 자기 점수와 반 평균을 볼
+            수 있어요. 점수를 따로 공개하는 단계는 없어요. 답 달 기한은 학생 화면에 &lsquo;이 날 수업 전까지 답을 받아요&rsquo; 로
+            보여요.
           </p>
 
           <form action={removeExam} className="mt-4">
@@ -276,37 +231,26 @@ export default async function ExamPage({ params, searchParams }: PageProps<'/lms
 
 function StudentLine({
   row,
-  read,
   rank,
   examId,
   canGrade,
 }: {
   row: BoardRow;
-  read: PhotoReadRow | null;
   rank: number;
   examId: string;
   canGrade: boolean;
 }) {
   const { attempt, score, submission } = row;
-  const auto = attempt?.answers_source === 'photo';
-  // 반 화면은 읽은 결과를 펴 보지 않는다. 어디까지 왔는지만 — 사진 장수로 안다.
-  // (읽은 결과의 photo_ids 를 넘기면 아직 한 번도 안 끝난 읽기가 다 '시작 전' 이 된다.)
-  const readKind = readProgressOf(read, submission.photos);
+  // 0016 시절 학생 사진으로 채우고 아직 아무도 확인하지 않은 채점. 저장하면 선생님 채점이 된다.
+  const unconfirmed = attempt?.answers_source === 'photo';
 
   const gradeState = !attempt || score.graded === 0
-    ? readKind === 'reading'
-      ? '사진 읽는 중'
-      : '시작 전'
-    : !score.complete
-      ? auto
-        ? `자동 · 확인 ${score.count - score.graded}`
-        : `매기는 중 ${score.graded}/${score.count}`
-      : attempt.status === 'published'
-        ? '공개함'
-        : auto
-          ? '자동 · 끝 · 비공개'
-          : '끝 · 비공개';
-  const readProblem = readKind === 'failed' ? '사진 읽기 실패' : readKind === 'stuck' ? '사진 읽기 멈춤' : null;
+    ? '시작 전'
+    : unconfirmed
+      ? '자동 채점 · 확인 전'
+      : !score.complete
+        ? `매기는 중 ${score.graded}/${score.count}`
+        : '끝';
 
   const concernState = !attempt || submission.concerns === 0
     ? submission.photos > 0
@@ -339,10 +283,7 @@ function StudentLine({
       <td className={score.wrongNos.length > 0 ? 'text-mark' : 'text-muted'}>
         {score.graded > 0 ? score.wrongNos.join(', ') || '없음' : '—'}
       </td>
-      <td className={auto && !score.complete ? 'font-bold text-check' : 'text-muted'}>
-        {gradeState}
-        {readProblem ? <span className="ml-1 font-bold text-danger">· {readProblem}</span> : null}
-      </td>
+      <td className={unconfirmed ? 'font-bold text-check' : 'text-muted'}>{gradeState}</td>
       <td
         className={
           attempt?.submitted_at && !attempt.feedback_ready_at && submission.answered < submission.concerns

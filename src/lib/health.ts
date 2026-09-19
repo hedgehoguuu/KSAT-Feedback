@@ -10,7 +10,12 @@ export type Check = { ok: boolean; detail: string };
  * 여기 있는데 표에 없으면 /setup 이 빨갛게 짚는다 — 함수가 '있는지' 만 봐서는 옛 판인지 모른다.
  * 새 마이그레이션을 더하면 여기에도 한 줄 더한다. 이미 돌린 파일은 고치지 않고 새 번호로 낸다.
  */
-export const REQUIRED_MIGRATIONS = ['0017_lms_grading_guard', '0018_state_guards', '0019_apply_outcome'] as const;
+export const REQUIRED_MIGRATIONS = [
+  '0017_lms_grading_guard',
+  '0018_state_guards',
+  '0019_apply_outcome',
+  '0020_lms_tutor_grading',
+] as const;
 
 /** 표에 적힌 이름 가운데 빠진 것. 표가 없으면(0017 전) 전부 빠진 것이다. */
 async function missingMigrations(db: NonNullable<ReturnType<typeof supabaseAdmin>>): Promise<string[] | null> {
@@ -65,7 +70,6 @@ export async function getHealth(): Promise<Health> {
     rpcLocked: { ok: false, detail: '아직 확인 못 했어요' },
     lmsMath: { ok: false, detail: '아직 확인 못 했어요' },
     lmsBucket: { ok: false, detail: '아직 확인 못 했어요' },
-    lmsPhotoRead: { ok: false, detail: '아직 확인 못 했어요' },
     migrations: { ok: false, detail: '아직 확인 못 했어요' },
     bucket: { ok: false, detail: '아직 확인 못 했어요' },
     workerSchema: { ok: false, detail: '아직 확인 못 했어요' },
@@ -86,8 +90,8 @@ export async function getHealth(): Promise<Health> {
     photoRead: {
       ok: Boolean(process.env.ANTHROPIC_API_KEY),
       detail: process.env.ANTHROPIC_API_KEY
-        ? '학생 시험지 사진에서 답을 읽어 채점을 채워요 (정답표 사진 읽기도 돼요)'
-        : 'ANTHROPIC_API_KEY 가 없어요. 사진 자동 채점과 정답표 사진 읽기가 꺼져 있어요 — 손으로 매기는 것은 그대로 돼요',
+        ? '채점 화면에서 OMR 사진을 읽어 칸을 채워요 (정답표 사진 읽기도 돼요)'
+        : 'ANTHROPIC_API_KEY 가 없어요. OMR 사진 채점과 정답표 사진 읽기가 꺼져 있어요 — 손으로 매기는 것은 그대로 돼요',
     },
     workerSecret: {
       ok: Boolean(process.env.WORKER_SECRET),
@@ -111,7 +115,7 @@ export async function getHealth(): Promise<Health> {
 
   const db = supabaseAdmin();
   if (!db) {
-    for (const key of ['connection', 'tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'lmsMath', 'lmsBucket', 'lmsPhotoRead', 'migrations', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
+    for (const key of ['connection', 'tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'lmsMath', 'lmsBucket', 'migrations', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
       checks[key] = { ok: false, detail: 'Supabase 연결 전이라 확인할 수 없어요' };
     }
     return {
@@ -130,7 +134,7 @@ export async function getHealth(): Promise<Health> {
     const detail = sqlNotRun
       ? 'SQL 을 아직 실행하지 않았어요. supabase/migrations/0001_init.sql 을 SQL Editor 에서 실행해주세요'
       : '확인하지 못했어요';
-    for (const key of ['tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'lmsMath', 'lmsBucket', 'lmsPhotoRead', 'migrations', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
+    for (const key of ['tables', 'functions', 'settings', 'dailyCap', 'rawScore', 'applyAlert', 'rpcLocked', 'lmsMath', 'lmsBucket', 'migrations', 'bucket', 'workerSchema', 'classSchema', 'proofBucket']) {
       checks[key] = { ok: false, detail };
     }
     return {
@@ -160,7 +164,6 @@ export async function getHealth(): Promise<Health> {
     rpc_locked?: boolean;
     lms_math?: boolean;
     lms_bucket?: boolean;
-    lms_photo_read?: boolean;
   };
 
   checks.connection = { ok: true, detail: 'Supabase 에 정상적으로 닿았어요' };
@@ -224,13 +227,6 @@ export async function getHealth(): Promise<Health> {
     detail: status.lms_bucket
       ? '비공개 버킷 lms-files 가 있어요'
       : '버킷 lms-files 가 없거나 공개 상태예요. 0015_lms_math.sql 을 실행해주세요',
-  };
-  // 0016 을 안 돌리면 사진을 올릴 때마다 읽기를 부르다 실패한다 — 사진 저장은 되지만 자동 채점이 안 된다.
-  checks.lmsPhotoRead = {
-    ok: status.lms_photo_read === true,
-    detail: status.lms_photo_read
-      ? '사진 자동 채점 표와 함수가 있어요'
-      : '사진 자동 채점 표가 없어요. 0016_lms_photo_grading.sql 을 실행해주세요',
   };
   // 0017 부터는 파일마다 이름을 적는다. 이미 돌린 0016 을 고쳐 '다시 돌리세요' 라고 사람에게 맡겼다가,
   // 안 돌린 DB 에서도 여기가 초록불이던 일을 되풀이하지 않으려는 것이다.

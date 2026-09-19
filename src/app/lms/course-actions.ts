@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { CONCERN, LMS, PAPER, isPublishStatus } from '@/config/lms';
+import { CONCERN, LMS, OMR_READ, PAPER, isPublishStatus } from '@/config/lms';
 import { addDays } from '@/lib/format';
 import { assertRole, type SessionUser } from '@/lib/lms/auth';
 import { clearAnswerImage, listConcerns, saveConcernAnswers, setAnswerImage } from '@/lib/lms/concerns';
@@ -15,7 +15,6 @@ import {
   listAnswers,
   listQuestions,
   openAttempt,
-  publishGradedAttempts,
   saveAnswerKey,
   saveExam,
   saveGrading,
@@ -24,9 +23,8 @@ import {
 } from '@/lib/lms/exams';
 import { sendFeedback } from '@/lib/lms/feedback';
 import { changedNos, gradingSnapshot, parseSnapshot } from '@/lib/lms/grading-snapshot';
-import { readAnswerKey, type OcrResult } from '@/lib/lms/ocr';
+import { readAnswerKey, readOmr, type OcrImage, type OcrResult, type OmrReadResult } from '@/lib/lms/ocr';
 import { parseAnswer, unitFits } from '@/lib/lms/paper';
-import { applyPhotoRead, requestPhotoRead } from '@/lib/lms/photo-read';
 import { readJpeg } from '@/lib/lms/upload';
 import { resetPassword } from '@/lib/lms/users';
 
@@ -211,7 +209,7 @@ export async function startGrading(formData: FormData): Promise<void> {
 
   /**
    * 이 반 수강생만. 회차가 내 반인지만 보면, id 를 손으로 바꿔 보냈을 때 남의 반 학생의
-   * 응시가 이 회차에 생긴다 — 공개하면 그 학생 화면에 모르는 반의 성적이 뜬다.
+   * 응시가 이 회차에 생긴다 — 채점하면 그 학생 화면에 모르는 반의 성적이 뜬다.
    */
   const studentId = text(formData, 'student_id');
   if (!studentId || !(await isEnrolled(course.id, studentId))) redirect(`/lms/exams/${examId}`);
@@ -219,6 +217,29 @@ export async function startGrading(formData: FormData): Promise<void> {
   const attempt = await openAttempt(examId, studentId);
   const to = text(formData, 'to') === 'feedback' ? `/lms/attempts/${attempt.id}/feedback` : `/lms/attempts/${attempt.id}`;
   redirect(to);
+}
+
+/**
+ * 학생의 OMR 사진을 읽어 채점표 칸에 채울 초안을 돌려준다. **저장하지 않는다** — 채점표가 칸을
+ * 채우고, 선생님이 눈으로 확인하고 저장을 눌러야 채점이 된다. 사진도 서버에 남기지 않는다.
+ * 정답표 사진 읽기(extractAnswerKey)와 같은 태도다.
+ *
+ * 선생님이 화면 앞에서 기다리므로 바로 읽는다. 이 서버 함수의 시간 상한은 채점 화면의
+ * maxDuration(300초)이고, 읽기는 그보다 짧은 예산(OMR_READ.budgetMs) 안에서 끝낸다.
+ */
+export async function readOmrForm(formData: FormData): Promise<OmrReadResult> {
+  await assertAttempt(text(formData, 'attempt_id'));
+
+  const files = formData.getAll('photo').slice(0, OMR_READ.maxPhotos);
+  if (files.length === 0) return { ok: false, reason: 'NO_IMAGE' };
+
+  const images: OcrImage[] = [];
+  for (const file of files) {
+    const image = await readJpeg(file);
+    if (!image.ok) return { ok: false, reason: image.reason };
+    images.push({ media_type: 'image/jpeg', data: Buffer.from(image.bytes).toString('base64') });
+  }
+  return readOmr(images);
 }
 
 /**
@@ -230,9 +251,11 @@ export type GradingSaveState = null | { stale: true; base: string; changed: numb
 
 /**
  * 채점 한 판을 저장한다. 화면이 그릴 때 본 판(base — 정오와 정답표)이 아직 지금 것과 같을 때만.
- * 그사이 학생이 사진을 바꿔 사진 채점이 비워졌거나 새로 채워졌거나, 정답표가 고쳐졌으면
- * 아무것도 쓰지 않고 지금 판과 바뀐 문항을 돌려준다. 화면은 넘기지 않는다 — 튜터가 방금 매긴
- * 것을 날리지 않고, 무엇이 바뀌었는지 보여 주고 고르게 한다.
+ * 그사이 다른 창에서 이 학생의 채점을 저장했거나 정답표를 고쳐 다시 매겨졌으면 아무것도 쓰지
+ * 않고 지금 판과 바뀐 문항을 돌려준다. 화면은 넘기지 않는다 — 튜터가 방금 매긴 것을 날리지
+ * 않고, 무엇이 바뀌었는지 보여 주고 고르게 한다.
+ *
+ * 30문항을 다 매겨 저장하면 그때부터 학생 화면에 점수가 보인다 (scoreShown). 공개 단계는 없다.
  */
 export async function submitGrading(_state: GradingSaveState, formData: FormData): Promise<GradingSaveState> {
   const { attempt } = await assertAttempt(text(formData, 'attempt_id'));
@@ -256,15 +279,11 @@ export async function submitGrading(_state: GradingSaveState, formData: FormData
     .filter((a): a is NonNullable<typeof a> => a !== null);
 
   const base = parseSnapshot(text(formData, 'base'));
-  const status = text(formData, 'status');
   const outcome = await saveGrading({
     attemptId: attempt.id,
     answers,
     overallComment: optional(formData, 'overall_comment'),
-    status: isPublishStatus(status) ? status : 'draft',
     base,
-    // 0016 판 화면(배포 전에 열어 둔 것)은 base 대신 rev 를 보낸다
-    rev: optional(formData, 'rev'),
   });
 
   if (outcome === 'STALE') {
@@ -275,41 +294,6 @@ export async function submitGrading(_state: GradingSaveState, formData: FormData
 
   revalidatePath(`/lms/exams/${attempt.exam_id}`);
   redirect(`/lms/attempts/${attempt.id}?saved=1`);
-}
-
-/**
- * 학생 시험지 사진을 지금 다시 읽는다. 기다리지 않고 바로 읽고, 학생 쪽 횟수 상한도 없다.
- * 읽기는 응답을 보낸 뒤 뒤에서 돈다 — 채점 화면이 끝날 때까지 상태를 보여 준다.
- */
-export async function rereadPhotos(formData: FormData): Promise<void> {
-  const { attempt } = await assertAttempt(text(formData, 'attempt_id'));
-  const outcome = await requestPhotoRead(attempt.id, { by: 'tutor' });
-
-  revalidatePath(`/lms/exams/${attempt.exam_id}`);
-  redirect(`/lms/attempts/${attempt.id}?read=${outcome === 'QUEUED' ? 'queued' : 'off'}`);
-}
-
-/**
- * 사진에서 읽은 답으로 채점을 다시 채운다. 튜터가 매긴 채점도 덮는다 — 화면이 한 번 묻는다.
- * 총평은 그대로 둔다. 점수를 공개한 응시는 DB 가 막는다.
- */
-export async function applyPhotoReadForm(formData: FormData): Promise<void> {
-  const { attempt } = await assertAttempt(text(formData, 'attempt_id'));
-  const graded = await applyPhotoRead(attempt.id, true);
-
-  revalidatePath(`/lms/exams/${attempt.exam_id}`);
-  redirect(`/lms/attempts/${attempt.id}?read=${graded >= 0 ? 'applied' : 'kept'}`);
-}
-
-/** 채점이 끝난 학생을 한 번에 공개한다. 매기다 만 응시는 건드리지 않는다. */
-export async function publishExamGrades(formData: FormData): Promise<void> {
-  const examId = text(formData, 'exam_id');
-  const { exam } = await assertExam(examId);
-
-  const { published, skipped } = await publishGradedAttempts(exam);
-
-  revalidatePath(`/lms/exams/${examId}`);
-  redirect(`/lms/exams/${examId}?published=${published}&skipped=${skipped}`);
 }
 
 /* ──────────────────────────────────────────────────────── 질문에 답하기 */
@@ -343,7 +327,7 @@ export async function saveFeedbackAnswers(formData: FormData): Promise<void> {
   }
 
   revalidatePath('/lms/tutor');
-  redirect(`${base}?sent=1&mail=${outcome.mail.status}${outcome.published ? '&published=1' : ''}`);
+  redirect(`${base}?sent=1&mail=${outcome.mail.status}${outcome.scored ? '&scored=1' : ''}`);
 }
 
 export type UploadResult = { ok: true } | { ok: false; reason: string };

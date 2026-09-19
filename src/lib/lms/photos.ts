@@ -6,9 +6,8 @@ import { paths, putFile, removeFilesQuietly } from './files';
 /**
  * 학생이 올린 시험지 사진 (lms_attempt_photos). 응시 하나에 여러 장.
  *
- * 사진 줄이 생기거나 지워지는 순간 DB 가 사진으로 매긴 채점을 비운다 (0016 트리거).
- * 새 사진까지 읽은 결과로 다시 채우는 것은 사진 읽기(photo-read.ts)의 몫이다.
- * 순서만 바꾸는 것은 사진 묶음이 그대로라 채점을 건드리지 않는다.
+ * 질문에 답할 때 선생님이 보는 자료다. 채점과는 상관이 없다 — 채점은 선생님이 OMR 로 한다 (0020).
+ * 답을 보낸 시험의 사진은 DB 트리거가 넣지도 지우지도 못하게 막는다 (0018 · 0020).
  */
 
 export type PhotoRow = {
@@ -36,9 +35,6 @@ export async function listPhotos(attemptId: string): Promise<PhotoRow[]> {
 /**
  * 사진 한 장을 올린다. 파일을 먼저 올리고 줄을 만든다 — 줄을 못 만들면 파일을 도로 지운다.
  * 그러지 않으면 어디에도 안 보이는 시험지 사진이 저장소에 남는다.
- *
- * 줄이 생기는 순간 DB 가 사진으로 매긴 채점을 비운다 (0016 트리거). 새 사진까지 읽은 결과로
- * 다시 채우는 것은 사진 읽기(photo-read.ts)의 몫이다.
  */
 export async function addPhoto(attemptId: string, bytes: Uint8Array): Promise<PhotoRow | 'TOO_MANY' | 'LOCKED'> {
   const existing = await listPhotos(attemptId);
@@ -53,7 +49,7 @@ export async function addPhoto(attemptId: string, bytes: Uint8Array): Promise<Ph
       .insert({ attempt_id: attemptId, storage_path: path, order_index: next, bytes: bytes.byteLength })
       .select(PHOTO_COLS)
       .single();
-    // 올리는 사이 튜터가 답을 보냈다 — DB(0018 사진 트리거)가 막았다. 올린 파일은 아래에서 지운다.
+    // 올리는 사이 튜터가 답을 보냈다 — DB(사진 트리거)가 막았다. 올린 파일은 아래에서 지운다.
     if (error?.code === 'P0001' && error.message === 'LOCKED') {
       await removeFilesQuietly([path]);
       return 'LOCKED';
@@ -69,10 +65,10 @@ export async function addPhoto(attemptId: string, bytes: Uint8Array): Promise<Ph
 /**
  * 사진을 지운다. 이 응시의 사진이 아니면 'NOT_FOUND'.
  *
- * 한 장을 지울 때는 줄을 먼저 지운다. 답을 보낸 시험이면 DB 가 줄 지우기를 막는데(0018 사진
+ * 한 장을 지울 때는 줄을 먼저 지운다. 답을 보낸 시험이면 DB 가 줄 지우기를 막는데(사진
  * 트리거), 파일부터 지우면 거절돼도 사진은 이미 사라진다 — 보낸 PDF 와 튜터 화면의 사진이 깨진다.
- * 줄이 지워지는 순간 DB 가 사진으로 매긴 채점도 비운다 (0016 트리거). 그 뒤 파일 지우기가 실패하면
- * 저장소에 한 장이 남고 로그에 적힌다. (회차 · 반 · 계정을 통째로 지울 때는 파일을 먼저 지운다 — files.ts)
+ * 그 뒤 파일 지우기가 실패하면 저장소에 한 장이 남고 로그에 적힌다.
+ * (회차 · 반 · 계정을 통째로 지울 때는 파일을 먼저 지운다 — files.ts)
  */
 export async function removePhoto(attemptId: string, photoId: string): Promise<'OK' | 'NOT_FOUND' | 'LOCKED'> {
   const photo = await one<PhotoRow>(

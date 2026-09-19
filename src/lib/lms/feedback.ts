@@ -11,7 +11,7 @@ import { gradingSnapshot } from './grading-snapshot';
 import { sendFeedbackMail } from './mail';
 import { renderFeedbackPdf, type FeedbackDoc, type RenderedFeedback } from './pdf/feedback-pdf';
 import { loadFonts } from './pdf/fonts';
-import type { AnswerRow, QuestionRow } from './score';
+import { scoreShown, type AnswerRow, type QuestionRow } from './score';
 import { getUser, type StudentRow, type UserRow } from './users';
 
 /**
@@ -35,7 +35,7 @@ export type BuiltFeedback = {
   student: StudentRow;
   tutor: UserRow | null;
   concerns: ConcernRow[];
-  /** 채점이 끝나 점수가 PDF 에 들어갔는가 */
+  /** 선생님이 다 매겨 저장한 채점이라 점수가 PDF 에 들어갔는가 (학생 화면과 같은 기준 — scoreShown) */
   scored: boolean;
 };
 
@@ -72,7 +72,7 @@ export async function buildFeedback(attemptId: string): Promise<BuiltFeedback | 
     }),
   );
 
-  const scored = score.complete;
+  const scored = scoreShown(attempt, score);
   const doc: FeedbackDoc = {
     courseName: course.name,
     examTitle: exam.title,
@@ -124,7 +124,7 @@ export type MailOutcome =
 export type SendRefusal = 'NOT_FOUND' | 'NO_CONCERNS' | 'UNANSWERED' | 'IMAGE_MISSING' | 'CHANGED' | 'REGRADED';
 
 export type SendOutcome =
-  | { ok: true; mail: MailOutcome; published: boolean }
+  | { ok: true; mail: MailOutcome; scored: boolean }
   | { ok: false; reason: SendRefusal; missing?: number[] };
 
 const READY_REFUSALS = new Set<string>(['NO_CONCERNS', 'UNANSWERED', 'CHANGED', 'REGRADED']);
@@ -138,10 +138,10 @@ const READY_REFUSALS = new Set<string>(['NO_CONCERNS', 'UNANSWERED', 'CHANGED', 
  *      다시 누르면 되고, 사진이 깨졌으면 떼고 다시 붙인다. 아무것도 올리거나 표시하지 않았다.
  *   3) 새 이름으로 올린다
  *   4) DB 가 같은 잠금 안에서 한 번 더 확인하고 '보냄' 으로 표시한다 — 여기서 거절되면
- *      올린 PDF 를 지우고 멈춘다. PDF 에 점수가 들어갔으면 같은 잠금 안에서 두 가지를 더 한다:
- *      PDF 를 만들 때 읽은 판(정오와 정답표)이 지금도 같은지 보고(학생이 그사이 사진을 바꿔
- *      사진 채점이 비워졌거나 정답표가 고쳐졌으면 REGRADED 로 멈춘다), 아직 비공개면 점수를 연다.
- *      이미 공개한 응시에 다시 보낼 때도 판은 견준다 — 옛 점수가 든 PDF 가 나가면 안 된다.
+ *      올린 PDF 를 지우고 멈춘다. PDF 에 점수가 들어갔으면 PDF 를 만들 때 읽은 판(정오와 정답표)이
+ *      지금도 같은지 같은 잠금 안에서 본다 — 그사이 다른 창에서 채점을 저장했거나 정답표를 고쳐
+ *      다시 매겨졌으면 REGRADED 로 멈춘다. 학생 화면의 점수와 PDF 의 점수가 달라지면 안 된다.
+ *      점수를 여는 일은 여기서 하지 않는다 — 다 매겨 저장한 순간 이미 학생에게 보인다.
  *   5) 메일을 보내고, 결과를 응시 행에 적는다. 메일이 안 가도 학생은 화면에서 받는다.
  */
 export async function sendFeedback(attemptId: string): Promise<SendOutcome> {
@@ -158,19 +158,13 @@ export async function sendFeedback(attemptId: string): Promise<SendOutcome> {
   const path = paths.feedback(attemptId);
   await putFile(path, pdf, 'application/pdf');
 
-  const publish = built.scored && built.attempt.status !== 'published';
   const { error } = await db().rpc('mark_feedback_ready', {
     payload: {
       attempt_id: attemptId,
       path,
       concern_ids: built.concerns.map((c) => c.id),
-      publish,
       // 점수가 든 PDF 면 만들 때 읽은 판. DB 가 같은 모양으로 다시 줄 세워 견준다 (0018).
       ...(built.scored ? { base: gradingSnapshot(built.questions, built.answers) } : {}),
-      // 0017 판의 DB 는 base 를 모르고, 새로 공개할 때 이것으로 견준다.
-      answers: publish
-        ? built.answers.map((a) => ({ question_id: a.question_id, correct: a.correct, chosen: a.chosen }))
-        : [],
     },
   });
   if (error) {
@@ -188,7 +182,7 @@ export async function sendFeedback(attemptId: string): Promise<SendOutcome> {
 
   const mail = await mailFeedback(built, pdf);
   await recordMail(attemptId, mail);
-  return { ok: true, mail, published: publish };
+  return { ok: true, mail, scored: built.scored };
 }
 
 async function mailFeedback(built: BuiltFeedback, pdf: Uint8Array): Promise<MailOutcome> {

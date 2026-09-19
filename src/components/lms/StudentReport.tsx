@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { fmtDay, fmtRate, fmtScore } from '@/lib/format';
 import type { HistoryPoint, studentHistory } from '@/lib/lms/exams';
+import type { ClassAverage } from '@/lib/lms/score';
 import { RateBars, barsOf } from './RateBars';
 import { Card, Empty, Stat } from './Shell';
 import { TrendChart, type TrendPointView } from './TrendChart';
@@ -10,18 +11,21 @@ type History = Awaited<ReturnType<typeof studentHistory>>;
 /**
  * 한 학생의 누적. 튜터가 보는 화면과 학생 본인이 보는 화면이 같은 부품을 쓴다 —
  * 학생이 보는 숫자와 튜터가 보는 숫자가 다르면 대화가 성립하지 않는다.
- * 다른 것은 무엇이 보이느냐뿐이다(학생에게는 공개한 회차만 넘어온다).
+ * 다른 것은 무엇이 보이느냐뿐이다(학생에게는 다 매겨 저장한 회차만 넘어온다).
  */
 export function StudentReport({
   history,
   hrefFor,
   classAverages,
+  examAverages,
   referenceLabel = '반 평균',
 }: {
   history: History;
   /** 회차를 눌렀을 때 갈 곳. 튜터는 채점 화면으로, 학생은 그 시험 화면으로 간다. */
   hrefFor: (point: HistoryPoint) => string;
   classAverages?: Map<string, number>;
+  /** 회차 id → 그 회차 반 평균 (점). 학생에게 반과 견줄 것은 이것뿐이다. */
+  examAverages?: Map<string, ClassAverage>;
   /** 기준선이 어느 반 것인지. 학생이 두 반에 있으면 이름을 밝혀야 오해가 없다. */
   referenceLabel?: string;
 }) {
@@ -94,6 +98,7 @@ export function StudentReport({
                   <th>회차</th>
                   <th>날짜</th>
                   <th className="num">점수</th>
+                  {examAverages ? <th className="num">반 평균</th> : null}
                   {scored[0]?.score.sections.map((s) => (
                     <th key={s.code} className="num">{s.label}</th>
                   ))}
@@ -108,6 +113,11 @@ export function StudentReport({
                     <td className="num font-bold">
                       {fmtScore(p.score.earned)} / {fmtScore(p.score.total)}
                     </td>
+                    {examAverages ? (
+                      <td className="num text-muted">
+                        {examAverages.get(p.exam.id) ? fmtScore(examAverages.get(p.exam.id)!.average) : '—'}
+                      </td>
+                    ) : null}
                     {p.score.sections.map((s) => (
                       <td key={s.code} className="num">
                         {fmtScore(s.earned)} / {fmtScore(s.total)}

@@ -10,16 +10,13 @@ import { seoulStamp } from '@/lib/kst';
 import { requireRole } from '@/lib/lms/auth';
 import { isAnswered, listConcerns } from '@/lib/lms/concerns';
 import { getCourse, isEnrolled } from '@/lib/lms/courses';
-import { findAttempt, getExam, loadGrading } from '@/lib/lms/exams';
+import { examAverages, findAttempt, getExam, loadGrading } from '@/lib/lms/exams';
 import { signedUrls } from '@/lib/lms/files';
-import { getPhotoRead, photoReadConfigured } from '@/lib/lms/photo-read';
-import { readViewOf } from '@/lib/lms/photo-read-state';
 import { listPhotos } from '@/lib/lms/photos';
+import { scoreShown } from '@/lib/lms/score';
 import { movePaperPhoto, removePaperPhoto, saveMyConcerns, uploadPaperPhoto } from '../../../student-actions';
 
 export const dynamic = 'force-dynamic';
-// 사진을 올리면 이 화면의 서버 함수가 응답을 보낸 뒤 사진을 읽는다(자동 채점). 그 시간까지 준다.
-export const maxDuration = 300;
 
 const ERRORS: Record<string, string> = {
   locked: '선생님이 이미 답을 보낸 시험이라 더는 고칠 수 없어요.',
@@ -30,7 +27,8 @@ const ERRORS: Record<string, string> = {
 
 /**
  * 학생의 시험 한 회차. 시험이 끝나면 여기서 시험지를 올리고 질문을 적고,
- * 답이 오면 여기서 PDF 를 받는다. 점수는 선생님이 공개한 뒤에만 보인다.
+ * 답이 오면 여기서 PDF 를 받는다. 점수는 선생님이 30문항을 다 매겨 저장하면 보인다.
+ * 반과 견줄 것은 반 평균 하나뿐이다.
  */
 export default async function MyExamPage({ params, searchParams }: PageProps<'/lms/me/exams/[examId]'>) {
   const me = await requireRole('student');
@@ -42,14 +40,15 @@ export default async function MyExamPage({ params, searchParams }: PageProps<'/l
   if (!exam || exam.status !== 'published' || !(await isEnrolled(exam.course_id, me.id))) notFound();
 
   const [course, attempt] = await Promise.all([getCourse(exam.course_id), findAttempt(exam.id, me.id)]);
-  const [photos, concerns, read] = attempt
-    ? await Promise.all([listPhotos(attempt.id), listConcerns(attempt.id), getPhotoRead(attempt.id)])
-    : [[], [], null];
-  // 학생에게는 읽은 답을 보이지 않는다. 다시 찍어야 할 사진이 있는지만 알린다.
-  const readView = readViewOf(read, photos.map((p) => p.id));
+  const [photos, concerns] = attempt
+    ? await Promise.all([listPhotos(attempt.id), listConcerns(attempt.id)])
+    : [[], []];
 
   const locked = Boolean(attempt?.feedback_ready_at);
-  const grading = attempt?.status === 'published' ? await loadGrading(attempt.id) : null;
+  // 선생님이 매겨 저장한 채점만 읽는다. 30문항이 다 찼을 때만 보인다 (scoreShown).
+  const loaded = attempt?.answers_source === 'tutor' ? await loadGrading(attempt.id) : null;
+  const grading = loaded && scoreShown(loaded.attempt, loaded.score) ? loaded : null;
+  const average = grading ? ((await examAverages([exam.id])).get(exam.id) ?? null) : null;
   const urls = await signedUrls([
     ...photos.map((p) => p.storage_path),
     ...(locked ? concerns.map((c) => c.answer_image_path).filter((p): p is string => Boolean(p)) : []),
@@ -107,7 +106,7 @@ export default async function MyExamPage({ params, searchParams }: PageProps<'/l
         <div className="glass-solid mt-4 rounded-2xl px-4 py-4">
           <p className="text-[15px] font-extrabold">시험 끝났나요? 두 가지만 해주세요</p>
           <ol className="mt-2 flex flex-col gap-1 text-[14px] leading-[1.7]">
-            <li>① 풀이한 시험지를 찍어 올려요.</li>
+            <li>① 풀이한 시험지를 찍어 올려요. 선생님이 내 풀이를 보고 답해 줄 수 있게요.</li>
             <li>② 문항마다 막혔던 것을 적고 제출해요. 무엇을 떠올리지 못했는지가 가장 좋은 질문이에요.</li>
           </ol>
           <p className="mt-2 text-[13px] text-muted">
@@ -157,15 +156,11 @@ export default async function MyExamPage({ params, searchParams }: PageProps<'/l
             upload={uploadPaperPhoto}
             remove={removePaperPhoto}
             move={movePaperPhoto}
-            reading={readView.kind === 'reading'}
-            unreadable={readView.kind === 'done' ? readView.unreadable : []}
           />
           {!locked ? (
             <p className="mt-3 text-[12px] leading-[1.6] text-muted">
-              {LMS.maxPhotos}장까지 올릴 수 있어요. 사진은 나와 선생님만 볼 수 있어요.
-              {photoReadConfigured()
-                ? ' 채점을 돕기 위해 AI(Claude)가 사진에서 내가 고른 답을 읽어요. 답안지(OMR)나 답을 모아 적은 종이가 있으면 같이 찍어주세요.'
-                : ''}
+              {LMS.maxPhotos}장까지 올릴 수 있어요. 질문한 문항의 풀이가 보이게 찍어 주세요. 사진은 나와 선생님만 볼
+              수 있어요.
             </p>
           ) : null}
         </Card>
@@ -189,6 +184,7 @@ export default async function MyExamPage({ params, searchParams }: PageProps<'/l
             answers={grading.answers}
             score={grading.score}
             overallComment={grading.attempt.overall_comment}
+            classAverage={average}
           />
         ) : attempt ? (
           <p className="text-[13px] leading-[1.6] text-muted">점수는 선생님이 채점을 마치면 여기에 나와요.</p>

@@ -13,6 +13,7 @@ import { loadGrading } from '@/lib/lms/exams';
 import { mailErrorText } from '@/lib/lms/feedback';
 import { signedUrls } from '@/lib/lms/files';
 import { listPhotos } from '@/lib/lms/photos';
+import { scoreShown } from '@/lib/lms/score';
 import { removeAnswerImage, saveFeedbackAnswers, uploadAnswerImage } from '../../../course-actions';
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,7 @@ const ERRORS: Record<string, string> = {
   IMAGE_MISSING:
     '풀이 사진을 PDF 에 싣지 못해 보내지 않았어요. 잠시 뒤 다시 보내 보고, 그래도 안 되면 그 사진을 떼고 다시 붙여주세요.',
   CHANGED: '그사이 학생이 질문을 바꿨어요. 새 질문을 확인하고 다시 보내주세요.',
-  REGRADED: '보내는 사이 채점이 바뀌었어요(학생이 사진을 바꾸면 사진으로 매긴 채점이 비워져요). 점수를 확인하고 다시 보내주세요.',
+  REGRADED: '보내는 사이 채점이 바뀌었어요(다른 창에서 채점을 저장했거나 정답표를 고쳤어요). 점수를 확인하고 다시 보내주세요.',
   NO_CONCERNS: '학생 질문이 하나도 없어 보낼 것이 없어요.',
   NOT_FOUND: '이 응시를 찾지 못했어요.',
   long: `답이 너무 길어요. 한 질문에 ${CONCERN.maxAnswer}자까지예요.`,
@@ -45,6 +46,8 @@ export default async function FeedbackPage({ params, searchParams }: PageProps<'
   const course = await courseVisibleTo(data.exam.course_id, me);
   if (!course) notFound();
   const { attempt, exam, student, questions, answers, score } = data;
+  // PDF 에 점수가 들어가는 기준은 학생 화면과 같다 — 선생님이 다 매겨 저장한 채점 (scoreShown).
+  const scored = scoreShown(attempt, score);
 
   const [photos, concerns] = await Promise.all([listPhotos(attempt.id), listConcerns(attempt.id)]);
   const urls = await signedUrls([
@@ -121,7 +124,7 @@ export default async function FeedbackPage({ params, searchParams }: PageProps<'
       {flags.sent ? (
         <p className="mt-4 rounded-xl bg-brand/10 px-4 py-3 text-[14px] font-bold leading-[1.6] text-brand" role="status">
           답변 PDF 를 보냈어요. {MAIL[String(flags.mail)] ?? ''}
-          {flags.published ? ' 채점이 끝나 있어 학생 화면에도 점수를 열었어요.' : ''}
+          {flags.scored ? ' 점수와 정오표도 함께 넣었어요.' : ''}
         </p>
       ) : null}
       {errorKey ? (
@@ -152,7 +155,7 @@ export default async function FeedbackPage({ params, searchParams }: PageProps<'
       ) : null}
 
       <div className="mt-5 flex flex-col gap-5">
-        <Card title={`시험지 사진 ${photos.length}장`}>
+        <Card title={`학생이 올린 시험지 사진 ${photos.length}장`}>
           <PhotoStrip
             photos={photos.map((p) => ({ id: p.id, url: urls.get(p.storage_path) ?? null }))}
             empty="학생이 아직 시험지 사진을 올리지 않았어요."
@@ -167,22 +170,16 @@ export default async function FeedbackPage({ params, searchParams }: PageProps<'
             </li>
             <li>
               <span className="font-bold">점수와 정오표</span>{' '}
-              {score.complete ? (
+              {scored ? (
                 <span className="text-muted">
                   — {fmtScore(score.earned)}점 · 틀린 문항 {score.wrongNos.join(', ') || '없음'}.
-                  {attempt.status !== 'published' ? ' 보내면 학생 화면에도 점수가 열려요.' : ''}
-                  {attempt.answers_source === 'photo' && attempt.status !== 'published' ? (
-                    <span className="font-bold text-check">
-                      {' '}사진으로 자동 채점한 점수예요 —{' '}
-                      <Link href={`/lms/attempts/${attempt.id}`} className="underline underline-offset-2">
-                        채점 화면에서 확인하기
-                      </Link>
-                    </span>
-                  ) : null}
                 </span>
               ) : (
                 <span className="text-mark">
-                  — 채점이 끝나지 않아 빠져요 ({score.graded}/{score.count}).{' '}
+                  —{' '}
+                  {score.complete
+                    ? '자동으로 채운 채점을 아직 확인하지 않아 빠져요.'
+                    : `채점이 끝나지 않아 빠져요 (${score.graded}/${score.count}).`}{' '}
                   <Link href={`/lms/attempts/${attempt.id}`} className="underline underline-offset-2">
                     채점하기
                   </Link>
@@ -219,7 +216,7 @@ export default async function FeedbackPage({ params, searchParams }: PageProps<'
             studentName={student.name}
             mailTo={student.email}
             previewHref={`/lms/attempts/${attempt.id}/pdf`}
-            scored={score.complete}
+            scored={scored}
           />
         )}
       </div>

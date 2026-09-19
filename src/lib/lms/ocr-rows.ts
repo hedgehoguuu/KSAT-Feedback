@@ -66,13 +66,13 @@ export function normalizeExtracted(questions: Extracted[]): {
   return { rows, unread, conflicts: [...conflicts].sort((a, b) => a - b) };
 }
 
-/* ─────────────────────────────────────────────── 학생 시험지에서 읽은 답 */
+/* ──────────────────────────────────────────────────────── OMR 에서 읽은 답 */
 
 /**
- * 사진에서 읽은 학생 답 한 문항. 합친 뒤에는 1–30 번에 한 줄씩 있다.
+ * OMR 에서 읽은 학생 답 한 문항. 합친 뒤에는 1–30 번에 한 줄씩 있다.
  *
  * answer 가 null 이면 빈칸이거나 못 읽은 것이고, 둘은 sure 로 가른다 — 빈칸이 확실하면
- * sure 다. 채점에는 sure 인 줄만 들어간다 (0016 apply_photo_read_locked).
+ * sure 다. 채점표에는 sure 인 줄만 채워진다 (omr-fill.ts). 나머지는 선생님이 본다.
  */
 export type ReadAnswer = {
   no: number;
@@ -82,16 +82,13 @@ export type ReadAnswer = {
   note: string | null;
 };
 
-/** 모델 요청 한 번의 결과. 사진을 몇 장씩 나눠 보내서 여러 개가 온다. */
-export type ReadBatch = {
-  /** 이 요청에 보낸 첫 사진의 순번(0부터) */
-  offset: number;
-  /** 이 요청에 보낸 사진 수 */
-  count: number;
-  answers: { no: number; answer: number | null; sure: boolean; note: string | null }[];
-  /** 모델이 매긴 사진 번호(이 요청 안에서 1부터) */
-  unreadable_photos: number[];
-};
+/** OMR 읽기 한 번의 결과. 채점 화면(브라우저)이 받으므로 server-only 가 아닌 이 파일에 둔다. */
+export type OmrReadResult =
+  | { ok: true; answers: ReadAnswer[]; unreadable: number[]; note: string }
+  | { ok: false; reason: string };
+
+/** 모델이 준 한 줄. 구조화 출력이 보장하는 것은 키와 자료형까지다 — 값은 아래에서 다시 거른다. */
+export type RawRead = { no: number; answer: number | null; sure: boolean; note: string | null };
 
 export const READ_NOTES = {
   missing: '사진에서 이 문항을 찾지 못했어요',
@@ -116,13 +113,14 @@ type Merging = ReadAnswer & {
 };
 
 /**
- * 같은 문항이 여러 사진에서 읽혔을 때 하나로 합친다. 읽힌 순서와 상관없이 같은 답이 나온다.
+ * 같은 문항이 두 번 읽혔을 때(반씩 나눠 찍은 두 장에 걸친 번호) 하나로 합친다. 읽힌 순서와
+ * 상관없이 같은 답이 나온다.
  *
  *   · 답이 둘 다 있고 다르면 **비우고 잠근다**. 한쪽을 고르면 틀린 쪽을 고른 날 조용히
  *     틀린 채점이 된다.
  *   · 올 수 없는 답으로 읽힌 적이 있으면 확실하지 않다 — 다른 사진의 답이 있어도 확인한다.
  *   · 같은 답이면 한쪽이라도 확실할 때 확실하다.
- *   · 답과 빈칸이 만나면 답을 쓴다 — 문제지는 비워 두고 답안지에만 표시하는 학생이 많다.
+ *   · 답과 빈칸이 만나면 답을 쓴다 — 한 장에서는 잘려서 비어 보였을 수 있다.
  *   · 확실한 빈칸과 못 읽은 것이 만나면 못 읽은 쪽이다 — 흐린 사진에 답이 있었을 수 있다.
  */
 function combine(a: Merging, b: Merging): Merging {
@@ -151,32 +149,29 @@ function combine(a: Merging, b: Merging): Merging {
 }
 
 /**
- * 요청 여러 번의 결과를 1–30 번 한 벌로 합친다. 모델이 준 것은 여기서 다시 거른다 —
- * 구조화 출력이 보장하는 것은 키와 자료형까지다.
+ * 모델이 준 것을 1–30 번 한 벌로 다듬는다. 여기가 진짜 방어선이다.
  *
  *   · 1–30 이 아닌 번호는 버린다.
- *   · 그 번호에 올 수 없는 답(5지선다에 7)은 못 읽은 것으로 두고, 다른 사진의 답과 만나면
+ *   · 그 번호에 올 수 없는 답(5지선다에 7)은 못 읽은 것으로 두고, 같은 번호의 다른 답과 만나면
  *     그 답도 확실하지 않은 것으로 내린다.
  *   · 어느 사진에서도 안 보인 번호는 '찾지 못함' 으로 채운다.
- *   · 못 읽은 사진 번호는 요청 안의 번호(1부터)를 전체 순번(0부터)으로 바꾼다.
+ *   · 못 읽은 사진 번호(1부터)는 0부터의 순번으로 바꾸고, 보낸 장수를 넘는 번호는 버린다.
  */
-export function mergeStudentReads(batches: ReadBatch[]): { answers: ReadAnswer[]; unreadable: number[] } {
+export function mergeReads(
+  raw: RawRead[],
+  unreadablePhotos: number[],
+  photoCount: number,
+): { answers: ReadAnswer[]; unreadable: number[] } {
   const byNo = new Map<number, Merging>();
-  const unreadable = new Set<number>();
 
-  for (const batch of batches) {
-    for (const raw of batch.answers) {
-      if (!isQuestionNo(raw.no)) continue;
-      const entry: Merging =
-        raw.answer === null || isValidAnswer(raw.no, raw.answer)
-          ? { no: raw.no, answer: raw.answer, sure: raw.sure === true, note: cleanNote(raw.note) }
-          : { no: raw.no, answer: null, sure: false, note: READ_NOTES.invalid(raw.answer), odd: raw.answer };
-      const seen = byNo.get(raw.no);
-      byNo.set(raw.no, seen ? combine(seen, entry) : entry);
-    }
-    for (const k of batch.unreadable_photos) {
-      if (Number.isInteger(k) && k >= 1 && k <= batch.count) unreadable.add(batch.offset + k - 1);
-    }
+  for (const r of raw) {
+    if (!isQuestionNo(r.no)) continue;
+    const entry: Merging =
+      r.answer === null || isValidAnswer(r.no, r.answer)
+        ? { no: r.no, answer: r.answer, sure: r.sure === true, note: cleanNote(r.note) }
+        : { no: r.no, answer: null, sure: false, note: READ_NOTES.invalid(r.answer), odd: r.answer };
+    const seen = byNo.get(r.no);
+    byNo.set(r.no, seen ? combine(seen, entry) : entry);
   }
 
   const answers = PAPER.map((p): ReadAnswer => {
@@ -186,21 +181,9 @@ export function mergeStudentReads(batches: ReadBatch[]): { answers: ReadAnswer[]
     return { no: found.no, answer: found.answer, sure: found.sure, note: found.sure ? null : found.note };
   });
 
-  return { answers, unreadable: [...unreadable].sort((a, b) => a - b) };
-}
+  const unreadable = [
+    ...new Set(unreadablePhotos.filter((k) => Number.isInteger(k) && k >= 1 && k <= photoCount).map((k) => k - 1)),
+  ].sort((a, b) => a - b);
 
-/** 읽은 결과를 한눈에. 튜터 화면과 반 화면이 같이 쓴다. */
-export function readSummary(answers: ReadAnswer[]): {
-  /** 확실히 읽힌 문항 수 (빈칸 포함) */
-  sure: number;
-  /** 사람이 확인해야 하는 번호 */
-  check: number[];
-  /** 확실한 빈칸 — 틀린 것으로 매겨진다 */
-  blanks: number[];
-} {
-  return {
-    sure: answers.filter((a) => a.sure).length,
-    check: answers.filter((a) => !a.sure).map((a) => a.no),
-    blanks: answers.filter((a) => a.sure && a.answer === null).map((a) => a.no),
-  };
+  return { answers, unreadable };
 }

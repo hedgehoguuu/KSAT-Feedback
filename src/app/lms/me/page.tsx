@@ -6,7 +6,7 @@ import { fmtDay, fmtScore } from '@/lib/format';
 import { seoulDate } from '@/lib/kst';
 import { requireRole } from '@/lib/lms/auth';
 import { coursesOfStudent } from '@/lib/lms/courses';
-import { studentHistory } from '@/lib/lms/exams';
+import { examAverages, studentHistory } from '@/lib/lms/exams';
 import { studentExams, type StudentExamItem } from '@/lib/lms/lists';
 
 export const dynamic = 'force-dynamic';
@@ -18,9 +18,11 @@ export default async function StudentHome({ searchParams }: PageProps<'/lms/me'>
   const [courses, exams, history] = await Promise.all([
     coursesOfStudent(me.id),
     studentExams(me.id),
-    // 공개한 채점만. 매기는 도중의 반쪽짜리 점수가 학생에게 보이면 안 된다.
-    studentHistory(me.id, { publishedOnly: true }),
+    // 선생님이 다 매겨 저장한 채점만. 매기는 도중의 반쪽짜리 점수가 학생에게 보이면 안 된다.
+    studentHistory(me.id, { forStudent: true }),
   ]);
+  // 반과 견줄 것은 회차별 반 평균 하나뿐이다 — 한 반이 두세 명이라 그 밖의 것은 곧 친구의 점수다.
+  const averages = await examAverages(history.points.map((p) => p.exam.id));
   const scoreByExam = new Map(history.points.map((p) => [p.exam.id, p.score]));
   const today = seoulDate();
 
@@ -77,7 +79,7 @@ export default async function StudentHome({ searchParams }: PageProps<'/lms/me'>
         </Card>
 
         {history.points.length > 0 ? (
-          <StudentReport history={history} hrefFor={(p) => `/lms/me/exams/${p.exam.id}`} />
+          <StudentReport history={history} hrefFor={(p) => `/lms/me/exams/${p.exam.id}`} examAverages={averages} />
         ) : null}
       </div>
 

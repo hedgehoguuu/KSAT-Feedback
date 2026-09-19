@@ -5,13 +5,13 @@ import { Shell } from '@/components/lms/Shell';
 import { StudentReport } from '@/components/lms/StudentReport';
 import { requireRole } from '@/lib/lms/auth';
 import { coursesOfStudent, courseVisibleTo } from '@/lib/lms/courses';
-import { courseSummary, studentHistory } from '@/lib/lms/exams';
+import { courseSummary, examAverages, studentHistory } from '@/lib/lms/exams';
 import { findIntake } from '@/lib/lms/intake';
 import { getStudent } from '@/lib/lms/users';
 
 export const dynamic = 'force-dynamic';
 
-/** 튜터가 보는 학생 한 명의 누적. 학생 본인 화면과 같은 부품을 쓰되 비공개 회차까지 보인다. */
+/** 튜터가 보는 학생 한 명의 누적. 학생 본인 화면과 같은 부품을 쓰되 매기는 중인 회차까지 보인다. */
 export default async function StudentDetailPage({ params, searchParams }: PageProps<'/lms/students/[id]'>) {
   const me = await requireRole('tutor', 'admin');
   const { id } = await params;
@@ -36,15 +36,17 @@ export default async function StudentDetailPage({ params, searchParams }: PagePr
   const context = asked ?? mine[0]!;
 
   const [history, summary, intake] = await Promise.all([
-    // 튜터는 자기 반 회차만. 학생이 다른 튜터 반도 들으면 그 반의 미공개 채점까지 딸려 온다.
+    // 튜터는 자기 반 회차만. 학생이 다른 튜터 반도 들으면 그 반의 채점과 총평까지 딸려 온다.
     studentHistory(id, {
-      publishedOnly: false,
+      forStudent: false,
       courseIds: me.role === 'admin' ? undefined : mine.map((c) => c!.id),
     }),
     courseSummary(context.id),
     // 9월 시험지 피드백에 적어 준 고민. 접수번호를 안 적었거나 못 찾으면 null 이다.
     findIntake(student.profile?.receipt_no),
   ]);
+  // 회차별 반 평균 — 학생 화면에 보이는 것과 같은 값이다.
+  const averages = await examAverages(history.points.map((p) => p.exam.id));
 
   return (
     <Shell user={me}>
@@ -68,7 +70,7 @@ export default async function StudentDetailPage({ params, searchParams }: PagePr
       </p>
 
       <p className="mt-1 text-[13px] text-muted">
-        아직 공개하지 않은 회차도 여기서는 보여요. 학생에게는 공개한 것만 보입니다.
+        매기는 중인 회차도 여기서는 보여요. 학생에게는 30문항을 다 매겨 저장한 회차만 보여요.
         {mine.length > 1 ? ` 반 평균은 ${context.name} 기준이에요.` : ''}
       </p>
 
@@ -83,6 +85,7 @@ export default async function StudentDetailPage({ params, searchParams }: PagePr
           history={history}
           hrefFor={(p) => `/lms/attempts/${p.attempt.id}`}
           classAverages={summary.partAverages}
+          examAverages={averages}
           referenceLabel={`${context.name} 평균`}
         />
       </div>

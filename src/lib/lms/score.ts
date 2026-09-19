@@ -142,6 +142,24 @@ export function scoreAttempt(questions: QuestionRow[], answers: AnswerRow[]): At
   };
 }
 
+/* ─────────────────────────────────────────────────── 학생에게 보이는 점수 */
+
+/**
+ * 이 채점이 학생에게 보이는가 — 선생님이 매겨 저장한 채점(answers_source = tutor)이 문항을 다
+ * 채웠을 때다. 따로 '공개' 를 누르는 단계는 없다 (0020). 수업이 끝나면 학생은 자기 점수를 이미
+ * 알고, 이 사이트는 그 뒤의 학습 관리를 위한 곳이다.
+ *
+ *   · 덜 매긴 채점은 안 보인다 — 반쯤 매긴 점수는 낮은 점수로 읽힌다.
+ *   · OMR 을 읽어 칸을 채운 것만으로는 채점이 아니다. 선생님이 확인하고 저장해야 한다.
+ *     (0016 시절 학생 사진으로 채우고 확인하지 않은 채점은 answers_source 가 photo 라 안 보인다.)
+ *
+ * 회차가 '학생에게 열림' 인지는 부르는 쪽이 본다 — 닫힌 회차는 학생 화면에 아예 없다.
+ * 반 평균도 이것으로 센다. 학생이 보는 평균과 선생님이 보는 평균이 달라지면 안 된다.
+ */
+export function scoreShown(attempt: { answers_source: string | null }, score: { complete: boolean }): boolean {
+  return attempt.answers_source === 'tutor' && score.complete;
+}
+
 /* ─────────────────────────────────────────────────── 학생 사이의 비교 */
 
 export type Standing = {
@@ -154,12 +172,13 @@ export type Standing = {
   vsAverage: number;
 };
 
+/**
+ * 반 비교는 평균까지만 낸다. 한 반이 두세 명이라 최고 · 최저점은 곧 누군가의 점수다.
+ */
 export type CourseStats = {
   /** 채점이 끝난 응시만 센다. 반쯤 매긴 점수가 평균을 끌어내리면 안 된다. */
   counted: number;
   average: number;
-  highest: number;
-  lowest: number;
   /** 칸 코드(공통 · 단원 · 배점) → 반 평균 정답률 */
   partAverages: Map<string, number>;
   standings: Standing[];
@@ -183,13 +202,14 @@ export function averageRates(scores: AttemptScore[]): Map<string, number> {
 }
 
 /**
- * 한 회차의 반 전체 성적. 채점이 끝난(complete) 응시만 평균·석차에 넣는다.
- * 아직 매기는 중인 학생도 standings 에는 들어가지만 rank 가 0 이다 — 화면에서 '—' 로 그린다.
+ * 한 회차의 반 전체 성적. 채점이 끝난 응시(counted — 부르는 쪽이 scoreShown 으로 정한다)만
+ * 평균·석차에 넣는다. 아직 매기는 중인 학생도 standings 에는 들어가지만 rank 가 0 이다 —
+ * 화면에서 '—' 로 그린다.
  */
 export function courseStats(
-  entries: { studentId: string; name: string; score: AttemptScore }[],
+  entries: { studentId: string; name: string; score: AttemptScore; counted: boolean }[],
 ): CourseStats {
-  const done = entries.filter((e) => e.score.complete);
+  const done = entries.filter((e) => e.counted);
   const scores = done.map((e) => e.score.earned);
   const average = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
 
@@ -210,7 +230,7 @@ export function courseStats(
       name: e.name,
       score: e.score,
       rank: rankOf.get(e.studentId) ?? 0,
-      vsAverage: e.score.complete ? e.score.earned - average : 0,
+      vsAverage: e.counted ? e.score.earned - average : 0,
     }))
     // 채점이 끝난 사람이 위로, 그 안에서 점수 높은 순.
     .sort((a, b) => (a.rank || 999) - (b.rank || 999) || a.name.localeCompare(b.name, 'ko'));
@@ -218,11 +238,20 @@ export function courseStats(
   return {
     counted: done.length,
     average,
-    highest: scores.length ? Math.max(...scores) : 0,
-    lowest: scores.length ? Math.min(...scores) : 0,
     partAverages: averageRates(done.map((e) => e.score)),
     standings,
   };
+}
+
+/**
+ * 학생에게 보여 줄 반 평균 (점). 채점이 끝난 학생이 둘 이상일 때만 — 혼자면 평균이 곧 자기 점수다.
+ * 학생에게는 반 평균 말고는 아무것도 보이지 않는다 (최고 · 최저 · 석차 없음).
+ */
+export type ClassAverage = { average: number; counted: number };
+
+export function classAverageOf(scores: AttemptScore[]): ClassAverage | null {
+  if (scores.length < 2) return null;
+  return { average: scores.reduce((sum, s) => sum + s.earned, 0) / scores.length, counted: scores.length };
 }
 
 /* ─────────────────────────────────────────────────── 한 학생의 누적 */

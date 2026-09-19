@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
  * 학생이 받는 답변 PDF. 메일이 안 갔거나 지웠어도 여기서 다시 받는다.
  *
  * 응시 id 를 주소에 싣지 않는다 — 회차와 로그인한 사람으로 찾으니 남의 PDF 를 가리킬 길이 없다.
- * 회차가 '학생에게 열림' 이 아니면 없는 것과 같이 다룬다(채점 공개와 같은 규칙).
+ * 회차가 '학생에게 열림' 이 아니면 없는 것과 같이 다룬다(점수와 같은 규칙).
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ examId: string }> }) {
   const user = await currentUser();

@@ -1,11 +1,11 @@
 import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
 import { betaJSONSchemaOutputFormat } from '@anthropic-ai/sdk/helpers/beta/json-schema';
-import { KINDS, PAPER, PHOTO_READ, QUESTION_COUNT, SUBJECT, UNITS, UNIT_GROUPS, paperSummary } from '@/config/lms';
-import { mergeStudentReads, normalizeExtracted, type OcrResult, type ReadAnswer, type ReadBatch } from './ocr-rows';
+import { KINDS, OMR_READ, PAPER, QUESTION_COUNT, SUBJECT, UNITS, UNIT_GROUPS, paperSummary } from '@/config/lms';
+import { mergeReads, normalizeExtracted, type OcrResult, type OmrReadResult } from './ocr-rows';
 import { callTimeoutMs, canWaitFor, retryWaitMs, shouldRetry, type CallBudget, type RetryInfo } from './retry';
 
-/** 사진을 읽는 모델. 정답표와 학생 시험지가 같이 쓴다. */
+/** 사진을 읽는 모델. 정답표와 OMR 이 같이 쓴다. */
 const OCR_MODEL = 'claude-opus-5';
 
 /**
@@ -31,7 +31,7 @@ export function ocrConfigured(): boolean {
 export type OcrImage = { media_type: string; data: string };
 
 // 값 검사와 모양은 ocr-rows.ts 에 있다 — 키 없이 확인할 수 있도록 떼어 뒀다.
-export { normalizeExtracted, type OcrResult, type OcrRow } from './ocr-rows';
+export { normalizeExtracted, type OcrResult, type OcrRow, type OmrReadResult } from './ocr-rows';
 
 /**
  * 받을 모양.
@@ -171,13 +171,13 @@ function reasonOf(error: unknown): string {
   return 'UNKNOWN';
 }
 
-/* ───────────────────────────────────────────── 학생 시험지에서 학생 답 읽기 */
+/* ───────────────────────────────────────────────── OMR 에서 학생 답 읽기 */
 
 /**
- * 받을 모양. 사진에 **보이는** 문항만 적게 한다 — 사진을 나눠 보내므로, 안 보인 번호와
- * 보였는데 비어 있는 번호를 구분해야 한다. 앞의 것은 아예 안 적고, 뒤의 것은 null 로 적는다.
+ * 받을 모양. 사진에 **보이는** 문항만 적게 한다 — OMR 을 반씩 나눠 찍으면 한 장에 안 보이는
+ * 번호가 있다. 안 보인 번호는 아예 안 적고, 보였는데 마킹이 없는 번호는 null 로 적는다.
  */
-const STUDENT_SCHEMA = {
+const OMR_SCHEMA = {
   type: 'object',
   properties: {
     answers: {
@@ -191,15 +191,15 @@ const STUDENT_SCHEMA = {
             type: ['integer', 'null'],
             minimum: 0,
             maximum: 999,
-            description: '학생이 고른 · 적은 최종 답. 5지선다는 1–5, 단답형은 0–999. 표시가 없거나 알아볼 수 없으면 null',
+            description: '학생이 마킹한 답. 5지선다는 1–5, 단답형은 0–999. 마킹이 없거나 알아볼 수 없으면 null',
           },
           sure: {
             type: 'boolean',
-            description: '학생의 최종 답(또는 비워 둔 것)이 분명하면 true. 조금이라도 헷갈리면 false',
+            description: '마킹(또는 비워 둔 것)이 분명하면 true. 조금이라도 헷갈리면 false',
           },
           note: {
             type: ['string', 'null'],
-            description: 'sure 가 false 일 때 이유 한 줄 (예: "②와 ④ 둘 다 동그라미"). 아니면 null',
+            description: 'sure 가 false 일 때 이유 한 줄 (예: "②와 ④ 둘 다 마킹"). 아니면 null',
           },
         },
         required: ['no', 'answer', 'sure', 'note'],
@@ -209,7 +209,7 @@ const STUDENT_SCHEMA = {
     unreadable_photos: {
       type: 'array',
       items: { type: 'integer' },
-      description: '흐리거나 잘리거나 너무 어두워 읽을 수 없는 사진의 번호(이 요청 안에서 1부터)',
+      description: '흐리거나 잘리거나 너무 어두워 읽을 수 없는 사진의 번호(1부터)',
     },
     note: { type: 'string', description: '무엇이 보였고 무엇이 어려웠는지 한국어 두 문장 이내' },
   },
@@ -217,39 +217,33 @@ const STUDENT_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-const STUDENT_SYSTEM = `너는 학생이 풀고 난 한국 수능형 ${SUBJECT.name} 실전 모의고사 시험지 사진을 보고, 학생이 문항마다 **고르거나 적은 답**을 옮겨 적는 일을 한다.
-채점은 하지 않는다. 정답은 모른다고 생각하고, 문제를 직접 풀어 답을 짐작하지 마라. 학생이 표시한 것만 옮긴다.
+const OMR_SYSTEM = `너는 한국 수능형 ${SUBJECT.name} 실전 모의고사의 답안지(OMR 카드) 사진을 보고, 학생이 문항마다 **마킹한 답**을 옮겨 적는 일을 한다.
+채점은 하지 않는다. 정답은 모른다고 생각하고, 문제를 풀어 답을 짐작하지 마라. 학생이 표시한 것만 옮긴다.
 
 시험지 모양은 정해져 있다:
 ${paperGuide()}
 
-학생의 답을 찾는 곳:
-- ${KINDS.choice}: 학생이 동그라미 · 체크 · 밑줄 등으로 표시한 선택지 번호(①–⑤)를 1–5 로 적는다.
-  X · 빗금 · 두 줄로 지운 선택지는 고른 것이 아니다. 여러 선택지에 표시가 남아 있으면 최종 선택이 분명할 때만 적는다.
-- ${KINDS.short}: 학생이 최종 답으로 적은 정수. 대개 동그라미나 네모로 두르거나 '답' 옆에 적는다.
-  풀이 중간에 나온 수는 답이 아니다.
-- 답안지(OMR 카드)나 학생이 답을 모아 적은 표가 사진에 있으면 그것을 먼저 본다.
-  문제지의 표시와 다르면 sure 를 false 로 두고 note 에 적는다.
+OMR 에서 답을 찾는 곳:
+- ${KINDS.choice}: 번호마다 ①–⑤ 칸이 있다. 까맣게 칠한 칸의 번호를 1–5 로 적는다.
+- ${KINDS.short}: 번호마다 백 · 십 · 일의 자리 세로줄이 있고 줄마다 0–9 칸이 있다. 자리마다 칠한 칸을 읽어
+  정수로 적는다(칠하지 않은 윗자리는 0 — 백의 자리가 비고 십 1 · 일 7 이면 17). 칸 위에 손으로 쓴 숫자가 있으면
+  마킹과 맞춰 본다.
+- 선택과목 문항(23–30번)은 학생이 칠한 선택과목과 상관없이 23–30번 칸에 칠한 것을 옮긴다.
 
 지켜야 할 것:
 - 이 사진들에 **보이는 문항만** 적는다. 사진에 없는 번호는 적지 않는다.
-- 보이는 문항인데 표시가 전혀 없으면 answer 는 null, sure 는 true 다 (학생이 비워 둔 문항).
-- 보이는데 알아볼 수 없으면 answer 는 null, sure 는 false 다.
-- 조금이라도 헷갈리면 sure 를 false 로 두고 note 에 이유를 짧게 적는다. 사람이 그 문항만 다시 본다.
-- 학생 이름 · 학교 같은 개인 정보는 어디에도 적지 않는다.
+- 보이는 문항인데 칠한 칸이 없으면 answer 는 null, sure 는 true 다 (학생이 비워 둔 문항).
+- 한 문항에 두 칸 이상 칠했거나, 지운 자국과 칠한 칸을 가리기 어렵거나, 흐려서 알아볼 수 없으면
+  sure 를 false 로 두고 note 에 이유를 짧게 적는다. 사람이 그 문항만 다시 본다.
+- 단답형에서 손으로 쓴 숫자와 마킹이 다르거나, 숫자만 쓰고 마킹이 없으면 마킹을(없으면 숫자를) answer 에 적고
+  sure 를 false 로 둔다.
+- 답안지가 아니라 문제지를 찍었으면 문제지에 표시한 답을 옮기되, 모두 sure 를 false 로 둔다.
+- 학생 이름 · 수험번호 · 학교 같은 개인 정보는 어디에도 적지 않는다.
 - 흐리거나 잘려서 읽을 수 없는 사진은 unreadable_photos 에 그 사진 번호를 적는다.`;
-
-export type StudentReadResult =
-  | { ok: true; answers: ReadAnswer[]; unreadable: number[]; note: string }
-  | { ok: false; reason: string };
-
-type Chunk = { offset: number; images: OcrImage[] };
-type ChunkRead = ReadBatch & { note: string };
-type Failure = { reason: string };
 
 /** 시간 계산을 바꿔 쓸 수 있게 받는다 — 시험은 몇 초짜리 예산으로 돌린다. */
 export type ReadTiming = {
-  /** 읽기 전체의 마감 시각(ms). 사진 받기 · 모든 요청 · 재시도 기다림이 여기 안에 든다. */
+  /** 읽기 전체의 마감 시각(ms). 모든 요청과 재시도 기다림이 여기 안에 든다. */
   deadline?: number;
   minCallMs?: number;
   reserveMs?: number;
@@ -257,98 +251,44 @@ export type ReadTiming = {
   maxRetries?: number;
 };
 
-type Timing = CallBudget & { deadline: number; maxRetries: number };
-
 /**
- * 학생 시험지 사진에서 학생 답을 읽는다. 사진은 몇 장씩 나눠 보내고, 받은 것을 한 벌로 합친다.
+ * OMR 사진에서 학생 답을 읽는다. 사진은 한두 장이라 한 번에 보낸다 — 반씩 나눠 찍은 두 장을 따로
+ * 보내면 가운데 번호가 겹치거나 끊긴다. 두 장에 같은 번호가 보이면 합칠 때 맞춰 본다 (ocr-rows.ts).
  *
- * 나눠 보내는 까닭은 요청 한 번의 크기다. 긴 변 2000px 사진은 한 장이 입력 4천 토큰쯤이라
- * 스무 장을 한 번에 보내면 낮은 요금 등급의 분당 한도를 혼자 넘는다. 나눠 보내면 같은 문항이
- * 두 사진에 보일 수 있는데(문제지와 답안지), 합칠 때 서로 맞춰 본다 (ocr-rows.ts).
- *
- * 한 요청이라도 실패하면 전체를 실패로 돌려준다. 반쪽 결과로 채점하면 빠진 사진의 문항이
- * '찾지 못함' 으로 남는데, 그게 사진 탓인지 요청 탓인지 화면이 알 수 없다. 그때는 나머지
- * 요청도 바로 끊는다.
- *
- * 마감 시각(deadline)을 넘기지 않는다. 재시도는 여기서 직접 세고(retry.ts), 시각이 되면 보내던
- * 요청도 끊고 TIMEOUT 을 돌려준다 — 서버 함수가 먼저 끊기면 실패조차 적지 못한다.
+ * 선생님이 화면 앞에서 기다린다. 마감 시각(deadline)을 넘기지 않는다 — 재시도는 여기서 직접
+ * 세고(retry.ts), 시각이 되면 보내던 요청도 끊고 TIMEOUT 을 돌려준다. 서버 함수가 먼저 끊기면
+ * 화면은 이유도 모른 채 멈춘다.
  */
-export async function readStudentAnswers(images: OcrImage[], opts: ReadTiming = {}): Promise<StudentReadResult> {
+export async function readOmr(images: OcrImage[], opts: ReadTiming = {}): Promise<OmrReadResult> {
   if (!ocrConfigured()) return { ok: false, reason: 'NOT_CONFIGURED' };
   if (images.length === 0) return { ok: false, reason: 'NO_IMAGE' };
 
-  const timing: Timing = {
-    deadline: opts.deadline ?? Date.now() + PHOTO_READ.budgetMs,
-    minCallMs: opts.minCallMs ?? PHOTO_READ.minCallMs,
-    reserveMs: opts.reserveMs ?? PHOTO_READ.reserveMs,
-    maxCallMs: opts.callTimeoutMs ?? PHOTO_READ.callTimeoutMs,
-    maxRetries: opts.maxRetries ?? PHOTO_READ.maxRetries,
+  const timing: CallBudget & { deadline: number; maxRetries: number } = {
+    deadline: opts.deadline ?? Date.now() + OMR_READ.budgetMs,
+    minCallMs: opts.minCallMs ?? OMR_READ.minCallMs,
+    reserveMs: opts.reserveMs ?? OMR_READ.reserveMs,
+    maxCallMs: opts.callTimeoutMs ?? OMR_READ.callTimeoutMs,
+    maxRetries: opts.maxRetries ?? OMR_READ.maxRetries,
   };
 
   const client = new Anthropic();
-  const chunks: Chunk[] = [];
-  for (let i = 0; i < images.length; i += PHOTO_READ.batchSize) {
-    chunks.push({ offset: i, images: images.slice(i, i + PHOTO_READ.batchSize) });
-  }
-
   const controller = new AbortController();
   const stopAt = setTimeout(() => controller.abort(), Math.max(0, timing.deadline - timing.reserveMs - Date.now()));
-  const results: (ChunkRead | Failure | undefined)[] = new Array(chunks.length);
-  let firstFailure: string | null = null;
-  let cursor = 0;
+  const signal = controller.signal;
 
-  const worker = async () => {
-    while (!controller.signal.aborted && cursor < chunks.length) {
-      const index = cursor++;
-      const result = await readChunk(client, chunks[index], images.length, timing, controller.signal);
-      results[index] = result;
-      if ('reason' in result && firstFailure === null) {
-        firstFailure = result.reason;
-        controller.abort();
-      }
-    }
-  };
-
-  try {
-    await Promise.all(Array.from({ length: Math.min(PHOTO_READ.concurrency, chunks.length) }, worker));
-  } finally {
-    clearTimeout(stopAt);
-  }
-
-  if (firstFailure !== null) return { ok: false, reason: firstFailure };
-  const reads = results.filter((r): r is ChunkRead => Boolean(r && !('reason' in r)));
-  if (reads.length !== chunks.length) return { ok: false, reason: 'TIMEOUT' };
-
-  const { answers, unreadable } = mergeStudentReads(reads);
-  const note = reads
-    .map((r) => r.note.trim())
-    .filter(Boolean)
-    .join(' ')
-    .slice(0, 500);
-  return { ok: true, answers, unreadable, note };
-}
-
-/** 요청 하나. 실패하면 다시 보낼 만한지, 기다려도 마감 안에 들어오는지 보고 다시 보낸다. */
-async function readChunk(
-  client: Anthropic,
-  chunk: Chunk,
-  total: number,
-  timing: Timing,
-  signal: AbortSignal,
-): Promise<ChunkRead | Failure> {
   const params = {
     model: OCR_MODEL,
     max_tokens: 16000,
     thinking: { type: 'adaptive' as const },
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default' as const,
-    system: STUDENT_SYSTEM,
+    system: OMR_SYSTEM,
     messages: [
       {
         role: 'user' as const,
         content: [
-          ...chunk.images.flatMap((img, k) => [
-            { type: 'text' as const, text: `사진 ${k + 1} (시험지 사진 ${total}장 중 ${chunk.offset + k + 1}번째)` },
+          ...images.flatMap((img, k) => [
+            { type: 'text' as const, text: `사진 ${k + 1} / ${images.length}` },
             {
               type: 'image' as const,
               source: { type: 'base64' as const, media_type: img.media_type as 'image/jpeg', data: img.data },
@@ -356,47 +296,47 @@ async function readChunk(
           ]),
           {
             type: 'text' as const,
-            text: `위 사진 ${chunk.images.length}장에 보이는 문항마다 학생이 고르거나 적은 답을 옮겨줘.`,
+            text: `위 OMR 사진 ${images.length}장에 보이는 문항마다 학생이 마킹한 답을 옮겨줘.`,
           },
         ],
       },
     ],
-    // 무엇이 표시돼 있는지 보는 일이라 깊이 생각할수록 나아지지 않는다. 한 단계 낮춰 빠르게 돈다.
-    output_config: { effort: 'medium' as const, format: betaJSONSchemaOutputFormat(STUDENT_SCHEMA) },
+    // 무엇이 칠해져 있는지 보는 일이라 깊이 생각할수록 나아지지 않는다. 한 단계 낮춰 빠르게 돈다.
+    output_config: { effort: 'medium' as const, format: betaJSONSchemaOutputFormat(OMR_SCHEMA) },
   };
 
-  for (let attempt = 0; ; attempt += 1) {
-    if (signal.aborted) return { reason: 'TIMEOUT' };
-    const timeout = callTimeoutMs(timing.deadline, Date.now(), timing);
-    if (timeout === null) return { reason: 'TIMEOUT' };
+  try {
+    for (let attempt = 0; ; attempt += 1) {
+      if (signal.aborted) return { ok: false, reason: 'TIMEOUT' };
+      const timeout = callTimeoutMs(timing.deadline, Date.now(), timing);
+      if (timeout === null) return { ok: false, reason: 'TIMEOUT' };
 
-    try {
-      // 재시도는 SDK 에 맡기지 않는다 (retry.ts 머리말).
-      const response = await client.beta.messages.parse(params, { timeout, maxRetries: 0, signal });
+      try {
+        // 재시도는 SDK 에 맡기지 않는다 (retry.ts 머리말).
+        const response = await client.beta.messages.parse(params, { timeout, maxRetries: 0, signal });
 
-      if (response.stop_reason === 'refusal') return { reason: 'REFUSED' };
-      const parsed = response.parsed_output;
-      if (!parsed) return { reason: 'UNREADABLE' };
+        if (response.stop_reason === 'refusal') return { ok: false, reason: 'REFUSED' };
+        const parsed = response.parsed_output;
+        if (!parsed) return { ok: false, reason: 'UNREADABLE' };
 
-      return {
-        offset: chunk.offset,
-        count: chunk.images.length,
-        answers: parsed.answers,
-        unreadable_photos: parsed.unreadable_photos,
-        note: parsed.note ?? '',
-      };
-    } catch (error) {
-      if (signal.aborted) return { reason: 'TIMEOUT' };
-      const reason = reasonOf(error);
-      const info = retryInfoOf(error);
-      const last = !info || !shouldRetry(info) || attempt >= timing.maxRetries;
-      const wait = info ? retryWaitMs(info, attempt) : 0;
-      if (last || !canWaitFor(timing.deadline, Date.now(), wait, timing)) {
-        console.error('[lms] 시험지 사진 읽기 요청 실패', reason, error instanceof Error ? error.message : error);
-        return { reason };
+        const { answers, unreadable } = mergeReads(parsed.answers, parsed.unreadable_photos, images.length);
+        if (answers.every((a) => !a.sure && a.answer === null)) return { ok: false, reason: 'UNREADABLE' };
+        return { ok: true, answers, unreadable, note: (parsed.note ?? '').trim().slice(0, 500) };
+      } catch (error) {
+        if (signal.aborted) return { ok: false, reason: 'TIMEOUT' };
+        const reason = reasonOf(error);
+        const info = retryInfoOf(error);
+        const last = !info || !shouldRetry(info) || attempt >= timing.maxRetries;
+        const wait = info ? retryWaitMs(info, attempt) : 0;
+        if (last || !canWaitFor(timing.deadline, Date.now(), wait, timing)) {
+          console.error('[lms] OMR 읽기 요청 실패', reason, error instanceof Error ? error.message : error);
+          return { ok: false, reason };
+        }
+        if (!(await pause(wait, signal))) return { ok: false, reason: 'TIMEOUT' };
       }
-      if (!(await pause(wait, signal))) return { reason: 'TIMEOUT' };
     }
+  } finally {
+    clearTimeout(stopAt);
   }
 }
 
