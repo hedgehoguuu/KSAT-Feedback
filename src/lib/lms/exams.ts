@@ -5,11 +5,14 @@ import { db, inChunks, must, one, rows } from './db';
 import { removeFilesOfExams } from './files';
 import type { GradingSnapshot } from './grading-snapshot';
 import {
+  classAverageOf,
   courseStats,
   scoreAttempt,
+  scoreShown,
   trendsOf,
   type AnswerRow,
   type AttemptScore,
+  type ClassAverage,
   type CourseStats,
   type QuestionRow,
   type Trends,
@@ -32,6 +35,7 @@ export type AttemptRow = {
   exam_id: string;
   student_id: string;
   overall_comment: string | null;
+  /** 0016 시절의 '점수 공개' 표시. 0020 부터 읽지도 쓰지도 않는다 — 보일지는 scoreShown 이 정한다. */
   status: PublishStatus;
   updated_at: string;
   /** 학생이 사진·질문을 '제출' 한 첫 시각 */
@@ -43,8 +47,8 @@ export type AttemptRow = {
   mailed_to: string | null;
   mail_error: string | null;
   /**
-   * 채점을 누가 적었나 (0016). photo = 사진 읽기가 채움 · tutor = 튜터가 저장함 · null = 아직.
-   * 사진 읽기는 튜터 채점을 덮지 않는다.
+   * 채점을 누가 적었나. tutor = 선생님이 채점 화면에서 저장함 · null = 아직 아무도.
+   * photo 는 0016 시절 학생 사진에서 읽어 채우고 아직 확인하지 않은 채점이다 — 학생에게 안 보인다.
    */
   answers_source: AnswersSource | null;
 };
@@ -222,29 +226,25 @@ export async function listAnswers(attemptId: string): Promise<AnswerRow[]> {
  * 번으로 나눠 하다가 82점 · 정오 45개가 0점 · 0개가 되고도 '저장했어요' 라고 말한 적이 있다.
  * 그래서 error 를 반드시 던진다 — 저장이 안 됐는데 됐다고 말하는 것이 가장 나쁘다.
  *
- * 한 문항이라도 매겨 저장하면 튜터 채점이 된다. 그 뒤로는 사진을 다시 읽어도 덮지 않는다.
+ * 한 문항이라도 매겨 저장하면 선생님 채점이 된다. 30문항을 다 매겼으면 그 순간부터 학생에게
+ * 보인다 (score.ts 의 scoreShown) — 따로 공개하는 단계는 없다.
  *
  * base 는 화면이 그릴 때 본 정오와 정답표다 (grading-snapshot.ts). DB 가 응시를 잠근 뒤
- * 지금 것과 견줘, 다르면 아무것도 쓰지 않고 'STALE' 을 돌려준다. 여기서 최신 판을 다시 읽어
- * 넘기면 막는 뜻이 없다 — 화면이 본 판이어야 한다.
- *
- * rev 는 0016 판 화면이 보내던 값(응시의 updated_at)이다. base 가 없을 때만 넘긴다 —
- * 배포 직전에 열어 둔 화면도 보호를 받게.
+ * 지금 것과 견줘, 다르면 아무것도 쓰지 않고 'STALE' 을 돌려준다 — 다른 창에서 먼저 저장했거나
+ * 정답표를 고쳐 다시 매겨졌을 때다. 여기서 최신 판을 다시 읽어 넘기면 막는 뜻이 없다 —
+ * 화면이 본 판이어야 한다. base 없이 부르면 견주지 않는다(시험용).
  */
 export async function saveGrading(input: {
   attemptId: string;
   answers: { question_id: string; correct: boolean; chosen: number | null }[];
   overallComment: string | null;
-  status: PublishStatus;
   base: GradingSnapshot | null;
-  rev?: string | null;
 }): Promise<'SAVED' | 'STALE'> {
   const { error } = await db().rpc('save_grading', {
     payload: {
       attempt_id: input.attemptId,
       overall_comment: input.overallComment,
-      status: input.status,
-      ...(input.base ? { base: input.base } : { rev: input.rev ?? null }),
+      ...(input.base ? { base: input.base } : {}),
       answers: input.answers.map((a) => ({
         question_id: a.question_id,
         correct: a.correct,
@@ -256,35 +256,6 @@ export async function saveGrading(input: {
   if (error?.code === 'P0001' && error.message === 'STALE') return 'STALE';
   if (error) throw error;
   return 'SAVED';
-}
-
-/**
- * 채점이 끝난 응시를 한 번에 공개한다.
- *
- * **채점이 끝난 것만** 공개한다. 매기다 만 응시가 섞여 들어가면 학생이 반쪽짜리 점수를
- * 보게 된다. 몇 명이 공개됐고 몇 명이 남았는지 돌려준다.
- *
- * 화면이 본 '채점 끝' 을 그대로 믿지 않는다. 그사이 학생이 사진을 바꾸면 사진으로 매긴 채점이
- * 비워진다 (0016). 그래서 DB 가 응시를 잠근 채로 지금도 다 매겨져 있는지 다시 보고 공개한다
- * (publish_grades).
- */
-export async function publishGradedAttempts(
-  exam: ExamRow,
-): Promise<{ published: number; skipped: number }> {
-  const board = await examBoard(exam);
-
-  const ready = board.rows
-    .filter((r) => r.attempt && r.score.complete && r.attempt.status !== 'published')
-    .map((r) => r.attempt!.id);
-  const unfinished = board.rows.filter((r) => !r.attempt || !r.score.complete).length;
-  if (ready.length === 0) return { published: 0, skipped: unfinished };
-
-  const { data, error } = await db().rpc('publish_grades', {
-    payload: { exam_id: exam.id, attempt_ids: ready },
-  });
-  if (error) throw error;
-  const published = Number(data ?? 0);
-  return { published, skipped: unfinished + (ready.length - published) };
 }
 
 /* ────────────────────────────────────────────────── 화면이 통째로 쓰는 것 */
@@ -388,8 +359,57 @@ export async function examBoard(exam: ExamRow): Promise<{
   return {
     questions,
     rows: boardRows,
-    stats: courseStats(boardRows.map((r) => ({ studentId: r.student.id, name: r.student.name, score: r.score }))),
+    stats: courseStats(
+      boardRows.map((r) => ({
+        studentId: r.student.id,
+        name: r.student.name,
+        score: r.score,
+        counted: Boolean(r.attempt && scoreShown(r.attempt, r.score)),
+      })),
+    ),
   };
+}
+
+/**
+ * 회차마다 반 평균 (점). 학생 화면이 쓴다 — 학생에게는 반 평균 말고 아무것도 넘기지 않는다.
+ * 학생에게 보이는 채점(scoreShown)만 센다. 채점이 끝난 학생이 둘 미만인 회차는 빠진다.
+ */
+export async function examAverages(examIds: readonly string[]): Promise<Map<string, ClassAverage>> {
+  const out = new Map<string, ClassAverage>();
+  if (examIds.length === 0) return out;
+
+  const [questionRows, attempts] = await Promise.all([
+    inChunks<QuestionRow & { exam_id: string }>([...examIds], (b) =>
+      db().from('lms_exam_questions').select(`exam_id, ${QUESTION_COLS}`).in('exam_id', b).order('no').order('id')),
+    inChunks<Pick<AttemptRow, 'id' | 'exam_id' | 'answers_source'>>([...examIds], (b) =>
+      db()
+        .from('lms_attempts')
+        .select('id, exam_id, answers_source')
+        .in('exam_id', b)
+        .eq('answers_source', 'tutor')
+        .order('id')),
+  ]);
+  const answerRows = await inChunks<AnswerRow & { attempt_id: string }>(attempts.map((a) => a.id), (b) =>
+    db()
+      .from('lms_answers')
+      .select('attempt_id, question_id, correct, chosen')
+      .in('attempt_id', b)
+      .order('attempt_id')
+      .order('question_id'));
+
+  const questionsByExam = groupQuestions(questionRows);
+  const answersByAttempt = groupAnswers(answerRows);
+  const scoresByExam = new Map<string, AttemptScore[]>();
+  for (const attempt of attempts) {
+    const score = scoreAttempt(questionsByExam.get(attempt.exam_id) ?? [], answersByAttempt.get(attempt.id) ?? []);
+    if (!scoreShown(attempt, score)) continue;
+    scoresByExam.set(attempt.exam_id, [...(scoresByExam.get(attempt.exam_id) ?? []), score]);
+  }
+  for (const [examId, scores] of scoresByExam) {
+    const average = classAverageOf(scores);
+    if (average) out.set(examId, average);
+  }
+  return out;
 }
 
 function groupAnswers(list: (AnswerRow & { attempt_id: string })[]): Map<string, AnswerRow[]> {
@@ -417,16 +437,15 @@ export type HistoryPoint = { attempt: AttemptRow; exam: ExamRow; score: AttemptS
 /**
  * 한 학생의 누적. 학생 화면과 튜터의 학생 상세가 같이 쓴다.
  *
- * publishedOnly 는 학생이 볼 때 켠다 — 채점 중인 회차가 학생에게 보이면 안 된다.
- * 응시와 **회차가 둘 다** 공개여야 보인다. 응시만 보면, 채점을 공개한 뒤 회차를
- * 비공개로 돌려도 성적·정답·피드백이 계속 보인다.
+ * forStudent 는 학생이 볼 때 켠다 — '학생에게 열림' 회차에서 선생님이 다 매겨 저장한 채점만
+ * 넘긴다 (scoreShown). 매기는 중인 반쪽짜리 점수와, 회차를 '준비 중' 으로 돌린 점수는 안 보인다.
  *
  * courseIds 는 튜터가 볼 때 준다 — 그 반들의 회차만 읽는다. 학생이 두 반을 들으면
- * 다른 튜터 반의 미공개 채점과 총평까지 딸려 오기 때문이다. 없으면 반을 가리지 않는다.
+ * 다른 튜터 반의 채점과 총평까지 딸려 오기 때문이다. 없으면 반을 가리지 않는다.
  */
 export async function studentHistory(
   studentId: string,
-  opts: { publishedOnly: boolean; courseIds?: readonly string[] },
+  opts: { forStudent: boolean; courseIds?: readonly string[] },
 ): Promise<{ points: HistoryPoint[]; trends: Trends }> {
   const none = { points: [], trends: trendsOf([]) };
   const allAttempts = await rows<AttemptRow>(
@@ -438,7 +457,7 @@ export async function studentHistory(
   );
   if (allAttempts.length === 0) return none;
 
-  // 회차를 먼저 읽는다. 이 응시를 보여도 되는지는 회차가 정한다 — 어느 반인지, 공개했는지.
+  // 회차를 먼저 읽는다. 이 응시를 보여도 되는지는 회차가 정한다 — 어느 반인지, 열었는지.
   // 걸러진 응시의 정오는 아예 읽지 않는다.
   const examRows = await inChunks<ExamRow>([...new Set(allAttempts.map((a) => a.exam_id))], (b) =>
     db().from('lms_exams').select(EXAM_COLS).in('id', b).order('id'));
@@ -446,11 +465,11 @@ export async function studentHistory(
   const exams = new Map(
     examRows
       .filter((e) => !allowedCourses || allowedCourses.has(e.course_id))
-      .filter((e) => !opts.publishedOnly || e.status === 'published')
+      .filter((e) => !opts.forStudent || e.status === 'published')
       .map((e) => [e.id, e]),
   );
   const attempts = allAttempts.filter(
-    (a) => exams.has(a.exam_id) && (!opts.publishedOnly || a.status === 'published'),
+    (a) => exams.has(a.exam_id) && (!opts.forStudent || a.answers_source === 'tutor'),
   );
   if (attempts.length === 0) return none;
 
@@ -476,6 +495,7 @@ export async function studentHistory(
       exam: exams.get(attempt.exam_id)!,
       score: scoreAttempt(questionsByExam.get(attempt.exam_id) ?? [], answersByAttempt.get(attempt.id) ?? []),
     }))
+    .filter((p) => !opts.forStudent || scoreShown(p.attempt, p.score))
     // 추이는 시간순으로 봐야 한다. 날짜가 없으면 만든 순서로 대신한다.
     .sort((a, b) =>
       (a.exam.exam_date ?? a.exam.created_at).localeCompare(b.exam.exam_date ?? b.exam.created_at),
@@ -556,7 +576,8 @@ export async function courseSummary(courseId: string): Promise<{
         attempt,
         score: scoreAttempt(questionsByExam.get(attempt.exam_id) ?? [], answersByAttempt.get(attempt.id) ?? []),
       }))
-      .filter((s) => s.score.complete && s.score.total > 0)
+      // 학생에게 보이는 채점만 — 학생이 보는 평균과 여기 평균이 같아야 한다.
+      .filter((s) => scoreShown(s.attempt, s.score) && s.score.total > 0)
       .sort((a, b) => (order.get(a.attempt.exam_id) ?? 0) - (order.get(b.attempt.exam_id) ?? 0));
 
     const scaled = scored.map((s) => (s.score.earned / s.score.total) * 100);

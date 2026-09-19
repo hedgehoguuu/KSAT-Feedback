@@ -58,11 +58,6 @@ const GUIDE: { key: string; label: string; how: string }[] = [
     how: '같은 0015_lms_math.sql 을 실행하면 만들어져요',
   },
   {
-    key: 'lmsPhotoRead',
-    label: '사진 자동 채점 표',
-    how: 'Supabase > SQL Editor 에서 0016_lms_photo_grading.sql 전체를 붙여넣고 Run',
-  },
-  {
     key: 'migrations',
     label: '0017 이후 SQL',
     how: 'supabase/migrations 에서 빠졌다고 나온 파일을 SQL Editor 에 붙여넣고 Run (여러 번 돌려도 안전해요)',
@@ -76,7 +71,7 @@ const GUIDE: { key: string; label: string; how: string }[] = [
   { key: 'mail', label: '메일 (접수 확인 · 답변 PDF)', how: 'Vercel 환경변수에 GMAIL_USER 와 GMAIL_APP_PASSWORD 넣기 (구글 앱 비밀번호)' },
   {
     key: 'photoRead',
-    label: '사진 읽기 (자동 채점 · 정답표)',
+    label: '사진 읽기 (OMR 채점 · 정답표)',
     how: 'Vercel 환경변수에 ANTHROPIC_API_KEY 넣기 (console.anthropic.com 에서 발급)',
   },
   { key: 'workerSecret', label: '재처리 주소 잠금', how: 'Vercel 환경변수에 WORKER_SECRET 을 아무 긴 문자열로 넣기' },

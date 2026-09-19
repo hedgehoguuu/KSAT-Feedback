@@ -1,24 +1,30 @@
 import { SECTIONS, SECTION_LIST, paperQuestion } from '@/config/lms';
 import { fmtRate, fmtScore } from '@/lib/format';
 import { fmtAnswer } from '@/lib/lms/paper';
-import type { AnswerRow, AttemptScore, QuestionRow } from '@/lib/lms/score';
+import type { AnswerRow, AttemptScore, ClassAverage, QuestionRow } from '@/lib/lms/score';
 import { RateBars, barsOf } from './RateBars';
 import { Card, Stat } from './Shell';
 
 /**
  * 한 회차의 점수 — 학생이 보는 화면. 튜터의 채점 화면과 같은 계산(lib/lms/score.ts)을 쓴다.
  * 정답 · 내 답 · 정오를 번호마다 나란히 둔다. 무엇을 골랐는지가 있어야 '왜' 를 이야기할 수 있다.
+ *
+ * 반과 견주는 것은 반 평균 하나뿐이다. 한 반이 두세 명이라 최고 · 최저점이나 석차는 곧 친구의
+ * 점수다.
  */
 export function ScorePanel({
   questions,
   answers,
   score,
   overallComment,
+  classAverage,
 }: {
   questions: QuestionRow[];
   answers: AnswerRow[];
   score: AttemptScore;
   overallComment: string | null;
+  /** 이 회차 반 평균. 채점이 끝난 학생이 둘 미만이면 없다. */
+  classAverage: ClassAverage | null;
 }) {
   const byQuestion = new Map(answers.map((a) => [a.question_id, a]));
   const unitBars = barsOf(score.units);
@@ -27,7 +33,12 @@ export function ScorePanel({
   return (
     <div className="flex flex-col gap-5">
       <div className="grid gap-3 sm:grid-cols-4">
-        <Stat label="점수" value={fmtScore(score.earned)} unit={`/ ${fmtScore(score.total)}점`} />
+        <Stat
+          label="점수"
+          value={fmtScore(score.earned)}
+          unit={`/ ${fmtScore(score.total)}점`}
+          note={classAverage ? `반 평균 ${fmtScore(classAverage.average)}점` : undefined}
+        />
         {score.sections.map((s) => (
           <Stat key={s.code} label={s.label} value={fmtScore(s.earned)} unit={`/ ${fmtScore(s.total)}`} note={`${s.correct}/${s.count}문항`} />
         ))}

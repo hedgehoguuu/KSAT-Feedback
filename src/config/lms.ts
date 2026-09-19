@@ -175,17 +175,18 @@ export const USER_STATUS = { active: '사용 중', suspended: '정지' } as cons
 export type UserStatus = keyof typeof USER_STATUS;
 
 /**
- * 회차 · 응시의 공개 상태. 값은 같고 뜻이 다르다.
- *   회차  draft 준비 중 · published 학생에게 열림 (학생이 사진과 질문을 올릴 수 있다)
- *   채점  draft 비공개  · published 점수 공개
- * 채점 도중의 반쪽짜리 점수가 학생에게 보이면 안 되므로 둘 다 공개여야 점수가 보인다.
+ * 회차의 공개 상태 — draft 준비 중 · published 학생에게 열림 (학생이 사진과 질문을 올리고,
+ * 채점이 끝난 점수를 본다).
+ *
+ * 채점에는 따로 '공개' 가 없다 (0020). 수업이 끝나면 학생은 자기 점수를 이미 안다. 선생님이
+ * 30문항을 다 매겨 저장하면 학생 화면에 보인다 — lib/lms/score.ts 의 scoreShown.
+ * 응시 행의 status 열은 0016 시절 공개 표시의 흔적이라 읽지도 쓰지도 않는다.
  */
 export type PublishStatus = 'draft' | 'published';
 export function isPublishStatus(v: string): v is PublishStatus {
   return v === 'draft' || v === 'published';
 }
 export const EXAM_STATUS: Record<PublishStatus, string> = { draft: '준비 중', published: '학생에게 열림' };
-export const GRADE_STATUS: Record<PublishStatus, string> = { draft: '비공개', published: '점수 공개' };
 
 /* ─────────────────────────────────────────────────────── 질문과 답 */
 
@@ -203,72 +204,44 @@ export function concernTopic(no: number): string {
   return no === CONCERN.wholeExam ? '시험 전체' : `${no}번`;
 }
 
-/* ─────────────────────────────────────────────────── 사진으로 자동 채점 */
+/* ─────────────────────────────────────────────────────── OMR 사진 읽기 */
 
 /**
- * 학생 시험지 사진에서 학생이 고른 · 적은 답을 읽어 채점을 채운다 (lib/lms/photo-read.ts · 0016).
- * 모델 호출은 돈이 들고 느리다. 아래 숫자가 언제 · 몇 장씩 · 몇 번 부를지를 정한다.
+ * 선생님이 수업에서 걷은 OMR 을 찍어 올리면 학생이 마킹한 답을 읽어 채점표 칸을 채운다
+ * (lib/lms/ocr.ts 의 readOmr). 저장하지 않는다 — 선생님이 확인하고 저장을 눌러야 채점이 된다.
+ * 읽는 동안 선생님이 화면 앞에서 기다리므로, 요청은 한 번에 보내고 시간은 서버 함수 상한
+ * (채점 화면 300초) 안에서만 쓴다.
  */
-export const PHOTO_READ = {
-  /**
-   * 학생이 사진을 올리거나 지운 뒤 이만큼 조용하면 읽기 시작한다. 카메라로 한 장씩 찍어
-   * 올리는 동안 매번 읽으면, 앞의 읽기는 다음 사진이 오는 순간 버려진다.
-   */
-  quietMs: 30_000,
-  /** 학생이 제출할 때 읽기가 낡았으면 이만큼 기다렸다 읽는다. */
-  submitQuietMs: 5_000,
-  /** 학생 쪽 변화로 자동으로 부르는 횟수의 상한. 넘으면 튜터가 '다시 읽기' 로 부른다. */
-  maxStudentRuns: 8,
-  /** 매일 새벽 정리가 다시 읽어 주는 횟수의 상한. 계속 실패하는 읽기에 돈을 붓지 않게. */
-  maxRetryRuns: 12,
-  /**
-   * 한 번에 모델에게 보내는 사진 수. 긴 변 2000px 사진 한 장이 입력 4천 토큰쯤이라 넷이면
-   * 한 요청이 1만 6천 토큰 — 가장 낮은 요금 등급의 분당 한도 안에 든다.
-   */
-  batchSize: 4,
-  /** 동시에 보내는 요청 수 */
-  concurrency: 2,
-  /**
-   * 읽기 한 판에 쓰는 시간 — 사진 받기 · 모든 요청 · 재시도 기다림을 합친 것. 서버 함수 상한
-   * (300초)에서 조용히 기다리는 몫(quietMs)과 결과를 적을 몫을 뺐다.
-   */
-  budgetMs: 230_000,
+export const OMR_READ = {
+  /** 한 학생의 OMR 사진 수. 한 장이 보통이고, 반씩 나눠 찍었으면 두 장이다. */
+  maxPhotos: 2,
+  /** 읽기 한 판에 쓰는 시간 — 요청과 재시도 기다림을 합친 것. 서버 함수 상한(300초)보다 짧게. */
+  budgetMs: 240_000,
   /** 요청 한 번에 주는 시간의 상한 */
   callTimeoutMs: 180_000,
   /** 남은 시간이 이보다 짧으면 새 요청을 보내지 않는다 — 보내 봐야 끝나기 전에 끊긴다. */
   minCallMs: 20_000,
-  /** 끝에 남겨 두는 시간. 실패든 결과든 DB 에 적을 몫이다. */
-  reserveMs: 10_000,
+  /** 끝에 남겨 두는 시간. 결과를 화면에 돌려줄 몫이다. */
+  reserveMs: 5_000,
   /** 요청 한 번이 실패했을 때 다시 보내는 횟수 (요청 몰림 · 서버 오류 · 연결 끊김) */
   maxRetries: 2,
-  /** 이보다 오래 '읽는 중' 이면 멈춘 것으로 본다 (서버가 중간에 끊긴 경우). */
-  stuckMs: 10 * 60_000,
 } as const;
 
-/** 읽기가 실패했을 때 튜터 화면이 할 말. 코드는 lib/lms/ocr.ts · photo-read.ts 가 적는다. */
-export const PHOTO_READ_ERRORS: Record<string, string> = {
-  NOT_CONFIGURED: 'ANTHROPIC_API_KEY 가 없어 사진을 읽을 수 없어요.',
-  NO_IMAGE: '읽을 사진이 없어요.',
-  REFUSED: '모델이 이 사진을 읽지 않겠다고 했어요. 직접 매겨 주세요.',
-  UNREADABLE: '사진에서 답을 옮기지 못했어요. 다시 읽어도 안 되면 직접 매겨 주세요.',
-  BAD_KEY: 'ANTHROPIC_API_KEY 가 맞지 않아요.',
+/** 읽기가 실패했을 때 채점 화면이 할 말. 코드는 lib/lms/ocr.ts 와 사진 확인(upload.ts)이 돌려준다. */
+export const OMR_READ_ERRORS: Record<string, string> = {
+  NOT_CONFIGURED: 'ANTHROPIC_API_KEY 가 없어 사진을 읽을 수 없어요. 직접 매겨 주세요.',
+  NO_IMAGE: '읽을 사진이 없어요. 다시 골라 주세요.',
+  NO_FILE: '사진이 비어 있어요. 다시 골라 주세요.',
+  TOO_BIG: '사진이 너무 커요. 다시 골라 주세요.',
+  NOT_JPEG: '이 사진은 열 수가 없었어요. 다른 사진으로 올려 주세요.',
+  REFUSED: '이 사진은 읽지 못했어요. 직접 매겨 주세요.',
+  UNREADABLE: '사진에서 마킹을 옮기지 못했어요. OMR 이 화면에 꽉 차게 다시 찍어 주세요.',
+  BAD_KEY: 'ANTHROPIC_API_KEY 가 맞지 않아요. 관리자에게 알려 주세요.',
   RATE_LIMIT: '요청이 몰려 잠시 막혔어요. 조금 뒤에 다시 읽어 주세요.',
   API_ERROR: 'Claude 쪽 오류로 읽지 못했어요. 조금 뒤에 다시 읽어 주세요.',
   TIMEOUT: '시간 안에 다 읽지 못했어요. 다시 읽어 주세요.',
-  FILE: '저장된 사진을 불러오지 못했어요. 다시 읽어 주세요.',
-  PHOTOS_CHANGED: '읽는 사이 학생이 사진을 바꿨어요. 다시 읽어 주세요.',
   UNKNOWN: '알 수 없는 이유로 읽지 못했어요. 다시 읽어 주세요.',
 };
-
-/** 다시 부르면 나아질 수 있는 실패. 매일 새벽 정리가 이것만 다시 읽는다. */
-export const PHOTO_READ_RETRYABLE: readonly string[] = [
-  'RATE_LIMIT',
-  'API_ERROR',
-  'TIMEOUT',
-  'FILE',
-  'PHOTOS_CHANGED',
-  'UNKNOWN',
-];
 
 /* ─────────────────────────────────────────────────────────── 상수 */
 

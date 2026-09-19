@@ -6,15 +6,11 @@
 export function PhotoStrip({
   photos,
   empty,
-  unreadable = [],
 }: {
   photos: { id: string; url: string | null }[];
   empty: string;
-  /** 사진 읽기가 흐려서 못 읽은 사진 */
-  unreadable?: string[];
 }) {
   if (photos.length === 0) return <p className="text-[13px] leading-[1.6] text-muted">{empty}</p>;
-  const blurry = new Set(unreadable);
 
   return (
     <div>
@@ -26,7 +22,7 @@ export function PhotoStrip({
                 href={photo.url}
                 target="_blank"
                 rel="noreferrer"
-                className={`block aspect-3/4 overflow-hidden rounded-xl bg-surface ${blurry.has(photo.id) ? 'ring-2 ring-danger' : ''}`}
+                className="block aspect-3/4 overflow-hidden rounded-xl bg-surface"
               >
                 {/* 비공개 저장소의 임시 주소라 next/image 최적화 대상이 아니다 */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -37,11 +33,6 @@ export function PhotoStrip({
                 {i + 1}쪽 · 못 불러왔어요
               </span>
             )}
-            {blurry.has(photo.id) ? (
-              <span className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-xl bg-danger/90 py-0.5 text-center text-[11px] font-bold text-white">
-                흐려서 못 읽음
-              </span>
-            ) : null}
           </li>
         ))}
       </ul>

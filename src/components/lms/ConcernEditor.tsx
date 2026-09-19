@@ -43,7 +43,7 @@ export function ConcernEditor({
   initial: ConcernSeed[];
   submitted: boolean;
   photoCount: number;
-  /** 채점이 공개됐으면 틀린 번호를 먼저 권한다 */
+  /** 선생님이 채점을 마쳤으면 틀린 번호를 먼저 권한다 */
   wrongNos: number[];
 }) {
   const [lines, setLines] = useState<Line[]>(() =>

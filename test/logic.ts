@@ -16,7 +16,6 @@ import {
   FULL_SCORE,
   LMS,
   PAPER,
-  PHOTO_READ,
   QUESTION_COUNT,
   concernTopic,
   paperQuestion,
@@ -28,25 +27,16 @@ import { addDays, fmtDay, fmtRate, fmtScore } from '../src/lib/format.ts';
 import { loginIdProblem, passwordProblem } from '../src/lib/lms/credentials.ts';
 import { concernOrder, fmtAnswer, isValidAnswer, parseAnswer, unitFits, unitsFor } from '../src/lib/lms/paper.ts';
 import { hashPassword, verifyPassword } from '../src/lib/lms/password.ts';
-import { READ_NOTES, mergeStudentReads, normalizeExtracted, readSummary, type ReadBatch } from '../src/lib/lms/ocr-rows.ts';
-import {
-  WATCH,
-  needsRead,
-  readDiffers,
-  readProgressOf,
-  readViewOf,
-  watchDelay,
-  watchStep,
-  type PhotoReadRow,
-} from '../src/lib/lms/photo-read-state.ts';
+import { READ_NOTES, mergeReads, normalizeExtracted, type RawRead, type ReadAnswer } from '../src/lib/lms/ocr-rows.ts';
+import { fillFromOmr } from '../src/lib/lms/omr-fill.ts';
 import { callTimeoutMs, canWaitFor, retryWaitMs, shouldRetry } from '../src/lib/lms/retry.ts';
 import { parseAnswerLine } from '../src/lib/lms/answer-line.ts';
-import { courseStats, scoreAttempt, trendsOf, type AnswerRow, type QuestionRow } from '../src/lib/lms/score.ts';
+import { classAverageOf, courseStats, scoreAttempt, scoreShown, trendsOf, type AnswerRow, type QuestionRow } from '../src/lib/lms/score.ts';
 import { cleanConcerns, progressOf } from '../src/lib/lms/concerns.ts';
 import { changedNos, gradingSnapshot, parseSnapshot } from '../src/lib/lms/grading-snapshot.ts';
 import { draftPhotoPath, isIdShape, parseDraftPhotoPath } from '../src/lib/intake/paths.ts';
 import { issueSession, readSession } from '../src/lib/lms/auth.ts';
-import { readStudentAnswers } from '../src/lib/lms/ocr.ts';
+import { readOmr } from '../src/lib/lms/ocr.ts';
 import { renderFeedbackPdf, type FeedbackDoc } from '../src/lib/lms/pdf/feedback-pdf.ts';
 import { fitText, wrapText } from '../src/lib/lms/pdf/wrap.ts';
 import { inChunks } from '../src/lib/lms/db.ts';
@@ -164,17 +154,30 @@ eq('예전 배점 3점짜리 1번', scoreAttempt(oldPaper, allRight).total, 101)
 /* ────────────────────────────────────────────────── 반 비교 */
 
 section('석차와 반 평균');
+const entry = (studentId: string, name: string, score: ReturnType<typeof scoreAttempt>) =>
+  ({ studentId, name, score, counted: score.complete });
 const stats = courseStats([
-  { studentId: 'a', name: '가', score: perfect },
-  { studentId: 'b', name: '나', score: mixed },
-  { studentId: 'c', name: '다', score: scoreAttempt(paper, wrongAt(9, 10, 11, 12)) },
-  { studentId: 'd', name: '라', score: half },
+  entry('a', '가', perfect),
+  entry('b', '나', mixed),
+  entry('c', '다', scoreAttempt(paper, wrongAt(9, 10, 11, 12))),
+  entry('d', '라', half),
 ]);
 eq('채점 끝난 사람만 센다', stats.counted, 3);
 eq('동점은 같은 등수, 다음은 건너뛴다', stats.standings.map((s) => s.rank), [1, 2, 2, 0]);
 eq('평균 (100 + 84 + 84) / 3', Math.round(stats.average * 10) / 10, 89.3);
 eq('미채점자는 평균 대비 0', stats.standings.find((s) => s.studentId === 'd')?.vsAverage, 0);
-ok('최고·최저', stats.highest === 100 && stats.lowest === 84);
+ok('최고 · 최저점은 내지 않는다 (두세 명 반에서는 곧 누군가의 점수다)', !('highest' in stats) && !('lowest' in stats));
+eq('다 매겼어도 부르는 쪽이 안 센다면 빠진다 (확인 전 자동 채점)',
+  courseStats([entry('a', '가', perfect), { ...entry('b', '나', mixed), counted: false }]).counted, 1);
+
+section('학생에게 보이는 점수 — 선생님이 다 매겨 저장한 것만 (0020)');
+eq('선생님이 다 매겼으면 보인다', scoreShown({ answers_source: 'tutor' }, perfect), true);
+eq('덜 매겼으면 안 보인다', scoreShown({ answers_source: 'tutor' }, half), false);
+eq('학생 사진으로 채우고 확인 안 한 채점은 안 보인다', scoreShown({ answers_source: 'photo' }, perfect), false);
+eq('아무도 안 매겼으면 안 보인다', scoreShown({ answers_source: null }, perfect), false);
+eq('반 평균 — 둘이면 평균', classAverageOf([perfect, mixed]), { average: 92, counted: 2 });
+eq('반 평균 — 혼자면 없다 (평균이 곧 자기 점수)', classAverageOf([perfect]), null);
+eq('반 평균 — 아무도 없으면 없다', classAverageOf([]), null);
 ok('칸마다 반 평균 정답률 (공통 · 배점 · 단원)',
   ['common', 'calculus', 'p2', 'p3', 'p4', 'm1_seq'].every((c) => stats.partAverages.has(c)));
 eq('수열 반 평균 = (1 + 0 + 0) / 3', Math.round((stats.partAverages.get('m1_seq') ?? 0) * 100), 33);
@@ -385,116 +388,72 @@ try {
 }
 ok('못 읽으면 빈 목록이 아니라 던진다', pageThrew);
 
-/* ─────────────────────────────────────────────── 사진으로 자동 채점 (0016) */
+/* ──────────────────────────────────────────────────── OMR 로 채점 채우기 (0020) */
 
-section('학생 시험지에서 읽은 답 합치기');
-const batch = (offset: number, count: number, answers: ReadBatch['answers'], unreadable: number[] = []): ReadBatch =>
-  ({ offset, count, answers, unreadable_photos: unreadable });
-const ans = (no: number, answer: number | null, sure = true, note: string | null = null) => ({ no, answer, sure, note });
+section('OMR 에서 읽은 답 다듬기');
+const ans = (no: number, answer: number | null, sure = true, note: string | null = null): RawRead => ({ no, answer, sure, note });
 const byNoOf = <T extends { no: number }>(list: T[]) => new Map(list.map((a) => [a.no, a]));
+const merge = (raw: RawRead[], unreadable: number[] = [], count = 2) => mergeReads(raw, unreadable, count);
 
-const one = mergeStudentReads([batch(0, 4, [ans(1, 3), ans(16, 12), ans(21, null)])]);
+const one = merge([ans(1, 3), ans(16, 12), ans(21, null)]);
 eq('늘 1–30 번 한 벌', one.answers.map((a) => a.no), PAPER.map((q) => q.no));
 const oneBy = byNoOf(one.answers);
 eq('확실한 답은 그대로', [oneBy.get(1), oneBy.get(16)], [ans(1, 3), ans(16, 12)]);
 eq('확실한 빈칸은 빈칸 · 확실', oneBy.get(21), ans(21, null));
 eq('안 보인 번호는 찾지 못함', oneBy.get(2), ans(2, null, false, READ_NOTES.missing));
-eq('0번 · 31번 · 2.5번은 버린다',
-  mergeStudentReads([batch(0, 1, [ans(0, 1), ans(31, 1), ans(2.5, 1)])]).answers.filter((a) => a.sure).length, 0);
-eq('5지선다에 7이면 못 읽은 것', byNoOf(mergeStudentReads([batch(0, 1, [ans(3, 7)])]).answers).get(3),
-  ans(3, null, false, READ_NOTES.invalid(7)));
-eq('단답형 1000 도 못 읽은 것', byNoOf(mergeStudentReads([batch(0, 1, [ans(17, 1000)])]).answers).get(17)?.answer, null);
+eq('0번 · 31번 · 2.5번은 버린다', merge([ans(0, 1), ans(31, 1), ans(2.5, 1)]).answers.filter((a) => a.sure).length, 0);
+eq('5지선다에 7이면 못 읽은 것', byNoOf(merge([ans(3, 7)]).answers).get(3), ans(3, null, false, READ_NOTES.invalid(7)));
+eq('단답형 1000 도 못 읽은 것', byNoOf(merge([ans(17, 1000)]).answers).get(17)?.answer, null);
 
-const clashRead = byNoOf(mergeStudentReads([
-  batch(0, 4, [ans(5, 3)]),
-  batch(4, 4, [ans(5, 4)]),
-  batch(8, 4, [ans(5, 3)]),
-]).answers);
-eq('사진마다 답이 다르면 비우고 확인', clashRead.get(5), ans(5, null, false, READ_NOTES.conflict(3, 4)));
-
-const blankThenValue = byNoOf(mergeStudentReads([batch(0, 1, [ans(21, null)]), batch(1, 1, [ans(21, 17)])]).answers);
-eq('문제지는 빈칸 · 답안지에 답이면 답', blankThenValue.get(21), ans(21, 17));
-const blankThenBlur = byNoOf(mergeStudentReads([batch(0, 1, [ans(22, null)]), batch(1, 1, [ans(22, null, false, '흐림')])]).answers);
-eq('확실한 빈칸 + 못 읽음 = 확인', blankThenBlur.get(22), ans(22, null, false, '흐림'));
-const sureAndNot = byNoOf(mergeStudentReads([batch(0, 1, [ans(8, 5, false, '?')]), batch(1, 1, [ans(8, 5)])]).answers);
-eq('같은 답이면 한쪽만 확실해도 확실', sureAndNot.get(8), ans(8, 5));
-const bothUnsure = byNoOf(mergeStudentReads([batch(0, 1, [ans(8, 5, false, '②?')]), batch(1, 1, [ans(8, 5, false, '④?')])]).answers);
-eq('둘 다 애매하면 확인 (앞의 이유)', bothUnsure.get(8), ans(8, 5, false, '②?'));
-
-const oddFirst = byNoOf(mergeStudentReads([batch(0, 1, [ans(12, 9)]), batch(1, 1, [ans(12, 2)])]).answers).get(12);
-const oddLast = byNoOf(mergeStudentReads([batch(0, 1, [ans(12, 2)]), batch(1, 1, [ans(12, 9)])]).answers).get(12);
+// 반씩 나눠 찍은 두 장에 같은 번호가 걸치면 모델이 두 번 적는다
+const clashRead = byNoOf(merge([ans(5, 3), ans(5, 4), ans(5, 3)]).answers);
+eq('두 번 적힌 답이 다르면 비우고 확인', clashRead.get(5), ans(5, null, false, READ_NOTES.conflict(3, 4)));
+eq('빈칸과 답이 만나면 답', byNoOf(merge([ans(21, null), ans(21, 17)]).answers).get(21), ans(21, 17));
+eq('확실한 빈칸 + 못 읽음 = 확인', byNoOf(merge([ans(22, null), ans(22, null, false, '흐림')]).answers).get(22),
+  ans(22, null, false, '흐림'));
+eq('같은 답이면 한쪽만 확실해도 확실', byNoOf(merge([ans(8, 5, false, '?'), ans(8, 5)]).answers).get(8), ans(8, 5));
+eq('둘 다 애매하면 확인 (앞의 이유)', byNoOf(merge([ans(8, 5, false, '②?'), ans(8, 5, false, '④?')]).answers).get(8),
+  ans(8, 5, false, '②?'));
+const oddFirst = byNoOf(merge([ans(12, 9), ans(12, 2)]).answers).get(12);
+const oddLast = byNoOf(merge([ans(12, 2), ans(12, 9)]).answers).get(12);
 eq('올 수 없는 답이 섞이면 답은 쓰되 확인', oddFirst, ans(12, 2, false, READ_NOTES.mixed(9)));
 eq('읽힌 순서가 달라도 같다', oddLast, oddFirst);
 
-eq('흐린 사진 번호는 전체 순번으로', mergeStudentReads([
-  batch(0, 4, [], [2]),
-  batch(4, 4, [], [1, 4, 5, 0]),
-]).unreadable, [1, 4, 7]);
-const longNote = byNoOf(mergeStudentReads([batch(0, 1, [ans(9, null, false, `  ${'가'.repeat(200)}\n줄  `)])]).answers).get(9)!;
+eq('흐린 사진 번호는 0부터 · 보낸 장수 안에서만', merge([], [2, 1, 2, 3, 0], 2).unreadable, [0, 1]);
+const longNote = byNoOf(merge([ans(9, null, false, `  ${'가'.repeat(200)}\n줄  `)]).answers).get(9)!;
 ok('이유는 한 줄 · 80자 안', Array.from(longNote.note!).length <= 80 && !longNote.note!.includes('\n'), longNote.note);
-eq('확실한 줄에는 이유를 안 붙인다', byNoOf(mergeStudentReads([batch(0, 1, [ans(4, 4, true, '잘 보임')])]).answers).get(4)?.note, null);
+eq('확실한 줄에는 이유를 안 붙인다', byNoOf(merge([ans(4, 4, true, '잘 보임')]).answers).get(4)?.note, null);
 
-const summary = readSummary(mergeStudentReads([batch(0, 4, [ans(1, 3), ans(2, null), ans(3, 1, false, '?')])]).answers);
-eq('요약 — 확실 2 · 빈칸 1', [summary.sure, summary.blanks], [2, [2]]);
-ok('요약 — 확인할 번호에 3번과 안 보인 번호', summary.check.includes(3) && summary.check.includes(30) && !summary.check.includes(1));
+section('OMR 로 채점표 채우기 — 확실한 것만, 저장은 사람이');
+const omrQ: QuestionRow[] = [
+  { id: 'q1', no: 1, points: 2, answer: 3, unit_code: null },
+  { id: 'q2', no: 2, points: 2, answer: 5, unit_code: null },
+  { id: 'q3', no: 3, points: 3, answer: 1, unit_code: null },
+  { id: 'q4', no: 4, points: 3, answer: 2, unit_code: null },
+  { id: 'q16', no: 16, points: 3, answer: null, unit_code: null },
+];
+const reads: ReadAnswer[] = [
+  { no: 1, answer: 3, sure: true, note: null },           // 맞음
+  { no: 2, answer: 4, sure: true, note: null },           // 틀림
+  { no: 3, answer: null, sure: true, note: null },        // 확실한 빈칸 → 틀림
+  { no: 4, answer: 2, sure: false, note: '②와 ④ 둘 다' }, // 애매 → 사람에게
+  { no: 16, answer: 12, sure: true, note: null },         // 정답이 아직 없다
+];
+const empty = { chosen: {}, marks: {} };
+const fill = fillFromOmr(omrQ, reads, empty);
+eq('확실한 답은 넣고 정답과 맞춰 매긴다', [fill.marks.q1, fill.marks.q2, fill.chosen.q1, fill.chosen.q2], ['o', 'x', '3', '4']);
+eq('확실한 빈칸은 틀림 · 학생 답은 비움', [fill.marks.q3, fill.chosen.q3], ['x', '']);
+eq('애매한 문항은 칸을 안 건드리고 읽힌 값을 붙인다', [fill.marks.q4, fill.chosen.q4, fill.hints.q4?.answer], [undefined, undefined, 2]);
+eq('정답이 없는 문항은 학생 답만 · O/X 는 비움', [fill.chosen.q16, fill.marks.q16], ['12', '']);
+eq('요약', [fill.filled, fill.check, fill.blanks, fill.unkeyed, fill.changed], [4, [4], [3], [16], []]);
 
-section('사진 읽기 상태');
-const NOW = Date.parse('2026-09-18T03:00:00Z');
-const at = (msAgo: number) => new Date(NOW - msAgo).toISOString();
-const readRow = (over: Partial<PhotoReadRow>): PhotoReadRow => ({
-  attempt_id: 'a', request_no: 1, status: 'done', requested_at: at(60_000), started_at: at(50_000),
-  finished_at: at(10_000), photo_ids: ['p1', 'p2'], answers: one.answers, unreadable: [], note: null,
-  error: null, runs: 1, updated_at: at(10_000), ...over,
-});
-eq('읽기가 없으면 none', readViewOf(null, ['p1'], NOW).kind, 'none');
-eq('부른 적 없는 줄도 none', readViewOf(readRow({ request_no: 0 }), ['p1'], NOW).kind, 'none');
-eq('사진이 없으면 읽을 것도 없다 (실패여도)', readViewOf(readRow({ status: 'failed', error: 'TIMEOUT' }), [], NOW).kind, 'none');
-eq('기다리는 중은 reading', readViewOf(readRow({ status: 'pending', updated_at: at(60_000) }), ['p1'], NOW).kind, 'reading');
-eq('딱 10분까지는 reading', readViewOf(readRow({ status: 'running', updated_at: at(PHOTO_READ.stuckMs) }), ['p1'], NOW).kind, 'reading');
-eq('10분이 넘으면 stuck', readViewOf(readRow({ status: 'running', updated_at: at(PHOTO_READ.stuckMs + 1) }), ['p1'], NOW).kind, 'stuck');
-const failedView = readViewOf(readRow({ status: 'failed', error: null }), ['p1'], NOW);
-eq('실패 이유가 비었으면 UNKNOWN', failedView.kind === 'failed' ? failedView.error : null, 'UNKNOWN');
-const doneView = readViewOf(readRow({ unreadable: ['p2', 'gone'] }), ['p2', 'p1'], NOW);
-ok('순서만 바뀐 사진은 낡지 않았다', doneView.kind === 'done' && !doneView.stale);
-eq('흐린 사진은 지금 있는 것만', doneView.kind === 'done' ? doneView.unreadable : null, ['p2']);
-ok('사진이 바뀌면 낡았다', (() => { const v = readViewOf(readRow({}), ['p1', 'p3'], NOW); return v.kind === 'done' && v.stale; })());
-
-// 반별 목록은 사진 id 를 안 쥐고 장수만 센다. 첫 읽기가 끝나기 전에는 결과의 photo_ids 가
-// 비어 있어, 그걸 '지금 사진' 으로 넘기면 읽는 중 · 실패 · 멈춤이 전부 '시작 전' 이 된다.
-const firstRun = (over: Partial<PhotoReadRow>) => readRow({ photo_ids: [], finished_at: null, ...over });
-eq('첫 읽기 — 기다리는 중', readProgressOf(firstRun({ status: 'pending', updated_at: at(60_000) }), 3, NOW), 'reading');
-eq('첫 읽기 — 읽는 중', readProgressOf(firstRun({ status: 'running', updated_at: at(60_000) }), 3, NOW), 'reading');
-eq('첫 읽기 — 실패', readProgressOf(firstRun({ status: 'failed', error: 'TIMEOUT' }), 3, NOW), 'failed');
-eq('첫 읽기 — 멈춤', readProgressOf(firstRun({ status: 'running', updated_at: at(PHOTO_READ.stuckMs + 1) }), 3, NOW), 'stuck');
-eq('읽은 결과를 지금 사진으로 넘기면 놓친다 (하면 안 되는 것)',
-  readViewOf(firstRun({ status: 'failed', error: 'TIMEOUT' }), [], NOW).kind, 'none');
-eq('사진이 0장이면 그대로 시작 전', readProgressOf(firstRun({ status: 'running' }), 0, NOW), 'none');
-eq('부른 적 없으면 시작 전', readProgressOf(readRow({ request_no: 0 }), 3, NOW), 'none');
-eq('끝난 읽기는 done — 사진이 바뀌었는지는 여기서 안 본다', readProgressOf(readRow({}), 5, NOW), 'done');
-eq('두 함수가 같은 답을 한다', readViewOf(readRow({ status: 'pending' }), ['p1', 'p2'], NOW).kind,
-  readProgressOf(readRow({ status: 'pending' }), 2, NOW));
-
-section('다시 읽어야 하나');
-eq('사진이 없으면 아니다', needsRead({ kind: 'none' }, 0), false);
-eq('읽는 중이면 아니다', needsRead({ kind: 'reading', since: at(0) }, 3), false);
-eq('다 읽었고 그대로면 아니다', needsRead(doneView, 2), false);
-eq('사진이 바뀌었으면 그렇다', needsRead({ ...(doneView as Extract<typeof doneView, { kind: 'done' }>), stale: true }, 2), true);
-eq('실패 · 멈춤 · 처음이면 그렇다',
-  [needsRead({ kind: 'failed', error: 'X', at: null }, 1), needsRead({ kind: 'stuck', since: at(0) }, 1), needsRead({ kind: 'none' }, 1)],
-  [true, true, true]);
-
-section('튜터 채점과 읽은 답 견주기');
-const readForDiff = [ans(1, 3), ans(2, 5), ans(3, null), ans(4, 2, false), ans(5, 4)];
-eq('같으면 없음', readDiffers([ans(1, 3)], [{ no: 1, chosen: 3, correct: true }]), []);
-eq('학생 답이 다르면 짚는다', readDiffers(readForDiff, [
-  { no: 1, chosen: 3, correct: true },
-  { no: 2, chosen: 1, correct: false },
-  { no: 3, chosen: null, correct: false },
-  { no: 4, chosen: 1, correct: false },
-  { no: 5, chosen: null, correct: true },
-]), [2]);
-eq('빈칸으로 읽혔는데 O 면 짚는다', readDiffers([ans(3, null)], [{ no: 3, chosen: null, correct: true }]), [3]);
-eq('튜터가 안 매긴 문항은 짚는다', readDiffers([ans(6, 1)], []), [6]);
+const before = { chosen: { q1: '3', q4: '4' }, marks: { q1: 'o' as const, q2: 'o' as const, q4: 'x' as const } };
+const again = fillFromOmr(omrQ, reads, before);
+eq('이미 매긴 것과 달라진 문항을 짚는다', again.changed, [2]);
+eq('애매한 문항에 매겨 둔 것은 그대로 둔다', [again.marks.q4, again.chosen.q4], ['x', '4']);
+ok('넘겨준 칸은 바꾸지 않는다 (새 값을 돌려준다)', before.marks.q2 === 'o' && !('q2' in before.chosen));
+const keptUnkeyed = fillFromOmr(omrQ, reads, { chosen: { q16: '12' }, marks: { q16: 'o' } });
+eq('정답이 없어도 같은 답으로 매겨 둔 O/X 는 남긴다', keptUnkeyed.marks.q16, 'o');
 
 section('채점 화면이 본 판 — 오래 열어 둔 화면 알아보기');
 const qa = '00000000-0000-4000-8000-00000000000a';
@@ -515,7 +474,7 @@ eq('문항 id 가 uuid 가 아니면 판 없음 (DB 가 알아볼 수 없는 오
   parseSnapshot(JSON.stringify({ answers: [{ question_id: 'x', correct: true, chosen: null }], key: [] })), null);
 eq('정답표가 빠지면 판 없음', parseSnapshot(JSON.stringify({ answers: [] })), null);
 eq('같으면 바뀐 문항 없음', changedNos(snap, snap, snapQuestions), []);
-eq('사진 채점이 비워지면 그 문항을 짚는다',
+eq('다른 창에서 지운 문항을 짚는다',
   changedNos(snap, gradingSnapshot(snapQuestions, []), snapQuestions), [1]);
 eq('새로 매겨진 문항도 짚는다',
   changedNos(snap, gradingSnapshot(snapQuestions, [
@@ -537,6 +496,7 @@ ok('uuid 는 id 모양이다', isIdShape(draft));
 ok('짧거나 이상한 글자는 아니다', !isIdShape('abc') && !isIdShape('a/b/c/d/e/f') && !isIdShape(undefined));
 
 section('재시도 시간 — 전체 마감을 넘지 않는다');
+const NOW = Date.parse('2026-09-18T03:00:00Z');
 const headersOf = (h: Record<string, string>) => ({ get: (k: string) => h[k] ?? null });
 eq('429 · 500 · 529 · 끊김은 다시', [
   shouldRetry({ status: 429 }), shouldRetry({ status: 500 }), shouldRetry({ status: 529 }), shouldRetry({ connection: true }),
@@ -557,44 +517,23 @@ eq('모자라면 보내지 않는다', callTimeoutMs(10_000, 7_500, budget), nul
 eq('기다려도 한 번 더 보낼 수 있으면 기다린다', canWaitFor(10_000, 0, 3_000, budget), true);
 eq('기다리면 마감을 넘으면 안 기다린다', canWaitFor(10_000, 0, 8_000, budget), false);
 
-section('화면이 읽기를 기다리는 법 — 멈춤을 놓치지 않는다');
-ok('서버가 멈춤이라 하는 때보다 오래 지켜본다', WATCH.giveUpMs > PHOTO_READ.stuckMs + PHOTO_READ.quietMs);
-eq('8분 4초에 아직 읽는 중이면 계속 묻는다', watchStep('reading', 8 * 60_000 + 4_000), 'wait');
-eq('못 물었으면 계속 묻는다', watchStep(undefined, 60_000), 'wait');
-eq('끝 · 실패 · 멈춤 · 없음이면 새로 그린다',
-  ['done', 'failed', 'stuck', 'none'].map((k) => watchStep(k, 1_000)), ['refresh', 'refresh', 'refresh', 'refresh']);
-eq('오래 기다렸으면 새로 그린다', watchStep('reading', WATCH.giveUpMs), 'refresh');
-eq('처음엔 자주, 나중엔 드물게', [watchDelay(0), watchDelay(WATCH.slowAfterMs)], [WATCH.everyMs, WATCH.slowEveryMs]);
-
-// 가짜 시계: 사진을 올리고 30초 뒤 읽기가 시작됐는데 서버에서 끊겼다. 화면이 새로 그릴 때
-// 서버는 반드시 '멈춤' 이라고 답해야 '다시 읽기' 가 나온다.
-{
-  const start = NOW;
-  const died: PhotoReadRow = readRow({ status: 'running', updated_at: new Date(start + PHOTO_READ.quietMs).toISOString() });
-  let t = 0;
-  let decided: 'wait' | 'refresh' = 'wait';
-  let kind = 'reading';
-  let polls = 0;
-  while (decided === 'wait' && polls < 10_000) {
-    t += watchDelay(t);
-    polls += 1;
-    kind = readViewOf(died, ['p1', 'p2'], start + t).kind;
-    decided = watchStep(kind, t);
-  }
-  ok('끊긴 읽기 — 화면이 새로 그리는 때 서버는 멈춤이라 답한다', decided === 'refresh' && readViewOf(died, ['p1', 'p2'], start + t).kind === 'stuck', { t, kind });
-  ok('11분 안팎에서 새로 그린다', t <= WATCH.giveUpMs + WATCH.slowEveryMs, t);
-  ok('묻는 횟수가 과하지 않다', polls < 80, polls);
-}
-
-section('사진 읽기 요청 — 마감 시각 안에서만 (가짜 모델 서버)');
+section('OMR 읽기 요청 — 마감 시각 안에서만 (가짜 모델 서버)');
 {
   type Reply = { kind: 'hang' } | { kind: 'status'; status: number; headers?: Record<string, string> } | { kind: 'ok'; body: unknown };
   let script: Reply[] = [];
   let calls = 0;
+  let lastImages = 0;
   const server = http.createServer((req, res) => {
-    req.resume();
+    const chunks: Buffer[] = [];
+    req.on('data', (c: Buffer) => chunks.push(c));
     req.on('end', () => {
       calls += 1;
+      try {
+        const body = JSON.parse(Buffer.concat(chunks).toString());
+        lastImages = (body.messages[0].content as { type: string }[]).filter((c) => c.type === 'image').length;
+      } catch {
+        lastImages = -1;
+      }
       const reply = script.length > 1 ? script.shift()! : script[0];
       if (reply.kind === 'hang') return;
       if (reply.kind === 'status') {
@@ -625,10 +564,10 @@ section('사진 읽기 요청 — 마감 시각 안에서만 (가짜 모델 서�
     script = replies;
     calls = 0;
     const started = Date.now();
-    const result = await readStudentAnswers(images, { ...fast, deadline: started + budgetMs });
+    const result = await readOmr(images, { ...fast, deadline: started + budgetMs });
     return { result, calls, ms: Date.now() - started };
   };
-  const reasonOf = (r: Awaited<ReturnType<typeof readStudentAnswers>>) => (r.ok ? 'OK' : r.reason);
+  const reasonOf = (r: Awaited<ReturnType<typeof readOmr>>) => (r.ok ? 'OK' : r.reason);
 
   const longWait = await run([{ kind: 'status', status: 429, headers: { 'retry-after': '30' } }], 1_500);
   eq('30초 기다리라면 기다리지 않고 멈춘다', [reasonOf(longWait.result), longWait.calls], ['RATE_LIMIT', 1]);
@@ -656,9 +595,11 @@ section('사진 읽기 요청 — 마감 시각 안에서만 (가짜 모델 서�
   const tooLate = await run([{ kind: 'ok', body: good }], 150);
   eq('남은 시간이 모자라면 보내지도 않는다', [reasonOf(tooLate.result), tooLate.calls], ['TIMEOUT', 0]);
 
-  const twoChunks = await run([{ kind: 'status', status: 400 }], 3_000, [img, img, img, img, img]);
-  ok('한 요청이 실패하면 전체가 실패 · 나머지는 새로 안 보낸다',
-    reasonOf(twoChunks.result) === 'API_ERROR' && twoChunks.calls <= 2, { reason: reasonOf(twoChunks.result), calls: twoChunks.calls });
+  const halves = await run([{ kind: 'ok', body: good }], 3_000, [img, img]);
+  eq('반씩 찍은 두 장은 한 요청으로', [reasonOf(halves.result), halves.calls, lastImages], ['OK', 1, 2]);
+
+  const nothing = await run([{ kind: 'ok', body: { answers: [], unreadable_photos: [1], note: '' } }], 3_000);
+  eq('아무것도 못 찾으면 못 읽은 것', reasonOf(nothing.result), 'UNREADABLE');
 
   server.closeAllConnections();
   await new Promise((resolve) => server.close(resolve));
